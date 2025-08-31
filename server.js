@@ -8,7 +8,7 @@ import * as path from 'path'
 dotenv.config()
 
 const app = express()
-const port = 3001
+const port = process.env.PORT || 3001
 
 app.use(cors())
 app.use(express.json())
@@ -61,7 +61,10 @@ const callGeminiAPI = async (prompt) => {
         console.log(`Logo saved as ${filename}`)
         
         // Return the URL to access the image
-        return `http://localhost:${port}/images/${filename}`
+        const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+          ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` 
+          : `http://localhost:${port}`
+        return `${baseUrl}/images/${filename}`
       }
     }
     

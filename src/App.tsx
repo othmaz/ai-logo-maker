@@ -69,7 +69,7 @@ function App() {
     try {
       console.log('📡 Sending request to /api/generate...')
       
-      const response = await fetch('/api/generate', {
+      const response = await fetch('https://ai-logo-maker-production.up.railway.app/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt })
