@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { track } from '@vercel/analytics'
 
 interface FormData {
   businessName: string
@@ -63,6 +64,15 @@ function App() {
     setLoading(true)
     console.log('🎨 Starting logo generation...')
     
+    // Track logo generation attempt
+    track('Logo Generation Started', {
+      businessName: formData.businessName,
+      industry: formData.industry || 'unspecified',
+      style: formData.style,
+      hasDescription: !!formData.description,
+      hasColors: !!formData.colors
+    })
+    
     const prompt = buildPrompt(formData)
     console.log('📝 Built prompt:', prompt)
     
@@ -87,6 +97,15 @@ function App() {
       if (data.logoUrl) {
         setLogo(data.logoUrl)
         console.log('🖼️ Logo URL set:', data.logoUrl)
+        
+        // Track successful logo generation
+        track('Logo Generated', {
+          businessName: formData.businessName,
+          industry: formData.industry || 'unspecified',
+          style: formData.style,
+          hasDescription: !!formData.description,
+          hasColors: !!formData.colors
+        })
       } else if (data.error) {
         console.error('❌ Server error:', data.error)
         alert('Error generating logo: ' + data.error)
@@ -106,6 +125,13 @@ function App() {
     link.download = `${formData.businessName}-logo.png`
     link.href = logo
     link.click()
+    
+    // Track logo download - this is a conversion!
+    track('Logo Downloaded', {
+      businessName: formData.businessName,
+      industry: formData.industry || 'unspecified',
+      style: formData.style
+    })
   }
 
   return (
