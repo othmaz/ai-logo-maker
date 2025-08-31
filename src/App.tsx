@@ -67,7 +67,7 @@ function App() {
     console.log('📝 Built prompt:', prompt)
     
     try {
-      console.log('📡 Sending request to /api/generate...')
+      console.log('📡 Sending request to Railway backend...')
       
       const response = await fetch('https://ai-logo-maker-production.up.railway.app/api/generate', {
         method: 'POST',
