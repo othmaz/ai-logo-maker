@@ -142,6 +142,59 @@ app.post('/api/generate', async (req, res) => {
   }
 })
 
+app.post('/api/generate-multiple', async (req, res) => {
+  console.log('📨 Received multiple logo generation request')
+  
+  try {
+    const { prompts } = req.body
+
+    if (!prompts || !Array.isArray(prompts) || prompts.length === 0) {
+      console.log('❌ No prompts provided or invalid format')
+      return res.status(400).json({ error: 'Prompts array is required' })
+    }
+
+    if (prompts.length > 5) {
+      console.log('❌ Too many prompts requested')
+      return res.status(400).json({ error: 'Maximum 5 prompts allowed' })
+    }
+
+    console.log(`🎨 Generating ${prompts.length} logos with prompts:`)
+    prompts.forEach((prompt, index) => {
+      console.log(`   ${index + 1}. ${prompt.substring(0, 80)}...`)
+    })
+    
+    const startTime = Date.now()
+    
+    // Generate all logos concurrently
+    const logoPromises = prompts.map(async (prompt, index) => {
+      try {
+        console.log(`🔄 Starting logo ${index + 1}/${prompts.length}`)
+        const logoUrl = await callGeminiAPI(prompt)
+        console.log(`✅ Logo ${index + 1} completed`)
+        return logoUrl
+      } catch (error) {
+        console.error(`❌ Error generating logo ${index + 1}:`, error.message)
+        // Return placeholder on individual logo failure
+        return generateEnhancedPlaceholder(prompt, 'generation-error')
+      }
+    })
+    
+    const logos = await Promise.all(logoPromises)
+    const endTime = Date.now()
+    
+    console.log(`✅ All ${logos.length} logos generated in ${endTime - startTime}ms`)
+    console.log('📎 Logo URLs:')
+    logos.forEach((url, index) => {
+      console.log(`   ${index + 1}. ${url}`)
+    })
+    
+    res.json({ logos })
+  } catch (error) {
+    console.error('❌ Server error in /api/generate-multiple:', error.message)
+    res.status(500).json({ error: 'Failed to generate logos: ' + error.message })
+  }
+})
+
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)
 })

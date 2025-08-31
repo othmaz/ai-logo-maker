@@ -15,7 +15,20 @@ interface FormData {
   colors: string
 }
 
-const buildPrompt = (formData: FormData): string => {
+interface Logo {
+  id: string
+  url: string
+  prompt: string
+  selected?: boolean
+}
+
+interface GenerationRound {
+  round: number
+  logos: Logo[]
+  selectedLogos: Logo[]
+}
+
+const buildPrompt = (formData: FormData, variation?: string): string => {
   const { businessName, industry, description, style, colors } = formData
   
   // Build a descriptive, narrative prompt as recommended for Gemini
@@ -40,6 +53,11 @@ const buildPrompt = (formData: FormData): string => {
   
   prompt += ` ${styleDescriptions[style as keyof typeof styleDescriptions] || styleDescriptions.modern}.`
   
+  // Add variation-specific guidance for refinement rounds
+  if (variation) {
+    prompt += ` ${variation}`
+  }
+  
   // Add color guidance
   if (colors) {
     prompt += ` Use a color palette primarily featuring ${colors}.`
@@ -53,6 +71,33 @@ const buildPrompt = (formData: FormData): string => {
   return prompt
 }
 
+const createPromptVariations = (basePrompt: string): string[] => {
+  const variations = [
+    '', // Base prompt
+    'Focus on typography-based design with minimal iconography.',
+    'Emphasize symbolic elements and icons over text.',
+    'Create an abstract, geometric interpretation.',
+    'Design with bold, impactful visual elements.',
+  ]
+  
+  return variations.map(variation => basePrompt + (variation ? ` ${variation}` : ''))
+}
+
+const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData): string[] => {
+  const basePrompt = buildPrompt(formData)
+  
+  // Analyze selected logos to create targeted variations
+  const refinementPrompts = [
+    `${basePrompt} Create a similar style to the previously preferred designs, with subtle variations in layout and composition.`,
+    `${basePrompt} Maintain the core design elements that were selected, but explore different color treatments.`,
+    `${basePrompt} Keep the preferred aesthetic direction, but experiment with different typography approaches.`,
+    `${basePrompt} Blend the best aspects of the selected designs into new creative variations.`,
+    `${basePrompt} Refine the chosen design direction with enhanced professionalism and polish.`,
+  ]
+  
+  return refinementPrompts
+}
+
 function App() {
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
@@ -61,10 +106,14 @@ function App() {
     style: 'modern',
     colors: ''
   })
-  const [logo, setLogo] = useState<string | null>(null)
+  const [logos, setLogos] = useState<Logo[]>([])
   const [loading, setLoading] = useState(false)
+  const [currentRound, setCurrentRound] = useState(0)
+  const [_generationHistory, setGenerationHistory] = useState<GenerationRound[]>([])
+  const [selectedLogos, setSelectedLogos] = useState<Logo[]>([])
+  const [_showingFinal, _setShowingFinal] = useState(false)
 
-  const generateLogo = async () => {
+  const generateLogos = async (isInitial: boolean = true) => {
     if (!formData.businessName) return
     
     setLoading(true)
@@ -79,7 +128,8 @@ function App() {
           industry: formData.industry || 'unspecified',
           style: formData.style,
           has_description: !!formData.description,
-          has_colors: !!formData.colors
+          has_colors: !!formData.colors,
+          round: currentRound + 1
         })
       } else {
         console.log('⚠️ GA4 gtag not available')
@@ -88,16 +138,24 @@ function App() {
       console.error('GA4 tracking error:', error)
     }
     
-    const prompt = buildPrompt(formData)
-    console.log('📝 Built prompt:', prompt)
+    // Generate prompts based on whether it's initial or refinement
+    let prompts: string[]
+    if (isInitial || currentRound === 0) {
+      const basePrompt = buildPrompt(formData)
+      prompts = createPromptVariations(basePrompt)
+    } else {
+      prompts = refinePromptFromSelection(selectedLogos, formData)
+    }
+    
+    console.log('📝 Built prompts:', prompts)
     
     try {
-      console.log('📡 Sending request to Railway backend...')
+      console.log('📡 Sending request to Railway backend for multiple logos...')
       
-      const response = await fetch('https://ai-logo-maker-production.up.railway.app/api/generate', {
+      const response = await fetch('https://ai-logo-maker-production.up.railway.app/api/generate-multiple', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompts })
       })
       
       console.log('📨 Response status:', response.status)
@@ -109,30 +167,45 @@ function App() {
       const data = await response.json()
       console.log('✅ Response data:', data)
       
-      if (data.logoUrl) {
-        setLogo(data.logoUrl)
-        console.log('🖼️ Logo URL set:', data.logoUrl)
+      if (data.logos && data.logos.length > 0) {
+        const newLogos: Logo[] = data.logos.map((logoUrl: string, index: number) => ({
+          id: `logo-${currentRound}-${index}-${Date.now()}`,
+          url: logoUrl,
+          prompt: prompts[index],
+          selected: false
+        }))
+        
+        setLogos(newLogos)
+        setSelectedLogos([])
+        console.log('🖼️ Logos set:', newLogos)
+        
+        // Save to history
+        const newRound: GenerationRound = {
+          round: currentRound + 1,
+          logos: newLogos,
+          selectedLogos: []
+        }
+        setGenerationHistory(prev => [...prev, newRound])
+        setCurrentRound(prev => prev + 1)
         
         // Track successful logo generation with GA4
         try {
           if (typeof window !== 'undefined' && window.gtag) {
-            console.log('🔍 Sending GA4 event: logo_generated')
-            window.gtag('event', 'logo_generated', {
+            console.log('🔍 Sending GA4 event: logos_generated')
+            window.gtag('event', 'logos_generated', {
               business_name: formData.businessName,
               industry: formData.industry || 'unspecified',
               style: formData.style,
-              has_description: !!formData.description,
-              has_colors: !!formData.colors
+              count: newLogos.length,
+              round: currentRound
             })
-          } else {
-            console.log('⚠️ GA4 gtag not available for logo_generated')
           }
         } catch (error) {
-          console.error('GA4 logo_generated tracking error:', error)
+          console.error('GA4 logos_generated tracking error:', error)
         }
       } else if (data.error) {
         console.error('❌ Server error:', data.error)
-        alert('Error generating logo: ' + data.error)
+        alert('Error generating logos: ' + data.error)
       }
     } catch (error) {
       console.error('❌ Network error:', error)
@@ -143,11 +216,35 @@ function App() {
     }
   }
 
-  const downloadLogo = () => {
-    if (!logo) return
+  const selectLogo = (logoId: string) => {
+    setLogos(prevLogos => 
+      prevLogos.map(logo => 
+        logo.id === logoId 
+          ? { ...logo, selected: !logo.selected }
+          : logo
+      )
+    )
+    
+    const updatedSelectedLogos = logos.filter(logo => 
+      logo.id === logoId ? !logo.selected : logo.selected
+    )
+    setSelectedLogos(updatedSelectedLogos)
+  }
+
+  const proceedToRefinement = () => {
+    if (selectedLogos.length === 0) {
+      alert('Please select at least one logo to refine')
+      return
+    }
+    
+    generateLogos(false)
+  }
+
+
+  const downloadLogo = (logo: Logo) => {
     const link = document.createElement('a')
     link.download = `${formData.businessName}-logo.png`
-    link.href = logo
+    link.href = logo.url
     link.click()
     
     // Track logo download - this is a conversion! 
@@ -157,7 +254,8 @@ function App() {
         window.gtag('event', 'logo_downloaded', {
           business_name: formData.businessName,
           industry: formData.industry || 'unspecified',
-          style: formData.style
+          style: formData.style,
+          round: currentRound
         })
       } else {
         console.log('⚠️ GA4 gtag not available for logo_downloaded')
@@ -272,7 +370,7 @@ function App() {
               </div>
               
               <button 
-                onClick={generateLogo}
+                onClick={() => generateLogos(true)}
                 disabled={!formData.businessName || loading}
                 className={`w-full p-4 rounded-xl font-bold text-lg transition-all duration-300 transform ${
                   !formData.businessName || loading 
@@ -283,12 +381,12 @@ function App() {
                 {loading ? (
                   <div className="flex items-center justify-center">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                    Creating Your Logo...
+                    Creating Your Logos...
                   </div>
                 ) : (
                   <div className="flex items-center justify-center">
                     <span className="mr-2">🎨</span>
-                    Generate AI Logo
+                    Generate 5 AI Logos
                   </div>
                 )}
               </button>
@@ -297,42 +395,119 @@ function App() {
 
           {/* Logo Display Section */}
           <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-            {!logo ? (
+            {logos.length === 0 ? (
               <div className="text-center py-20">
                 <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
                   <span className="text-4xl">🎨</span>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">Your Logo Will Appear Here</h3>
-                <p className="text-gray-500">Fill out the form and click "Generate AI Logo" to create your professional logo</p>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">Your Logos Will Appear Here</h3>
+                <p className="text-gray-500">Fill out the form and click "Generate 5 AI Logos" to create multiple professional logo options</p>
               </div>
             ) : (
-              <div className="text-center space-y-6">
-                <h3 className="text-xl font-semibold text-gray-800">🎉 Your Logo is Ready!</h3>
-                <div className="bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
-                  <img src={logo} alt="Generated Logo" className="max-w-full mx-auto rounded-lg shadow-lg" />
+              <div className="space-y-6">
+                {/* Progress indicator */}
+                <div className="text-center mb-6">
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    Round {currentRound} - Choose Your Favorites
+                  </h3>
+                  <div className="flex justify-center space-x-2 mb-4">
+                    {[1, 2, 3].map((step) => (
+                      <div
+                        key={step}
+                        className={`w-3 h-3 rounded-full ${
+                          step <= currentRound 
+                            ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
+                            : 'bg-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-gray-600 text-sm">
+                    {currentRound === 1 && "Select 1-2 logos you like to refine them"}
+                    {currentRound === 2 && "Choose from refined options or select for final refinement"}
+                    {currentRound === 3 && "Final refined options - pick your favorite!"}
+                  </p>
                 </div>
-                
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button 
-                    onClick={downloadLogo}
-                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                  >
-                    <div className="flex items-center justify-center">
-                      <span className="mr-2">⬇️</span>
-                      Download PNG
+
+                {/* Logo Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {logos.map((logo) => (
+                    <div
+                      key={logo.id}
+                      onClick={() => selectLogo(logo.id)}
+                      className={`relative cursor-pointer transition-all duration-300 transform hover:scale-105 ${
+                        logo.selected 
+                          ? 'ring-4 ring-blue-500 shadow-2xl' 
+                          : 'hover:shadow-lg'
+                      }`}
+                    >
+                      <div className="bg-gradient-to-br from-gray-50 to-white p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
+                        <img 
+                          src={logo.url} 
+                          alt={`Logo Option ${logo.id}`} 
+                          className="w-full h-32 object-contain rounded-lg" 
+                        />
+                      </div>
+                      
+                      {/* Selection indicator */}
+                      {logo.selected && (
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs font-bold">✓</span>
+                        </div>
+                      )}
+                      
+                      {/* Download button for individual logos */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          downloadLogo(logo)
+                        }}
+                        className="absolute bottom-2 right-2 bg-green-500 hover:bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
+                      >
+                        ⬇️
+                      </button>
                     </div>
-                  </button>
+                  ))}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
+                  {currentRound < 3 && (
+                    <button 
+                      onClick={proceedToRefinement}
+                      disabled={selectedLogos.length === 0}
+                      className={`flex-1 px-8 py-4 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
+                        selectedLogos.length === 0
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center">
+                        <span className="mr-2">✨</span>
+                        Refine Selected ({selectedLogos.length})
+                      </div>
+                    </button>
+                  )}
                   
                   <button 
-                    onClick={generateLogo}
-                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                    onClick={() => generateLogos(true)}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
                   >
                     <div className="flex items-center justify-center">
                       <span className="mr-2">🔄</span>
-                      Generate New Logo
+                      Generate New Set
                     </div>
                   </button>
                 </div>
+
+                {/* Selected logos info */}
+                {selectedLogos.length > 0 && (
+                  <div className="text-center mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                    <p className="text-blue-800 font-medium">
+                      {selectedLogos.length} logo{selectedLogos.length > 1 ? 's' : ''} selected for refinement
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
