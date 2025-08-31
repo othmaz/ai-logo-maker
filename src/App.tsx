@@ -168,90 +168,183 @@ function App() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-8 min-h-screen bg-gray-50">
-      <h1 className="text-3xl font-bold mb-8 text-center text-gray-900">Free AI Logo Maker</h1>
-      
-      <div className="space-y-4 mb-8 bg-white p-6 rounded-lg shadow-md">
-        <input 
-          value={formData.businessName}
-          onChange={(e) => setFormData({...formData, businessName: e.target.value})}
-          placeholder="Business Name (required)"
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-        
-        <select 
-          value={formData.industry}
-          onChange={(e) => setFormData({...formData, industry: e.target.value})}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="">Select Industry</option>
-          <option value="restaurant">Restaurant</option>
-          <option value="tech">Technology</option>
-          <option value="retail">Retail</option>
-          <option value="consulting">Consulting</option>
-          <option value="healthcare">Healthcare</option>
-          <option value="creative">Creative</option>
-          <option value="other">Other</option>
-        </select>
-        
-        <textarea 
-          value={formData.description}
-          onChange={(e) => setFormData({...formData, description: e.target.value})}
-          placeholder="Brief description of your business (optional)"
-          className="w-full p-3 border border-gray-300 rounded-lg h-24 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-        
-        <select 
-          value={formData.style}
-          onChange={(e) => setFormData({...formData, style: e.target.value})}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="modern">Modern</option>
-          <option value="minimalist">Minimalist</option>
-          <option value="vintage">Vintage</option>
-          <option value="playful">Playful</option>
-          <option value="professional">Professional</option>
-        </select>
-        
-        <input 
-          value={formData.colors}
-          onChange={(e) => setFormData({...formData, colors: e.target.value})}
-          placeholder="Preferred colors (e.g., blue, green) - optional"
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        />
-        
-        <button 
-          onClick={generateLogo}
-          disabled={!formData.businessName || loading}
-          className="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold disabled:bg-gray-400 hover:bg-blue-700 transition duration-200"
-        >
-          {loading ? 'Generating Logo...' : 'Generate Logo'}
-        </button>
-      </div>
-      
-      {logo && (
-        <div className="text-center space-y-4 bg-white p-6 rounded-lg shadow-md">
-          <div className="border-2 border-gray-200 rounded-lg p-8 bg-white">
-            <img src={logo} alt="Generated Logo" className="max-w-full mx-auto" />
-          </div>
-          
-          <div className="flex gap-4 justify-center">
-            <button 
-              onClick={downloadLogo}
-              className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition duration-200"
-            >
-              Download Logo
-            </button>
-            
-            <button 
-              onClick={generateLogo}
-              className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition duration-200"
-            >
-              Generate New Logo
-            </button>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
+      {/* Hero Section */}
+      <div className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
+        <div className="relative max-w-4xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-4">
+              Free AI Logo Maker
+            </h1>
+            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+              Create professional logos in seconds with AI. No design skills needed, completely free to use.
+            </p>
+            <div className="flex justify-center space-x-8 text-sm text-gray-500 mb-12">
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                Powered by Google Gemini AI
+              </div>
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                High-quality PNG downloads
+              </div>
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                100% Free to use
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 pb-16">
+        <div className="grid md:grid-cols-2 gap-8">
+          {/* Form Section */}
+          <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Design Your Logo</h2>
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Business Name *</label>
+                <input 
+                  value={formData.businessName}
+                  onChange={(e) => setFormData({...formData, businessName: e.target.value})}
+                  placeholder="Enter your business name"
+                  className="w-full p-4 border-0 bg-gray-50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Industry</label>
+                <select 
+                  value={formData.industry}
+                  onChange={(e) => setFormData({...formData, industry: e.target.value})}
+                  className="w-full p-4 border-0 bg-gray-50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900"
+                >
+                  <option value="">Select your industry</option>
+                  <option value="restaurant">🍽️ Restaurant & Food</option>
+                  <option value="tech">💻 Technology</option>
+                  <option value="retail">🛍️ Retail & E-commerce</option>
+                  <option value="consulting">📊 Consulting & Services</option>
+                  <option value="healthcare">🏥 Healthcare & Medical</option>
+                  <option value="creative">🎨 Creative & Design</option>
+                  <option value="fitness">💪 Fitness & Wellness</option>
+                  <option value="education">📚 Education & Training</option>
+                  <option value="finance">💰 Finance & Banking</option>
+                  <option value="other">🔧 Other</option>
+                </select>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Business Description</label>
+                <textarea 
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  placeholder="Tell us what your business does (helps create better logos)"
+                  className="w-full p-4 border-0 bg-gray-50 rounded-xl h-28 focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500 resize-none"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Logo Style</label>
+                <select 
+                  value={formData.style}
+                  onChange={(e) => setFormData({...formData, style: e.target.value})}
+                  className="w-full p-4 border-0 bg-gray-50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900"
+                >
+                  <option value="modern">✨ Modern & Clean</option>
+                  <option value="minimalist">🎯 Minimalist & Simple</option>
+                  <option value="vintage">🏛️ Vintage & Classic</option>
+                  <option value="playful">🎪 Playful & Fun</option>
+                  <option value="professional">💼 Professional & Corporate</option>
+                </select>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">Color Preferences</label>
+                <input 
+                  value={formData.colors}
+                  onChange={(e) => setFormData({...formData, colors: e.target.value})}
+                  placeholder="e.g., blue and white, green, purple"
+                  className="w-full p-4 border-0 bg-gray-50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500"
+                />
+              </div>
+              
+              <button 
+                onClick={generateLogo}
+                disabled={!formData.businessName || loading}
+                className={`w-full p-4 rounded-xl font-bold text-lg transition-all duration-300 transform ${
+                  !formData.businessName || loading 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg hover:shadow-xl'
+                }`}
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                    Creating Your Logo...
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center">
+                    <span className="mr-2">🎨</span>
+                    Generate AI Logo
+                  </div>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Logo Display Section */}
+          <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
+            {!logo ? (
+              <div className="text-center py-20">
+                <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
+                  <span className="text-4xl">🎨</span>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">Your Logo Will Appear Here</h3>
+                <p className="text-gray-500">Fill out the form and click "Generate AI Logo" to create your professional logo</p>
+              </div>
+            ) : (
+              <div className="text-center space-y-6">
+                <h3 className="text-xl font-semibold text-gray-800">🎉 Your Logo is Ready!</h3>
+                <div className="bg-gradient-to-br from-gray-50 to-white p-8 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
+                  <img src={logo} alt="Generated Logo" className="max-w-full mx-auto rounded-lg shadow-lg" />
+                </div>
+                
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button 
+                    onClick={downloadLogo}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-xl font-bold hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  >
+                    <div className="flex items-center justify-center">
+                      <span className="mr-2">⬇️</span>
+                      Download PNG
+                    </div>
+                  </button>
+                  
+                  <button 
+                    onClick={generateLogo}
+                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-bold hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                  >
+                    <div className="flex items-center justify-center">
+                      <span className="mr-2">🔄</span>
+                      Generate New Logo
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Footer */}
+        <div className="text-center mt-16 py-8">
+          <p className="text-gray-500 text-sm">
+            Powered by Google Gemini AI • Created with ❤️ for entrepreneurs
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
