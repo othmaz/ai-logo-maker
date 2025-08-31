@@ -1,5 +1,11 @@
 import { useState } from 'react'
-import { track } from '@vercel/analytics'
+
+// Declare gtag for TypeScript
+declare global {
+  interface Window {
+    gtag: (...args: any[]) => void
+  }
+}
 
 interface FormData {
   businessName: string
@@ -64,14 +70,16 @@ function App() {
     setLoading(true)
     console.log('🎨 Starting logo generation...')
     
-    // Track logo generation attempt
-    track('Logo Generation Started', {
-      businessName: formData.businessName,
-      industry: formData.industry || 'unspecified',
-      style: formData.style,
-      hasDescription: !!formData.description,
-      hasColors: !!formData.colors
-    })
+    // Track logo generation attempt with GA4
+    if (window.gtag) {
+      window.gtag('event', 'logo_generation_started', {
+        business_name: formData.businessName,
+        industry: formData.industry || 'unspecified',
+        style: formData.style,
+        has_description: !!formData.description,
+        has_colors: !!formData.colors
+      })
+    }
     
     const prompt = buildPrompt(formData)
     console.log('📝 Built prompt:', prompt)
@@ -98,14 +106,16 @@ function App() {
         setLogo(data.logoUrl)
         console.log('🖼️ Logo URL set:', data.logoUrl)
         
-        // Track successful logo generation
-        track('Logo Generated', {
-          businessName: formData.businessName,
-          industry: formData.industry || 'unspecified',
-          style: formData.style,
-          hasDescription: !!formData.description,
-          hasColors: !!formData.colors
-        })
+        // Track successful logo generation with GA4
+        if (window.gtag) {
+          window.gtag('event', 'logo_generated', {
+            business_name: formData.businessName,
+            industry: formData.industry || 'unspecified',
+            style: formData.style,
+            has_description: !!formData.description,
+            has_colors: !!formData.colors
+          })
+        }
       } else if (data.error) {
         console.error('❌ Server error:', data.error)
         alert('Error generating logo: ' + data.error)
@@ -126,12 +136,14 @@ function App() {
     link.href = logo
     link.click()
     
-    // Track logo download - this is a conversion!
-    track('Logo Downloaded', {
-      businessName: formData.businessName,
-      industry: formData.industry || 'unspecified',
-      style: formData.style
-    })
+    // Track logo download - this is a conversion! 
+    if (window.gtag) {
+      window.gtag('event', 'logo_downloaded', {
+        business_name: formData.businessName,
+        industry: formData.industry || 'unspecified',
+        style: formData.style
+      })
+    }
   }
 
   return (
