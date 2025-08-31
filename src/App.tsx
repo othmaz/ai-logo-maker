@@ -71,14 +71,21 @@ function App() {
     console.log('🎨 Starting logo generation...')
     
     // Track logo generation attempt with GA4
-    if (window.gtag) {
-      window.gtag('event', 'logo_generation_started', {
-        business_name: formData.businessName,
-        industry: formData.industry || 'unspecified',
-        style: formData.style,
-        has_description: !!formData.description,
-        has_colors: !!formData.colors
-      })
+    try {
+      if (typeof window !== 'undefined' && window.gtag) {
+        console.log('🔍 Sending GA4 event: logo_generation_started')
+        window.gtag('event', 'logo_generation_started', {
+          business_name: formData.businessName,
+          industry: formData.industry || 'unspecified',
+          style: formData.style,
+          has_description: !!formData.description,
+          has_colors: !!formData.colors
+        })
+      } else {
+        console.log('⚠️ GA4 gtag not available')
+      }
+    } catch (error) {
+      console.error('GA4 tracking error:', error)
     }
     
     const prompt = buildPrompt(formData)
@@ -107,14 +114,21 @@ function App() {
         console.log('🖼️ Logo URL set:', data.logoUrl)
         
         // Track successful logo generation with GA4
-        if (window.gtag) {
-          window.gtag('event', 'logo_generated', {
-            business_name: formData.businessName,
-            industry: formData.industry || 'unspecified',
-            style: formData.style,
-            has_description: !!formData.description,
-            has_colors: !!formData.colors
-          })
+        try {
+          if (typeof window !== 'undefined' && window.gtag) {
+            console.log('🔍 Sending GA4 event: logo_generated')
+            window.gtag('event', 'logo_generated', {
+              business_name: formData.businessName,
+              industry: formData.industry || 'unspecified',
+              style: formData.style,
+              has_description: !!formData.description,
+              has_colors: !!formData.colors
+            })
+          } else {
+            console.log('⚠️ GA4 gtag not available for logo_generated')
+          }
+        } catch (error) {
+          console.error('GA4 logo_generated tracking error:', error)
         }
       } else if (data.error) {
         console.error('❌ Server error:', data.error)
@@ -137,12 +151,19 @@ function App() {
     link.click()
     
     // Track logo download - this is a conversion! 
-    if (window.gtag) {
-      window.gtag('event', 'logo_downloaded', {
-        business_name: formData.businessName,
-        industry: formData.industry || 'unspecified',
-        style: formData.style
-      })
+    try {
+      if (typeof window !== 'undefined' && window.gtag) {
+        console.log('🔍 Sending GA4 event: logo_downloaded')
+        window.gtag('event', 'logo_downloaded', {
+          business_name: formData.businessName,
+          industry: formData.industry || 'unspecified',
+          style: formData.style
+        })
+      } else {
+        console.log('⚠️ GA4 gtag not available for logo_downloaded')
+      }
+    } catch (error) {
+      console.error('GA4 logo_downloaded tracking error:', error)
     }
   }
 
