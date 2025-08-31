@@ -265,260 +265,419 @@ function App() {
     }
   }
 
+  // Add scroll function for smooth transitions
+  const scrollToLevel = (levelId: string) => {
+    const element = document.getElementById(levelId)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  // Auto-scroll when logos are generated
+  const handleLogoGeneration = async (isInitial: boolean = true) => {
+    await generateLogos(isInitial)
+    // Scroll to results after generation
+    setTimeout(() => {
+      const targetLevel = `level-${currentRound + 1}`
+      scrollToLevel(targetLevel)
+    }, 500)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
+      
+      {/* Level 0: Hero Section */}
+      <div id="level-0" className="min-h-screen flex items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
-        <div className="relative max-w-4xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-4">
-              Free AI Logo Maker
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-              Create professional logos in seconds with AI. No design skills needed, completely free to use.
-            </p>
-            <div className="flex justify-center space-x-8 text-sm text-gray-500 mb-12">
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                Powered by Google Gemini AI
+        <div className="relative max-w-6xl mx-auto px-4 text-center">
+          <h1 className="text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-6">
+            Free AI Logo Maker
+          </h1>
+          <p className="text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
+            Create professional logos in seconds with AI. No design skills needed, completely free to use.
+          </p>
+          <div className="flex justify-center space-x-12 text-lg text-gray-500 mb-16">
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+              Powered by Google Gemini AI
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+              High-quality PNG downloads
+            </div>
+            <div className="flex items-center">
+              <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+              100% Free to use
+            </div>
+          </div>
+          <button 
+            onClick={() => scrollToLevel('level-1')}
+            className="animate-bounce hover:animate-none transition-all duration-300 transform hover:scale-110"
+          >
+            <div className="w-12 h-12 border-2 border-blue-600 rounded-full mx-auto flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all duration-300">
+              <span className="text-2xl">↓</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Level 1: Form Section */}
+      <div id="level-1" className="min-h-screen flex items-center justify-center py-20">
+        <div className="max-w-4xl mx-auto px-4 w-full">
+          <div className="bg-white/80 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border border-white/20">
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-bold text-gray-800 mb-4">Step 1: Tell Us About Your Business</h2>
+              <p className="text-xl text-gray-600">The more details you provide, the better your logos will be</p>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <label className="block text-lg font-medium text-gray-700">Business Name *</label>
+                  <input 
+                    value={formData.businessName}
+                    onChange={(e) => setFormData({...formData, businessName: e.target.value})}
+                    placeholder="Enter your business name"
+                    className="w-full p-5 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500 text-lg"
+                  />
+                </div>
+                
+                <div className="space-y-3">
+                  <label className="block text-lg font-medium text-gray-700">Industry</label>
+                  <select 
+                    value={formData.industry}
+                    onChange={(e) => setFormData({...formData, industry: e.target.value})}
+                    className="w-full p-5 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 text-lg"
+                  >
+                    <option value="">Select your industry</option>
+                    <option value="restaurant">🍽️ Restaurant & Food</option>
+                    <option value="tech">💻 Technology</option>
+                    <option value="retail">🛍️ Retail & E-commerce</option>
+                    <option value="consulting">📊 Consulting & Services</option>
+                    <option value="healthcare">🏥 Healthcare & Medical</option>
+                    <option value="creative">🎨 Creative & Design</option>
+                    <option value="fitness">💪 Fitness & Wellness</option>
+                    <option value="education">📚 Education & Training</option>
+                    <option value="finance">💰 Finance & Banking</option>
+                    <option value="other">🔧 Other</option>
+                  </select>
+                </div>
+                
+                <div className="space-y-3">
+                  <label className="block text-lg font-medium text-gray-700">Business Description</label>
+                  <textarea 
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    placeholder="Tell us what your business does (helps create better logos)"
+                    className="w-full p-5 border-0 bg-gray-50 rounded-2xl h-32 focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500 resize-none text-lg"
+                  />
+                </div>
               </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                High-quality PNG downloads
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                100% Free to use
+              
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <label className="block text-lg font-medium text-gray-700">Logo Style</label>
+                  <select 
+                    value={formData.style}
+                    onChange={(e) => setFormData({...formData, style: e.target.value})}
+                    className="w-full p-5 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 text-lg"
+                  >
+                    <option value="modern">✨ Modern & Clean</option>
+                    <option value="minimalist">🎯 Minimalist & Simple</option>
+                    <option value="vintage">🏛️ Vintage & Classic</option>
+                    <option value="playful">🎪 Playful & Fun</option>
+                    <option value="professional">💼 Professional & Corporate</option>
+                  </select>
+                </div>
+                
+                <div className="space-y-3">
+                  <label className="block text-lg font-medium text-gray-700">Color Preferences</label>
+                  <input 
+                    value={formData.colors}
+                    onChange={(e) => setFormData({...formData, colors: e.target.value})}
+                    placeholder="e.g., blue and white, green, purple"
+                    className="w-full p-5 border-0 bg-gray-50 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500 text-lg"
+                  />
+                </div>
+
+                <div className="pt-8">
+                  <button 
+                    onClick={() => handleLogoGeneration(true)}
+                    disabled={!formData.businessName || loading}
+                    className={`w-full p-6 rounded-2xl font-bold text-xl transition-all duration-300 transform ${
+                      !formData.businessName || loading 
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg hover:shadow-xl'
+                    }`}
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-4"></div>
+                        Creating Your 5 Logos...
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center">
+                        <span className="mr-3 text-2xl">🎨</span>
+                        Generate 5 AI Logos
+                      </div>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 pb-16">
-        <div className="grid md:grid-cols-2 gap-8">
-          {/* Form Section */}
-          <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20 hover:shadow-2xl transition-all duration-300">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Design Your Logo</h2>
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Business Name *</label>
-                <input 
-                  value={formData.businessName}
-                  onChange={(e) => setFormData({...formData, businessName: e.target.value})}
-                  placeholder="Enter your business name"
-                  className="w-full p-4 border-0 bg-gray-50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500"
-                />
-              </div>
+      {/* Level 2: Current Logo Results */}
+      {logos.length > 0 && (
+        <div id={`level-${currentRound + 1}`} className="min-h-screen flex items-center justify-center py-20">
+          <div className="max-w-7xl mx-auto px-4 w-full">
+            <div className="bg-white/80 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border border-white/20">
               
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Industry</label>
-                <select 
-                  value={formData.industry}
-                  onChange={(e) => setFormData({...formData, industry: e.target.value})}
-                  className="w-full p-4 border-0 bg-gray-50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900"
-                >
-                  <option value="">Select your industry</option>
-                  <option value="restaurant">🍽️ Restaurant & Food</option>
-                  <option value="tech">💻 Technology</option>
-                  <option value="retail">🛍️ Retail & E-commerce</option>
-                  <option value="consulting">📊 Consulting & Services</option>
-                  <option value="healthcare">🏥 Healthcare & Medical</option>
-                  <option value="creative">🎨 Creative & Design</option>
-                  <option value="fitness">💪 Fitness & Wellness</option>
-                  <option value="education">📚 Education & Training</option>
-                  <option value="finance">💰 Finance & Banking</option>
-                  <option value="other">🔧 Other</option>
-                </select>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Business Description</label>
-                <textarea 
-                  value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
-                  placeholder="Tell us what your business does (helps create better logos)"
-                  className="w-full p-4 border-0 bg-gray-50 rounded-xl h-28 focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500 resize-none"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Logo Style</label>
-                <select 
-                  value={formData.style}
-                  onChange={(e) => setFormData({...formData, style: e.target.value})}
-                  className="w-full p-4 border-0 bg-gray-50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900"
-                >
-                  <option value="modern">✨ Modern & Clean</option>
-                  <option value="minimalist">🎯 Minimalist & Simple</option>
-                  <option value="vintage">🏛️ Vintage & Classic</option>
-                  <option value="playful">🎪 Playful & Fun</option>
-                  <option value="professional">💼 Professional & Corporate</option>
-                </select>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Color Preferences</label>
-                <input 
-                  value={formData.colors}
-                  onChange={(e) => setFormData({...formData, colors: e.target.value})}
-                  placeholder="e.g., blue and white, green, purple"
-                  className="w-full p-4 border-0 bg-gray-50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:bg-white transition-all duration-200 text-gray-900 placeholder-gray-500"
-                />
-              </div>
-              
-              <button 
-                onClick={() => generateLogos(true)}
-                disabled={!formData.businessName || loading}
-                className={`w-full p-4 rounded-xl font-bold text-lg transition-all duration-300 transform ${
-                  !formData.businessName || loading 
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                    : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg hover:shadow-xl'
-                }`}
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                    Creating Your Logos...
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center">
-                    <span className="mr-2">🎨</span>
-                    Generate 5 AI Logos
-                  </div>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Logo Display Section */}
-          <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-xl border border-white/20">
-            {logos.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center">
-                  <span className="text-4xl">🎨</span>
-                </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">Your Logos Will Appear Here</h3>
-                <p className="text-gray-500">Fill out the form and click "Generate 5 AI Logos" to create multiple professional logo options</p>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {/* Progress indicator */}
-                <div className="text-center mb-6">
-                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
-                    Round {currentRound} - Choose Your Favorites
-                  </h3>
-                  <div className="flex justify-center space-x-2 mb-4">
-                    {[1, 2, 3].map((step) => (
-                      <div
-                        key={step}
-                        className={`w-3 h-3 rounded-full ${
-                          step <= currentRound 
-                            ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
-                            : 'bg-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <p className="text-gray-600 text-sm">
-                    {currentRound === 1 && "Select 1-2 logos you like to refine them"}
-                    {currentRound === 2 && "Choose from refined options or select for final refinement"}
-                    {currentRound === 3 && "Final refined options - pick your favorite!"}
-                  </p>
-                </div>
-
-                {/* Logo Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {logos.map((logo) => (
+              {/* Round Header */}
+              <div className="text-center mb-12">
+                <h2 className="text-4xl font-bold text-gray-800 mb-4">
+                  Round {currentRound} - Choose Your Favorites
+                </h2>
+                
+                {/* Progress Dots */}
+                <div className="flex justify-center space-x-3 mb-6">
+                  {[1, 2, 3].map((step) => (
                     <div
-                      key={logo.id}
-                      onClick={() => selectLogo(logo.id)}
-                      className={`relative cursor-pointer transition-all duration-300 transform hover:scale-105 ${
-                        logo.selected 
-                          ? 'ring-4 ring-blue-500 shadow-2xl' 
-                          : 'hover:shadow-lg'
+                      key={step}
+                      className={`w-4 h-4 rounded-full ${
+                        step <= currentRound 
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
+                          : 'bg-gray-300'
                       }`}
-                    >
-                      <div className="bg-gradient-to-br from-gray-50 to-white p-4 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
-                        <img 
-                          src={logo.url} 
-                          alt={`Logo Option ${logo.id}`} 
-                          className="w-full h-32 object-contain rounded-lg" 
-                        />
-                      </div>
-                      
-                      {/* Selection indicator */}
-                      {logo.selected && (
-                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">✓</span>
-                        </div>
-                      )}
-                      
-                      {/* Download button for individual logos */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          downloadLogo(logo)
-                        }}
-                        className="absolute bottom-2 right-2 bg-green-500 hover:bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100"
-                      >
-                        ⬇️
-                      </button>
-                    </div>
+                    />
                   ))}
                 </div>
+                
+                <p className="text-xl text-gray-600">
+                  {currentRound === 1 && "Select 1-2 logos you like to refine them further"}
+                  {currentRound === 2 && "Choose from refined options or select for final refinement"}
+                  {currentRound === 3 && "Final refined options - pick your perfect logo!"}
+                </p>
+              </div>
 
-                {/* Action buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-                  {currentRound < 3 && (
-                    <button 
-                      onClick={proceedToRefinement}
-                      disabled={selectedLogos.length === 0}
-                      className={`flex-1 px-8 py-4 rounded-xl font-bold transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
-                        selectedLogos.length === 0
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
-                      }`}
-                    >
-                      <div className="flex items-center justify-center">
-                        <span className="mr-2">✨</span>
-                        Refine Selected ({selectedLogos.length})
+              {/* Logo Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
+                {logos.map((logo) => (
+                  <div
+                    key={logo.id}
+                    onClick={() => selectLogo(logo.id)}
+                    className={`relative cursor-pointer transition-all duration-300 transform hover:scale-105 group ${
+                      logo.selected 
+                        ? 'ring-4 ring-blue-500 shadow-2xl scale-105' 
+                        : 'hover:shadow-lg'
+                    }`}
+                  >
+                    <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
+                      <img 
+                        src={logo.url} 
+                        alt={`Logo Option ${logo.id}`} 
+                        className="w-full h-40 object-contain rounded-lg" 
+                      />
+                    </div>
+                    
+                    {/* Selection indicator */}
+                    {logo.selected && (
+                      <div className="absolute -top-3 -right-3 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                        <span className="text-white text-sm font-bold">✓</span>
                       </div>
+                    )}
+                    
+                    {/* Download button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        downloadLogo(logo)
+                      }}
+                      className="absolute bottom-3 right-3 bg-green-500 hover:bg-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-lg"
+                    >
+                      ⬇️
                     </button>
-                  )}
-                  
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                {currentRound < 3 && (
                   <button 
-                    onClick={() => generateLogos(true)}
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl font-bold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                    onClick={() => {
+                      proceedToRefinement()
+                      setTimeout(() => scrollToLevel(`level-${currentRound + 1}`), 500)
+                    }}
+                    disabled={selectedLogos.length === 0}
+                    className={`px-12 py-6 rounded-2xl font-bold text-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
+                      selectedLogos.length === 0
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
+                    }`}
                   >
                     <div className="flex items-center justify-center">
-                      <span className="mr-2">🔄</span>
-                      Generate New Set
+                      <span className="mr-3 text-2xl">✨</span>
+                      Refine Selected ({selectedLogos.length})
                     </div>
                   </button>
-                </div>
-
-                {/* Selected logos info */}
-                {selectedLogos.length > 0 && (
-                  <div className="text-center mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                    <p className="text-blue-800 font-medium">
-                      {selectedLogos.length} logo{selectedLogos.length > 1 ? 's' : ''} selected for refinement
-                    </p>
-                  </div>
                 )}
+                
+                <button 
+                  onClick={() => {
+                    handleLogoGeneration(true)
+                  }}
+                  className="px-12 py-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold text-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                >
+                  <div className="flex items-center justify-center">
+                    <span className="mr-3 text-2xl">🔄</span>
+                    Generate New Set
+                  </div>
+                </button>
               </div>
-            )}
+
+              {/* Selection Info */}
+              {selectedLogos.length > 0 && (
+                <div className="text-center mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-200">
+                  <p className="text-blue-800 font-medium text-lg">
+                    {selectedLogos.length} logo{selectedLogos.length > 1 ? 's' : ''} selected for refinement
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-        
-        {/* Footer */}
-        <div className="text-center mt-16 py-8">
-          <p className="text-gray-500 text-sm">
-            Powered by Google Gemini AI • Created with ❤️ for entrepreneurs
-          </p>
+      )}
+
+      {/* Historical Rounds - Previous generations */}
+      {_generationHistory.slice(0, -1).map((round) => (
+        <div key={round.round} id={`level-${round.round + 1}`} className="min-h-screen flex items-center justify-center py-20">
+          <div className="max-w-7xl mx-auto px-4 w-full">
+            <div className="bg-white/80 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border border-white/20">
+              
+              {/* Round Header */}
+              <div className="text-center mb-12">
+                <h2 className="text-4xl font-bold text-gray-800 mb-4">
+                  Round {round.round} - Choose Your Favorites
+                </h2>
+                
+                {/* Progress Dots */}
+                <div className="flex justify-center space-x-3 mb-6">
+                  {[1, 2, 3].map((step) => (
+                    <div
+                      key={step}
+                      className={`w-4 h-4 rounded-full ${
+                        step <= round.round 
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
+                          : 'bg-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                
+                <p className="text-xl text-gray-600">
+                  {round.round === 1 && "Select 1-2 logos you like to refine them further"}
+                  {round.round === 2 && "Choose from refined options or select for final refinement"}
+                  {round.round === 3 && "Final refined options - pick your perfect logo!"}
+                </p>
+              </div>
+
+              {/* Logo Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
+                {round.logos.map((logo) => (
+                  <div
+                    key={logo.id}
+                    onClick={() => selectLogo(logo.id)}
+                    className={`relative cursor-pointer transition-all duration-300 transform hover:scale-105 group ${
+                      logo.selected 
+                        ? 'ring-4 ring-blue-500 shadow-2xl scale-105' 
+                        : 'hover:shadow-lg'
+                    }`}
+                  >
+                    <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
+                      <img 
+                        src={logo.url} 
+                        alt={`Logo Option ${logo.id}`} 
+                        className="w-full h-40 object-contain rounded-lg" 
+                      />
+                    </div>
+                    
+                    {/* Selection indicator */}
+                    {logo.selected && (
+                      <div className="absolute -top-3 -right-3 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                        <span className="text-white text-sm font-bold">✓</span>
+                      </div>
+                    )}
+                    
+                    {/* Download button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        downloadLogo(logo)
+                      }}
+                      className="absolute bottom-3 right-3 bg-green-500 hover:bg-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-lg"
+                    >
+                      ⬇️
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                {round.round < 3 && (
+                  <button 
+                    onClick={() => {
+                      proceedToRefinement()
+                      setTimeout(() => scrollToLevel(`level-${currentRound + 1}`), 500)
+                    }}
+                    disabled={selectedLogos.length === 0}
+                    className={`px-12 py-6 rounded-2xl font-bold text-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
+                      selectedLogos.length === 0
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center">
+                      <span className="mr-3 text-2xl">✨</span>
+                      Refine Selected ({selectedLogos.length})
+                    </div>
+                  </button>
+                )}
+                
+                <button 
+                  onClick={() => {
+                    handleLogoGeneration(true)
+                  }}
+                  className="px-12 py-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold text-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+                >
+                  <div className="flex items-center justify-center">
+                    <span className="mr-3 text-2xl">🔄</span>
+                    Generate New Set
+                  </div>
+                </button>
+              </div>
+
+              {/* Selection Info */}
+              {selectedLogos.length > 0 && (
+                <div className="text-center mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-200">
+                  <p className="text-blue-800 font-medium text-lg">
+                    {selectedLogos.length} logo{selectedLogos.length > 1 ? 's' : ''} selected for refinement
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+      ))}
+
+      {/* Footer */}
+      <div className="py-16 text-center">
+        <p className="text-gray-500 text-lg">
+          Powered by Google Gemini AI • Created with ❤️ for entrepreneurs
+        </p>
       </div>
     </div>
   )
