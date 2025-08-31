@@ -93,7 +93,7 @@ function App() {
       }
     } catch (error) {
       console.error('❌ Network error:', error)
-      alert('Network error: ' + error.message)
+      alert('Network error: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setLoading(false)
       console.log('🏁 Logo generation finished')
