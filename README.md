@@ -103,6 +103,8 @@ The integration uses the latest `@google/genai` SDK with the `gemini-2.5-flash-i
 
 ## Next Steps
 
+🚀 **LIVE at:** https://ai-logo-maker-hpflpyx0o-othmazs-projects.vercel.app/
+
 This is a testing version to validate:
 - User experience and interface
 - Logo generation prompts effectiveness
