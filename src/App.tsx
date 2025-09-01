@@ -3,7 +3,7 @@ import { useState } from 'react'
 // Declare gtag for TypeScript
 declare global {
   interface Window {
-    gtag: (...args: any[]) => void
+    gtag: (...args: unknown[]) => void
   }
 }
 
@@ -195,7 +195,6 @@ function App() {
   const [currentRound, setCurrentRound] = useState(0)
   const [_generationHistory, setGenerationHistory] = useState<GenerationRound[]>([])
   const [selectedLogos, setSelectedLogos] = useState<Logo[]>([])
-  const [_showingFinal, _setShowingFinal] = useState(false)
 
   const generateLogos = async (isInitial: boolean = true) => {
     if (!formData.businessName) return
@@ -427,7 +426,7 @@ function App() {
         {/* Main hero content - positioned higher */}
         <div className="flex-1 flex items-center justify-center pt-20 pb-32">
           <div className="relative max-w-6xl mx-auto px-4 text-center">
-            <h1 className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 mb-8">
+            <h1 className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 mb-8 font-phosphate">
               Free AI Logo Maker
             </h1>
             <p className="text-2xl lg:text-3xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
