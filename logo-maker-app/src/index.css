@@ -1,0 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Phosphate&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Infinite scroll animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 60s linear infinite;
+}
+
+.animate-scroll:hover {
+  animation-play-state: paused;
+}
