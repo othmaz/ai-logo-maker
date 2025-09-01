@@ -37,7 +37,10 @@
       "Bash(curl:*)",
       "Bash(lsof:*)",
       "Bash(kill:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(gh:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": []
