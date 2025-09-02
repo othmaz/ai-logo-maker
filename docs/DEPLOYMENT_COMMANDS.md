@@ -20,7 +20,7 @@ git push -u origin main
    - `RAILWAY_PUBLIC_DOMAIN` = auto-set by Railway
 
 4. **Deploy settings:**
-   - Root Directory: `/` (current directory)
+   - Root Directory: `/` (root of the repository)
    - Build Command: `npm run build`
    - Start Command: `npm start`
 
@@ -29,7 +29,7 @@ git push -u origin main
 1. **Go to [vercel.com](https://vercel.com)**
 2. **Import from GitHub**
 3. **Framework Preset:** Vite
-4. **Root Directory:** `/` (current directory)
+4. **Root Directory:** `/` (root of the repository)
 5. **Environment Variables:**
    - `GEMINI_API_KEY` = your Google Gemini API key
 
