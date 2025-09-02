@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 // Declare gtag for TypeScript
 declare global {
@@ -195,6 +195,41 @@ function App() {
   const [currentRound, setCurrentRound] = useState(0)
   const [_generationHistory, setGenerationHistory] = useState<GenerationRound[]>([])
   const [selectedLogos, setSelectedLogos] = useState<Logo[]>([])
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true)
+  const [lastScrollY, setLastScrollY] = useState(0)
+
+  // Handle scroll-based header visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY
+      
+      if (currentScrollY > lastScrollY && currentScrollY > 50) {
+        // Scrolling down and past initial offset
+        setIsHeaderVisible(false)
+      } else if (currentScrollY < lastScrollY) {
+        // Scrolling up
+        setIsHeaderVisible(true)
+      }
+      
+      setLastScrollY(currentScrollY)
+    }
+
+    // Throttle scroll events for better performance
+    let ticking = false
+    const throttledScrollHandler = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll()
+          ticking = false
+        })
+        ticking = true
+      }
+    }
+
+    window.addEventListener('scroll', throttledScrollHandler, { passive: true })
+    
+    return () => window.removeEventListener('scroll', throttledScrollHandler)
+  }, [lastScrollY])
 
   const generateLogos = async (isInitial: boolean = true) => {
     if (!formData.businessName) return
@@ -420,12 +455,14 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       
       {/* Sticky Top Title Band */}
-      <div className="fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 py-2">
+      <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 py-2 transition-transform duration-300 ${
+        isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+      }`}>
         <div className="relative overflow-hidden">
           <div className="flex animate-scroll whitespace-nowrap">
             {/* First set of titles */}
             <div className="flex items-center space-x-12 mr-12">
-              {[...Array(8)].map((_, i) => (
+              {[...Array(15)].map((_, i) => (
                 <h1 key={`first-${i}`} className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none">
                   FREE AI LOGO MAKER
                 </h1>
@@ -433,7 +470,7 @@ function App() {
             </div>
             {/* Duplicate set for seamless loop */}
             <div className="flex items-center space-x-12">
-              {[...Array(8)].map((_, i) => (
+              {[...Array(15)].map((_, i) => (
                 <h1 key={`second-${i}`} className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none">
                   FREE AI LOGO MAKER
                 </h1>
@@ -501,9 +538,43 @@ function App() {
                 ))}
               </div>
               {/* Duplicate set for seamless loop */}
-              <div className="flex items-center space-x-16">
+              <div className="flex items-center space-x-16 mr-16">
                 {logoReferences.map((logo) => (
                   <div key={`second-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
+                    <img 
+                      src={logo.imageUrl} 
+                      alt={logo.name}
+                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                    <span className="text-lg font-medium">{logo.name}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Third set for extra seamlessness */}
+              <div className="flex items-center space-x-16 mr-16">
+                {logoReferences.map((logo) => (
+                  <div key={`third-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
+                    <img 
+                      src={logo.imageUrl} 
+                      alt={logo.name}
+                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                    <span className="text-lg font-medium">{logo.name}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Fourth set for maximum seamlessness */}
+              <div className="flex items-center space-x-16">
+                {logoReferences.map((logo) => (
+                  <div key={`fourth-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
                     <img 
                       src={logo.imageUrl} 
                       alt={logo.name}

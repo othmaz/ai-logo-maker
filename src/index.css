@@ -4,6 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Smooth scrolling improvements */
+html {
+  scroll-behavior: smooth;
+}
+
+* {
+  scroll-behavior: smooth;
+}
+
 /* Infinite scroll animation */
 @keyframes scroll {
   0% {
@@ -15,7 +24,7 @@
 }
 
 .animate-scroll {
-  animation: scroll 60s linear infinite;
+  animation: scroll 15s linear infinite;
 }
 
 .animate-scroll:hover {
