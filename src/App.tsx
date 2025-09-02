@@ -419,17 +419,38 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       
+      {/* Sticky Top Title Band */}
+      <div className="fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 py-4">
+        <div className="relative overflow-hidden">
+          <div className="flex animate-scroll whitespace-nowrap">
+            {/* First set of titles */}
+            <div className="flex items-center space-x-20 mr-20">
+              {[...Array(8)].map((_, i) => (
+                <h1 key={`first-${i}`} className="text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate">
+                  FREE AI LOGO MAKER
+                </h1>
+              ))}
+            </div>
+            {/* Duplicate set for seamless loop */}
+            <div className="flex items-center space-x-20">
+              {[...Array(8)].map((_, i) => (
+                <h1 key={`second-${i}`} className="text-4xl lg:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate">
+                  FREE AI LOGO MAKER
+                </h1>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      
       {/* Level 0: Hero Section */}
       <div id="level-0" className="min-h-screen relative overflow-hidden flex flex-col">
         <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 to-black/60"></div>
         
         {/* Main hero content - positioned higher */}
-        <div className="flex-1 flex items-center justify-center pt-20 pb-32">
+        <div className="flex-1 flex items-center justify-center pt-32 pb-32">
           <div className="relative max-w-6xl mx-auto px-4 text-center">
-            <h1 className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 mb-8 font-phosphate">
-              Free AI Logo Maker
-            </h1>
-            <p className="text-2xl lg:text-3xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-3xl lg:text-4xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed font-medium">
               Create professional logos in seconds with AI. No design skills needed, completely free to use.
             </p>
             <div className="flex flex-wrap justify-center gap-8 lg:gap-12 text-lg lg:text-xl text-gray-400 mb-16">
