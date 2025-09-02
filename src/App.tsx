@@ -462,16 +462,24 @@ function App() {
           <div className="flex animate-scroll whitespace-nowrap">
             {/* First set of titles */}
             <div className="flex items-center space-x-12 mr-12">
-              {[...Array(15)].map((_, i) => (
+              {[...Array(25)].map((_, i) => (
                 <h1 key={`first-${i}`} className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none">
                   FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
-            {/* Duplicate set for seamless loop */}
-            <div className="flex items-center space-x-12">
-              {[...Array(15)].map((_, i) => (
+            {/* Second set for seamless loop */}
+            <div className="flex items-center space-x-12 mr-12">
+              {[...Array(25)].map((_, i) => (
                 <h1 key={`second-${i}`} className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none">
+                  FREE AI LOGO MAKER
+                </h1>
+              ))}
+            </div>
+            {/* Third set for extra seamlessness */}
+            <div className="flex items-center space-x-12">
+              {[...Array(25)].map((_, i) => (
+                <h1 key={`third-${i}`} className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none">
                   FREE AI LOGO MAKER
                 </h1>
               ))}
@@ -572,9 +580,43 @@ function App() {
                 ))}
               </div>
               {/* Fourth set for maximum seamlessness */}
-              <div className="flex items-center space-x-16">
+              <div className="flex items-center space-x-16 mr-16">
                 {logoReferences.map((logo) => (
                   <div key={`fourth-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
+                    <img 
+                      src={logo.imageUrl} 
+                      alt={logo.name}
+                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                    <span className="text-lg font-medium">{logo.name}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Fifth set for ultra seamlessness */}
+              <div className="flex items-center space-x-16 mr-16">
+                {logoReferences.map((logo) => (
+                  <div key={`fifth-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
+                    <img 
+                      src={logo.imageUrl} 
+                      alt={logo.name}
+                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                    <span className="text-lg font-medium">{logo.name}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Sixth set for perfect seamlessness */}
+              <div className="flex items-center space-x-16">
+                {logoReferences.map((logo) => (
+                  <div key={`sixth-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
                     <img 
                       src={logo.imageUrl} 
                       alt={logo.name}

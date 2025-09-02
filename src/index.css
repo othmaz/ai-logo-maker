@@ -24,7 +24,7 @@ html {
 }
 
 .animate-scroll {
-  animation: scroll 15s linear infinite;
+  animation: scroll 25s linear infinite;
 }
 
 .animate-scroll:hover {
