@@ -40,7 +40,8 @@
       "Bash(npm run lint)",
       "Bash(gh:*)",
       "Bash(git fetch:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []
