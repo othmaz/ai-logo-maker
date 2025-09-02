@@ -30,3 +30,17 @@ html {
 .animate-scroll:hover {
   animation-play-state: paused;
 }
+
+/* Mobile arrow positioning fix */
+@media (max-width: 768px) {
+  #level-0 .flex-1 {
+    padding-bottom: 6rem !important;
+  }
+  
+  #level-0 button.mobile-arrow {
+    margin-top: 2rem;
+    position: relative;
+    z-index: 40;
+    margin-bottom: 1rem;
+  }
+}
