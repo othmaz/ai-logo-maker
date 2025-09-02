@@ -31,6 +31,11 @@ html {
   animation-play-state: paused;
 }
 
+/* Desktop transform scaling for Phosphate font */
+.font-phosphate {
+  transform: scaleY(1.35) scaleX(0.8);
+}
+
 /* Mobile arrow positioning fix */
 @media (max-width: 768px) {
   #level-0 .flex-1 {
@@ -58,10 +63,13 @@ html {
     height: 100% !important;
   }
   
-  /* Use different font for mobile */
+  /* Use Futura Bold for mobile with vertical stretching */
   .mobile-font {
-    font-family: 'Arial Black', 'Arial Bold', Gadget, sans-serif;
-    font-stretch: condensed;
-    letter-spacing: -0.02em;
+    font-family: 'Futura', 'Futura Bold', 'Futura-Bold', 'Futura Bold BT', 'Arial Black', sans-serif;
+    font-weight: 700;
+    font-stretch: ultra-condensed;
+    letter-spacing: -0.03em;
+    transform: scaleY(1.5) scaleX(0.85) !important;
+    line-height: 0.9 !important;
   }
 }
