@@ -11,7 +11,11 @@
     "preview": "cd client && npm run preview",
     "server": "cd server && node server.js",
     "start": "npm run server",
-    "dev:full": "npm run server & npm run dev"
+    "dev:full": "npm run server & npm run dev",
+    "validate-deployment": "node scripts/validate-deployment.cjs",
+    "health-check": "node scripts/health-check.cjs",
+    "pre-deploy": "npm run validate-deployment && echo '✅ Ready for deployment'",
+    "post-deploy": "npm run health-check"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",

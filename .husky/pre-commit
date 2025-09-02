@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Prevent deployment nightmares by validating configuration before commit
+echo "🔍 Running deployment validation..."
+
+# Check if vercel.json or package.json changed
+if git diff --cached --name-only | grep -E "(vercel\.json|package\.json)"; then
+    echo "⚠️  Critical deployment files changed - running validation..."
+    node scripts/validate-deployment.cjs
+    
+    if [ $? -ne 0 ]; then
+        echo "🛑 COMMIT BLOCKED: Deployment validation failed!"
+        echo "Fix the issues above before committing."
+        exit 1
+    fi
+    
+    echo "✅ Deployment validation passed"
+fi
+
+echo "✅ Pre-commit checks complete"
