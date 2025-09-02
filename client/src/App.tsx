@@ -455,31 +455,31 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       
       {/* Sticky Top Title Band */}
-      <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 h-20 transition-transform duration-300 ${
+      <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 h-32 transition-transform duration-300 ${
         isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
       }`}>
         <div className="relative overflow-hidden h-full">
           <div className="flex animate-scroll whitespace-nowrap h-full">
             {/* First set of titles */}
-            <div className="flex items-center space-x-12 mr-12 h-full">
+            <div className="flex items-center space-x-0 mr-0 h-full">
               {[...Array(25)].map((_, i) => (
-                <h1 key={`first-${i}`} className="text-8xl lg:text-9xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-[0.8] flex items-center h-full">
+                <h1 key={`first-${i}`} className="text-8xl lg:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
                   FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
             {/* Second set for seamless loop */}
-            <div className="flex items-center space-x-12 mr-12 h-full">
+            <div className="flex items-center space-x-0 mr-0 h-full">
               {[...Array(25)].map((_, i) => (
-                <h1 key={`second-${i}`} className="text-8xl lg:text-9xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-[0.8] flex items-center h-full">
+                <h1 key={`second-${i}`} className="text-8xl lg:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
                   FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
             {/* Third set for extra seamlessness */}
-            <div className="flex items-center space-x-12 h-full">
+            <div className="flex items-center space-x-2 h-full">
               {[...Array(25)].map((_, i) => (
-                <h1 key={`third-${i}`} className="text-8xl lg:text-9xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-[0.8] flex items-center h-full">
+                <h1 key={`third-${i}`} className="text-8xl lg:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
                   FREE AI LOGO MAKER
                 </h1>
               ))}
@@ -524,9 +524,9 @@ function App() {
         </div>
         
         {/* Infinite scrolling logo band at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 py-8">
+        <div className="absolute bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 py-6">
           <div className="relative overflow-hidden">
-            <p className="text-center text-sm text-gray-400 mb-6 font-medium">Trusted by brands worldwide</p>
+            <p className="text-center text-sm text-gray-400 mb-4 font-medium">Trusted by brands worldwide</p>
             <div className="flex animate-scroll whitespace-nowrap">
               {/* First set of logos */}
               <div className="flex items-center space-x-16 mr-16">
