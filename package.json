@@ -14,8 +14,11 @@
     "dev:full": "npm run server & npm run dev",
     "validate-deployment": "node scripts/validate-deployment.cjs",
     "health-check": "node scripts/health-check.cjs",
-    "pre-deploy": "npm run validate-deployment && echo '✅ Ready for deployment'",
-    "post-deploy": "npm run health-check"
+    "backup-deployment": "node scripts/backup-deployment.cjs",
+    "restore-backup": "node scripts/restore-backup.cjs",
+    "pre-deploy": "npm run backup-deployment && npm run validate-deployment && echo '✅ Ready for deployment'",
+    "post-deploy": "npm run health-check",
+    "safe-push": "npm run pre-deploy && git push && npm run post-deploy"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",
