@@ -4,13 +4,14 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "cd client && vite",
+    "build": "cd client && tsc -b && vite build",
     "vercel-build": "npm run build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "server": "node server.js",
-    "start": "npm run server"
+    "lint": "cd client && eslint .",
+    "preview": "cd client && vite preview",
+    "server": "cd server && node server.js",
+    "start": "npm run server",
+    "dev:full": "npm run server & npm run dev"
   },
   "dependencies": {
     "@google/genai": "^1.16.0",

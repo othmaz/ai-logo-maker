@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5174,
+    host: '0.0.0.0',
+    hmr: {
+      host: 'localhost'
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
