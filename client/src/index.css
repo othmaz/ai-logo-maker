@@ -63,13 +63,26 @@ html {
     height: 100% !important;
   }
   
-  /* Use Futura Bold for mobile with vertical stretching */
+  /* Use Futura Bold for mobile with maximum vertical stretching */
   .mobile-font {
     font-family: 'Futura', 'Futura Bold', 'Futura-Bold', 'Futura Bold BT', 'Arial Black', sans-serif;
-    font-weight: 700;
+    font-weight: 900;
     font-stretch: ultra-condensed;
-    letter-spacing: -0.03em;
-    transform: scaleY(1.5) scaleX(0.85) !important;
-    line-height: 0.9 !important;
+    letter-spacing: -0.04em;
+    transform: scaleY(1.8) scaleX(0.8) !important;
+    line-height: 0.85 !important;
+    font-size: 2.5rem !important;
+  }
+  
+  /* Ensure text completely fills band vertically */
+  .fixed.top-0.bg-gray-900\/95 .flex.items-center {
+    align-items: stretch !important;
+  }
+  
+  .fixed.top-0.bg-gray-900\/95 .flex.items-center h1 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100% !important;
   }
 }
