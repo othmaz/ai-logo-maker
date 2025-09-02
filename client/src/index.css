@@ -56,22 +56,26 @@ html {
   
   /* Ensure title band fits mobile screens */
   .fixed.top-0.bg-gray-900\/95 {
-    height: 48px !important;
+    height: 52px !important;
+    padding-top: 0 !important;
   }
   
   .fixed.top-0 .h-full {
     height: 100% !important;
   }
   
-  /* Use Futura Bold for mobile with maximum vertical stretching */
+  /* Use Futura Bold for mobile with vertical stretching */
   .mobile-font {
     font-family: 'Futura', 'Futura Bold', 'Futura-Bold', 'Futura Bold BT', 'Arial Black', sans-serif;
     font-weight: 900;
     font-stretch: ultra-condensed;
     letter-spacing: -0.04em;
     transform: scaleY(1.8) scaleX(0.8) !important;
-    line-height: 0.85 !important;
-    font-size: 2.5rem !important;
+    transform-origin: center bottom !important;
+    line-height: 0.8 !important;
+    font-size: 2.8rem !important;
+    margin-top: -8px !important;
+    margin-bottom: 0 !important;
   }
   
   /* Ensure text completely fills band vertically */
@@ -81,8 +85,13 @@ html {
   
   .fixed.top-0.bg-gray-900\/95 .flex.items-center h1 {
     display: flex;
-    align-items: center;
+    align-items: flex-end !important;
     justify-content: center;
     height: 100% !important;
+    overflow: visible !important;
+    position: relative;
+    padding-bottom: 0 !important;
+    bottom: -4px !important;
+    margin-top: -2px !important;
   }
 }
