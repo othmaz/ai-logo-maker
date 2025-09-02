@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "cd client && npm run dev",
-    "build": "cd client && npm run build",
-    "vercel-build": "npm run build",
+    "build": "cd client && npm install && npm run build",
+    "vercel-build": "cd client && npm install && npm run build",
     "lint": "cd client && npm run lint",
     "preview": "cd client && npm run preview",
     "server": "cd server && node server.js",
