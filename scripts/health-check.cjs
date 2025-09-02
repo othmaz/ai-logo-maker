@@ -10,7 +10,8 @@
 const https = require('https');
 const http = require('http');
 
-const DEPLOYMENT_URL = process.env.VERCEL_URL || 'https://ai-logo-maker-production.up.railway.app';
+// Default to Vercel deployment URL (update this with your actual Vercel URL)
+const DEPLOYMENT_URL = process.env.DEPLOYMENT_URL || process.env.VERCEL_URL || 'https://your-vercel-app.vercel.app';
 
 function makeRequest(url) {
   return new Promise((resolve, reject) => {

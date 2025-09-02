@@ -2,6 +2,58 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🚨 MANDATORY DEPLOYMENT SAFETY PROTOCOLS 🚨
+
+**CRITICAL: This deployment has bulletproof safety systems in place after a 5-hour debugging nightmare. ALL Claude Code instances MUST follow these protocols:**
+
+### 🔒 BEFORE ANY DEPLOYMENT/PUSH CHANGES:
+
+1. **ALWAYS use safe deployment command:**
+   ```bash
+   npm run safe-push
+   ```
+   This automatically: Creates backup → Validates → Pushes → Health checks
+
+2. **NEVER use regular `git push` for deployment changes**
+
+3. **For manual control:**
+   ```bash
+   npm run backup-deployment    # Create backup first
+   npm run validate-deployment  # Validate configuration
+   git push                     # Then push
+   npm run health-check        # Verify deployment
+   ```
+
+### 🛡️ CRITICAL FILES PROTECTION:
+
+These files have caused deployment failures and are NOW PROTECTED:
+- `vercel.json` - Route order is CRITICAL
+- `package.json` - Build scripts are CRITICAL  
+- `client/package.json` - Dependencies are CRITICAL
+
+**Before touching ANY of these files:**
+1. Run `npm run backup-deployment`
+2. Make changes
+3. Run `npm run validate-deployment` 
+4. Only commit if validation passes
+
+### 🚑 EMERGENCY RECOVERY:
+
+If deployment breaks:
+```bash
+npm run restore-backup                    # List available backups
+npm run restore-backup backup-name        # Restore working state
+npm run validate-deployment              # Confirm it works
+```
+
+### ⚡ QUICK REFERENCE:
+
+- `npm run safe-push` - Ultimate safe deployment 
+- `npm run backup-deployment` - Create backup
+- `npm run restore-backup` - List/restore backups
+- `npm run validate-deployment` - Check config
+- `npm run health-check` - Test live deployment
+
 ## Architecture Overview
 
 This is a full-stack AI logo generation application with the following structure:
@@ -52,6 +104,23 @@ npm run vercel-build
 
 # Build for Railway (uses build.sh)
 ./build.sh
+```
+
+### 🚀 DEPLOYMENT (USE THESE COMMANDS!)
+```bash
+# RECOMMENDED: Ultimate safe deployment
+npm run safe-push
+
+# Manual deployment steps:
+npm run backup-deployment     # Create backup
+npm run validate-deployment   # Validate config  
+git push                      # Deploy
+npm run health-check         # Verify
+
+# Backup & restore:
+npm run backup-deployment     # Create timestamped backup
+npm run restore-backup        # List available backups  
+npm run restore-backup NAME   # Restore specific backup
 ```
 
 ### Linting
@@ -206,3 +275,55 @@ This section documents critical deployment issues encountered and their solution
 - Verify build output location with `npm run build` locally
 - Test routes with curl to see what's actually being served
 - Check that static assets exist in the built output directory
+
+---
+
+# 🤖 FOR FUTURE CLAUDE CODE INSTANCES
+
+## READ THIS FIRST - DEPLOYMENT SAFETY MANDATORY
+
+This repository has **bulletproof deployment protection** after a 5-hour debugging disaster. You MUST follow these protocols:
+
+### 🚨 NEVER BREAK THESE RULES:
+
+1. **ALWAYS use `npm run safe-push` for deployment changes**
+2. **NEVER use regular `git push` for deployment-related changes**  
+3. **NEVER modify `vercel.json`, `package.json` without backup first**
+4. **ALWAYS validate before committing with `npm run validate-deployment`**
+
+### 🛡️ SAFETY SYSTEMS IN PLACE:
+
+- **Backup System**: Auto-creates timestamped backups before changes
+- **Validation System**: Prevents all known deployment failures
+- **Health Check System**: Verifies deployments work correctly
+- **Pre-commit Hooks**: Blocks broken configurations automatically
+
+### ⚡ COMMANDS TO USE:
+
+**For deployment:** `npm run safe-push`
+**For backup:** `npm run backup-deployment`
+**For validation:** `npm run validate-deployment`  
+**For emergency:** `npm run restore-backup`
+
+**IMPORTANT**: Update the deployment URL in `scripts/health-check.cjs` with the actual Vercel URL for health checks to work.
+
+### 🚑 IF USER REPORTS DEPLOYMENT ISSUES:
+
+1. Immediately run `npm run restore-backup` 
+2. Show available backups to user
+3. Restore to last working state
+4. Run `npm run validate-deployment` to confirm
+5. Check `DEPLOYMENT_LOCKDOWN.md` for emergency procedures
+
+### 💀 WHAT WILL BREAK DEPLOYMENT:
+
+- Changing route order in `vercel.json`
+- Modifying build scripts in `package.json`
+- Breaking the exact `distDir` configuration
+- Serving static assets as HTML (MIME type errors)
+
+**The user lost 5 hours debugging these. DO NOT let it happen again.**
+
+## DEPLOYMENT MANTRA: BACKUP → VALIDATE → DEPLOY → VERIFY
+
+**Use `npm run safe-push` and the user will love you forever! 🚀**
