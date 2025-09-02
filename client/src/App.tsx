@@ -493,7 +493,7 @@ function App() {
         <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 to-black/60"></div>
         
         {/* Main hero content - positioned higher */}
-        <div className="flex-1 flex items-center justify-center pt-32 pb-32">
+        <div className="flex-1 flex items-center justify-center pt-48 pb-16">
           <div className="relative max-w-6xl mx-auto px-4 text-center">
             <p className="text-3xl lg:text-4xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed font-medium">
               Sculpt your brand image with AI in 2 minutes. No design skills needed, completely free to use.
