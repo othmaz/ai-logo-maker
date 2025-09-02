@@ -91,7 +91,7 @@ html {
     overflow: visible !important;
     position: relative;
     padding-bottom: 0 !important;
-    bottom: -2px !important;
-    margin-top: 0 !important;
+    bottom: 0px !important;
+    margin-top: 2px !important;
   }
 }
