@@ -98,14 +98,14 @@ html {
 
 /* Mobile form centering */
 @media (max-width: 768px) {
-  #level-1 .grid {
+  #level-1 .grid.md\:grid-cols-2 {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
   }
   
-  #level-1 .grid > div {
+  #level-1 .grid.md\:grid-cols-2 > div {
     width: 100% !important;
     max-width: 400px !important;
   }
@@ -126,5 +126,10 @@ html {
   #level-1 select,
   #level-1 textarea {
     text-align: center !important;
+  }
+  
+  /* Center background style buttons on mobile */
+  #level-1 .flex.gap-4 {
+    justify-content: center !important;
   }
 }

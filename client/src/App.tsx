@@ -720,7 +720,7 @@ function App() {
                     value={formData.aestheticDirections}
                     onChange={(e) => setFormData({...formData, aestheticDirections: e.target.value})}
                     placeholder="e.g., futuristic, organic curves, bold and edgy, elegant serif"
-                    className="w-full p-5 border-0 bg-gray-700 rounded-2xl h-24 focus:ring-2 focus:ring-white focus:bg-gray-600 transition-all duration-200 text-white placeholder-gray-400 resize-none text-lg"
+                    className="w-full p-5 border-0 bg-gray-700 rounded-2xl h-32 focus:ring-2 focus:ring-white focus:bg-gray-600 transition-all duration-200 text-white placeholder-gray-400 resize-none text-lg"
                   />
                 </div>
 
