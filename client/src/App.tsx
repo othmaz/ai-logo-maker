@@ -455,31 +455,31 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       
       {/* Sticky Top Title Band */}
-      <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 py-2 transition-transform duration-300 ${
+      <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 h-20 transition-transform duration-300 ${
         isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
       }`}>
-        <div className="relative overflow-hidden">
-          <div className="flex animate-scroll whitespace-nowrap">
+        <div className="relative overflow-hidden h-full">
+          <div className="flex animate-scroll whitespace-nowrap h-full">
             {/* First set of titles */}
-            <div className="flex items-center space-x-12 mr-12">
+            <div className="flex items-center space-x-12 mr-12 h-full">
               {[...Array(25)].map((_, i) => (
-                <h1 key={`first-${i}`} className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none">
+                <h1 key={`first-${i}`} className="text-8xl lg:text-9xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-[0.8] flex items-center h-full">
                   FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
             {/* Second set for seamless loop */}
-            <div className="flex items-center space-x-12 mr-12">
+            <div className="flex items-center space-x-12 mr-12 h-full">
               {[...Array(25)].map((_, i) => (
-                <h1 key={`second-${i}`} className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none">
+                <h1 key={`second-${i}`} className="text-8xl lg:text-9xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-[0.8] flex items-center h-full">
                   FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
             {/* Third set for extra seamlessness */}
-            <div className="flex items-center space-x-12">
+            <div className="flex items-center space-x-12 h-full">
               {[...Array(25)].map((_, i) => (
-                <h1 key={`third-${i}`} className="text-7xl lg:text-8xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none">
+                <h1 key={`third-${i}`} className="text-8xl lg:text-9xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-[0.8] flex items-center h-full">
                   FREE AI LOGO MAKER
                 </h1>
               ))}
