@@ -43,4 +43,18 @@ html {
     z-index: 40;
     margin-bottom: 1rem;
   }
+
+  /* Mobile title band adjustments */
+  .animate-scroll {
+    animation-duration: 15s !important;
+  }
+  
+  /* Ensure title band fits mobile screens */
+  .fixed.top-0.bg-gray-900\/95 {
+    height: 48px !important;
+  }
+  
+  .fixed.top-0 .h-full {
+    height: 100% !important;
+  }
 }
