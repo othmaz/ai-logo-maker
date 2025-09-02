@@ -57,4 +57,11 @@ html {
   .fixed.top-0 .h-full {
     height: 100% !important;
   }
+  
+  /* Use different font for mobile */
+  .mobile-font {
+    font-family: 'Arial Black', 'Arial Bold', Gadget, sans-serif;
+    font-stretch: condensed;
+    letter-spacing: -0.02em;
+  }
 }

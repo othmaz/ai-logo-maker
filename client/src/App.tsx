@@ -463,7 +463,7 @@ function App() {
             {/* First set of titles */}
             <div className="flex items-center space-x-0 mr-0 h-full">
               {[...Array(25)].map((_, i) => (
-                <h1 key={`first-${i}`} className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
+                <h1 key={`first-${i}`} className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
                   FREE AI LOGO MAKER
                 </h1>
               ))}
@@ -471,7 +471,7 @@ function App() {
             {/* Second set for seamless loop */}
             <div className="flex items-center space-x-0 mr-0 h-full">
               {[...Array(25)].map((_, i) => (
-                <h1 key={`second-${i}`} className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
+                <h1 key={`second-${i}`} className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
                   FREE AI LOGO MAKER
                 </h1>
               ))}
@@ -479,7 +479,7 @@ function App() {
             {/* Third set for extra seamlessness */}
             <div className="flex items-center space-x-0 mr-0 h-full">
               {[...Array(25)].map((_, i) => (
-                <h1 key={`third-${i}`} className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
+                <h1 key={`third-${i}`} className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
                   FREE AI LOGO MAKER
                 </h1>
               ))}
