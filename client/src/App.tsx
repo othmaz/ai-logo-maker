@@ -464,7 +464,7 @@ function App() {
             <div className="flex items-center space-x-0 mr-0 h-full">
               {[...Array(25)].map((_, i) => (
                 <h1 key={`first-${i}`} className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed'}}>
-                  TEST2
+                  FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
@@ -472,7 +472,7 @@ function App() {
             <div className="flex items-center space-x-0 mr-0 h-full">
               {[...Array(25)].map((_, i) => (
                 <h1 key={`second-${i}`} className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed'}}>
-                  TEST2
+                  FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
@@ -480,7 +480,7 @@ function App() {
             <div className="flex items-center space-x-0 mr-0 h-full">
               {[...Array(25)].map((_, i) => (
                 <h1 key={`third-${i}`} className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0" style={{fontStretch: 'ultra-condensed'}}>
-                  TEST2
+                  FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
