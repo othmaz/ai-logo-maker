@@ -22,6 +22,9 @@ if (!fs.existsSync(imagesDir)) {
 // Serve static files from generated-logos directory
 app.use('/images', express.static(imagesDir))
 
+// Serve static files from dist directory (built React app)
+app.use(express.static('./dist'))
+
 const callGeminiAPI = async (prompt) => {
   const apiKey = process.env.GEMINI_API_KEY
   
@@ -193,6 +196,11 @@ app.post('/api/generate-multiple', async (req, res) => {
     console.error('❌ Server error in /api/generate-multiple:', error.message)
     res.status(500).json({ error: 'Failed to generate logos: ' + error.message })
   }
+})
+
+// Catch-all handler: send back React's index.html file for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'dist', 'index.html'))
 })
 
 app.listen(port, () => {
