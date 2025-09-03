@@ -56,7 +56,7 @@ html {
   
   /* Ensure title band fits mobile screens */
   .fixed.top-0.bg-gray-900\/95 {
-    height: 78px !important;
+    height: 82px !important;
     padding-top: 0 !important;
   }
   
