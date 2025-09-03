@@ -481,7 +481,7 @@ function App() {
       </div>
       
       {/* Level 0: Hero Section */}
-      <div id="level-0" className="min-h-screen relative overflow-hidden flex flex-col">
+      <div id="level-0" className="h-screen relative overflow-hidden flex flex-col">
         <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 to-black/60"></div>
         
         {/* Main hero content - positioned higher */}
@@ -516,7 +516,7 @@ function App() {
         </div>
         
         {/* Infinite scrolling logo band at bottom */}
-        <div className="fixed md:absolute bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 py-6 z-40">
+        <div className="absolute bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 py-6">
           <div className="relative overflow-hidden">
             <p className="text-center text-sm text-gray-400 mb-4 font-medium">Trusted by brands worldwide</p>
             <div className="flex animate-scroll whitespace-nowrap">
