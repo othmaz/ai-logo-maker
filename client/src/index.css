@@ -19,12 +19,12 @@ html {
     transform: translateX(0);
   }
   100% {
-    transform: translateX(-100%);
+    transform: translateX(-1500%);
   }
 }
 
 .animate-scroll {
-  animation: scroll 25s linear infinite;
+  animation: scroll 300s linear infinite;
 }
 
 .animate-scroll:hover {
@@ -51,12 +51,12 @@ html {
 
   /* Mobile title band adjustments */
   .animate-scroll {
-    animation-duration: 15s !important;
+    animation-duration: 200s !important;
   }
   
   /* Ensure title band fits mobile screens */
   .fixed.top-0.bg-gray-900\/95 {
-    height: 82px !important;
+    height: 86px !important;
     padding-top: 0 !important;
   }
   
