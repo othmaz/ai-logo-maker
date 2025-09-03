@@ -44,14 +44,31 @@ html {
 /* Mobile arrow positioning fix */
 @media (max-width: 768px) {
   #level-0 .flex-1 {
-    padding-bottom: 6rem !important;
+    padding-bottom: 15rem !important;
   }
   
   #level-0 button.mobile-arrow {
-    margin-top: 2rem;
-    position: relative;
-    z-index: 40;
-    margin-bottom: 1rem;
+    position: absolute !important;
+    bottom: -20px !important;
+    left: 50% !important;
+    z-index: 60 !important;
+    margin: 0 !important;
+    margin-left: -32px !important;
+  }
+  
+  #level-0 button.mobile-arrow.animate-bounce {
+    animation: bounce 1s infinite !important;
+  }
+
+  @keyframes bounce {
+    0%, 100% {
+      transform: translateY(-25%);
+      animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+    50% {
+      transform: translateY(0);
+      animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
   }
 
   /* Mobile title band adjustments */
