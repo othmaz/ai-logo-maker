@@ -25,6 +25,11 @@ html {
 
 .animate-scroll {
   animation: scroll 300s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .animate-scroll:hover {

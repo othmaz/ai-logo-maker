@@ -462,7 +462,7 @@ function App() {
           <div className="flex animate-scroll whitespace-nowrap h-full">
             {/* First set of titles */}
             <div className="flex items-center space-x-0 mr-0 h-full">
-              {[...Array(10000)].map((_, i) => (
+              {[...Array(50)].map((_, i) => (
                 <h1 key={`first-${i}`} className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0 -mr-16 lg:-mr-48" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
                   FREE AI LOGO MAKER
                 </h1>
@@ -470,7 +470,7 @@ function App() {
             </div>
             {/* Second set for seamless loop */}
             <div className="flex items-center space-x-0 mr-0 h-full">
-              {[...Array(10000)].map((_, i) => (
+              {[...Array(50)].map((_, i) => (
                 <h1 key={`second-${i}`} className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0 -mr-16 lg:-mr-48" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
                   FREE AI LOGO MAKER
                 </h1>
@@ -520,108 +520,25 @@ function App() {
           <div className="relative overflow-hidden">
             <p className="text-center text-sm text-gray-400 mb-4 font-medium">Trusted by brands worldwide</p>
             <div className="flex animate-scroll whitespace-nowrap">
-              {/* First set of logos */}
-              <div className="flex items-center space-x-16 mr-16">
-                {logoReferences.map((logo) => (
-                  <div key={`first-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
-                    <img 
-                      src={logo.imageUrl} 
-                      alt={logo.name}
-                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    <span className="text-lg font-medium">{logo.name}</span>
-                  </div>
-                ))}
-              </div>
-              {/* Duplicate set for seamless loop */}
-              <div className="flex items-center space-x-16 mr-16">
-                {logoReferences.map((logo) => (
-                  <div key={`second-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
-                    <img 
-                      src={logo.imageUrl} 
-                      alt={logo.name}
-                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    <span className="text-lg font-medium">{logo.name}</span>
-                  </div>
-                ))}
-              </div>
-              {/* Third set for extra seamlessness */}
-              <div className="flex items-center space-x-16 mr-16">
-                {logoReferences.map((logo) => (
-                  <div key={`third-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
-                    <img 
-                      src={logo.imageUrl} 
-                      alt={logo.name}
-                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    <span className="text-lg font-medium">{logo.name}</span>
-                  </div>
-                ))}
-              </div>
-              {/* Fourth set for maximum seamlessness */}
-              <div className="flex items-center space-x-16 mr-16">
-                {logoReferences.map((logo) => (
-                  <div key={`fourth-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
-                    <img 
-                      src={logo.imageUrl} 
-                      alt={logo.name}
-                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    <span className="text-lg font-medium">{logo.name}</span>
-                  </div>
-                ))}
-              </div>
-              {/* Fifth set for ultra seamlessness */}
-              <div className="flex items-center space-x-16 mr-16">
-                {logoReferences.map((logo) => (
-                  <div key={`fifth-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
-                    <img 
-                      src={logo.imageUrl} 
-                      alt={logo.name}
-                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    <span className="text-lg font-medium">{logo.name}</span>
-                  </div>
-                ))}
-              </div>
-              {/* Sixth set for perfect seamlessness */}
-              <div className="flex items-center space-x-16">
-                {logoReferences.map((logo) => (
-                  <div key={`sixth-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
-                    <img 
-                      src={logo.imageUrl} 
-                      alt={logo.name}
-                      className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    <span className="text-lg font-medium">{logo.name}</span>
-                  </div>
-                ))}
-              </div>
+              {/* Generate many sets of logos for long scrolling */}
+              {[...Array(20)].map((_, setIndex) => (
+                <div key={setIndex} className="flex items-center space-x-16 mr-16">
+                  {logoReferences.map((logo) => (
+                    <div key={`${setIndex}-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
+                      <img 
+                        src={logo.imageUrl} 
+                        alt={logo.name}
+                        className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjNGI1NTYzIi8+CjxyZWN0IHg9IjYiIHk9IjYiIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgZmlsbD0iIzk0YTNiOCIvPgo8L3N2Zz4K';
+                        }}
+                      />
+                      <span className="text-lg font-medium">{logo.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           </div>
         </div>
