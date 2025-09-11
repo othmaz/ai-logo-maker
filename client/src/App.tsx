@@ -14,7 +14,6 @@ interface FormData {
   style: string
   colors: string
   aestheticDirections: string
-  preferredLogos: string[]
   uploadedImages: File[]
   hasBackground: boolean
 }
@@ -32,6 +31,7 @@ interface Logo {
   url: string
   prompt: string
   selected?: boolean
+  number?: number
 }
 
 interface GenerationRound {
@@ -93,13 +93,8 @@ const buildBasePrompt = (formData: FormData): string => {
 }
 
 const createPromptVariations = (basePrompt: string, formData: FormData): string[] => {
-  const { colors, preferredLogos, hasBackground, aestheticDirections, uploadedImages } = formData
-  
-  // Get reference logo names for subtle inspiration (reduced influence)
-  const selectedLogos = logoReferences.filter(logo => preferredLogos.includes(logo.id))
-  const logoInspiration = selectedLogos.length > 0 
-    ? `Consider the general aesthetic of: ${selectedLogos.map(logo => logo.name).join(', ')}. ` 
-    : ''
+  const { colors, hasBackground, aestheticDirections, uploadedImages } = formData
+  const logoInspiration = ''
   
   // Custom image references
   const customImageInspiration = uploadedImages.length > 0
@@ -109,7 +104,7 @@ const createPromptVariations = (basePrompt: string, formData: FormData): string[
   // Background instruction
   const backgroundStyle = hasBackground 
     ? 'Include a subtle solid color or gentle gradient background. Keep the background very minimal and not distracting. ' 
-    : 'Keep background transparent, white, or minimal. '
+    : 'IMPORTANT: Use completely WHITE background (#FFFFFF) with no gradients, no patterns, no textures. '
   
   // Aesthetic directions from user
   const aestheticStyle = aestheticDirections 
@@ -137,14 +132,15 @@ const createPromptVariations = (basePrompt: string, formData: FormData): string[
   return variations
 }
 
-const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData): string[] => {
+const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, feedback?: string): string[] => {
   const basePrompt = buildBasePrompt(formData)
-  const { colors, preferredLogos, hasBackground, aestheticDirections, uploadedImages } = formData
+  const { colors, hasBackground, aestheticDirections, uploadedImages } = formData
   
-  // Get reference logo names for subtle inspiration (reduced influence)
-  const selectedLogos = logoReferences.filter(logo => preferredLogos.includes(logo.id))
-  const logoInspiration = selectedLogos.length > 0 
-    ? `Keep the general aesthetic feel of: ${selectedLogos.map(logo => logo.name).join(', ')}. ` 
+  const logoInspiration = ''
+  
+  // User feedback integration
+  const feedbackText = feedback && feedback.trim() 
+    ? `Based on user feedback: ${feedback.trim()}. ` 
     : ''
   
   // Custom image references
@@ -152,27 +148,31 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData): 
     ? `Continue incorporating the style from the ${uploadedImages.length} custom reference image${uploadedImages.length > 1 ? 's' : ''} provided. ` 
     : ''
   
-  // Background instruction
+  // Background instruction - VERY IMPORTANT for refinement
   const backgroundStyle = hasBackground 
     ? 'Maintain subtle solid color or gentle gradient background. Keep background very minimal. ' 
-    : 'Keep background clean and minimal. '
+    : 'CRITICAL: The background must be completely WHITE (#FFFFFF) with absolutely NO gradients, NO colors, NO patterns, NO textures - just pure solid white background. '
   
   // Aesthetic directions from user
   const aestheticStyle = aestheticDirections 
     ? `Following style notes: ${aestheticDirections}. `
     : ''
   
-  // Create clean, modern refinements that maintain simplicity
+  // Create refinements that preserve the essence of selected logos
+  const selectedLogosContext = _selectedLogos.length > 0 
+    ? `IMPORTANT: Base these refinements closely on the ${_selectedLogos.length} selected logo${_selectedLogos.length > 1 ? 's' : ''}. Keep their core design approach, style elements, and visual characteristics. ` 
+    : ''
+  
   const refinementPrompts = [
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Refine the selected style with even more elegance and sophistication. Make it cleaner and more premium. ${backgroundStyle}${colors ? `Use ${colors} with restraint and class.` : 'Use refined, minimal colors.'}`,
+    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Refine the selected style with even more elegance and sophistication. Keep the same design approach but make it cleaner and more premium. ${backgroundStyle}${colors ? `Use ${colors} with restraint and class.` : 'Use refined, minimal colors.'}`,
     
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Simplify the selected direction further - remove any unnecessary elements. Focus on pure, clean design. ${backgroundStyle}${colors ? `Use ${colors} more minimally.` : 'Stick to 1-2 colors maximum.'}`,
+    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Maintain the selected design direction but simplify further - remove unnecessary elements while preserving the core style. ${backgroundStyle}${colors ? `Use ${colors} more minimally.` : 'Stick to 1-2 colors maximum.'}`,
     
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Keep the essence of what was selected but make the typography more modern and refined. ${backgroundStyle}${colors ? `Incorporate ${colors} in the text treatment.` : 'Use contemporary color choices.'}`,
+    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Keep the essence and structure of the selected logos but refine the typography to be more modern and polished. ${backgroundStyle}${colors ? `Incorporate ${colors} in the text treatment.` : 'Use contemporary color choices.'}`,
     
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Polish the selected style to be more premium and sophisticated. ${backgroundStyle}${colors ? `Use ${colors} strategically for maximum impact.` : 'Choose luxury brand colors.'}`,
+    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Polish the selected style to be more premium and sophisticated while maintaining the same design philosophy and visual approach. ${backgroundStyle}${colors ? `Use ${colors} strategically for maximum impact.` : 'Choose luxury brand colors.'}`,
     
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Take the selected approach but make it slightly more distinctive while staying clean and modern. ${backgroundStyle}${colors ? `Make ${colors} more memorable but still elegant.` : 'Add one subtle accent color.'}`
+    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Enhance the selected approach with subtle improvements - make it more distinctive while preserving the original style direction. ${backgroundStyle}${colors ? `Make ${colors} more memorable but still elegant.` : 'Add one subtle accent color.'}`
   ]
   
   return refinementPrompts
@@ -186,7 +186,6 @@ function App() {
     style: 'modern',
     colors: '',
     aestheticDirections: '',
-    preferredLogos: [],
     uploadedImages: [],
     hasBackground: false
   })
@@ -195,8 +194,56 @@ function App() {
   const [currentRound, setCurrentRound] = useState(0)
   const [_generationHistory, setGenerationHistory] = useState<GenerationRound[]>([])
   const [selectedLogos, setSelectedLogos] = useState<Logo[]>([])
+  const [userFeedback, setUserFeedback] = useState<string>('')
+  const [savedLogos, setSavedLogos] = useState<Logo[]>([])
+  const [logoCounter, setLogoCounter] = useState(1) // Global logo counter
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [usage, setUsage] = useState({ remaining: 3, total: 3, used: 0 })
+  const [isPaid, setIsPaid] = useState(false)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+
+  // Load saved logos from localStorage on component mount
+  useEffect(() => {
+    const saved = localStorage.getItem('savedLogos')
+    if (saved) {
+      try {
+        setSavedLogos(JSON.parse(saved))
+      } catch (error) {
+        console.error('Error loading saved logos:', error)
+      }
+    }
+    
+    // Check usage limits on load
+    checkUsageLimit()
+  }, [])
+
+  // Function to check usage limits
+  const checkUsageLimit = async () => {
+    try {
+      const response = await fetch('/api/usage')
+      const data = await response.json()
+      setUsage(data)
+      setIsPaid(data.remaining === 999) // 999 indicates unlimited (paid user)
+    } catch (error) {
+      console.error('Failed to check usage limits:', error)
+    }
+  }
+
+  // Save logo to localStorage
+  const saveLogo = (logo: Logo) => {
+    const newSavedLogos = [...savedLogos, { ...logo, id: `saved-${Date.now()}-${Math.random()}` }]
+    setSavedLogos(newSavedLogos)
+    localStorage.setItem('savedLogos', JSON.stringify(newSavedLogos))
+    alert('Logo saved to your collection!')
+  }
+
+  // Remove logo from localStorage
+  const removeSavedLogo = (logoId: string) => {
+    const newSavedLogos = savedLogos.filter(logo => logo.id !== logoId)
+    setSavedLogos(newSavedLogos)
+    localStorage.setItem('savedLogos', JSON.stringify(newSavedLogos))
+  }
 
   // Handle scroll-based header visibility
   useEffect(() => {
@@ -234,6 +281,12 @@ function App() {
   const generateLogos = async (isInitial: boolean = true) => {
     if (!formData.businessName) return
     
+    // Check usage limits first (unless user is paid)
+    if (!isPaid && usage.remaining <= 0) {
+      setShowUpgradeModal(true)
+      return
+    }
+    
     setLoading(true)
     console.log('🎨 Starting logo generation...')
     
@@ -262,21 +315,32 @@ function App() {
       const basePrompt = buildBasePrompt(formData)
       prompts = createPromptVariations(basePrompt, formData)
     } else {
-      prompts = refinePromptFromSelection(selectedLogos, formData)
+      prompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
     }
     
     console.log('📝 Built prompts:', prompts)
     
     try {
-      console.log('📡 Sending request to Railway backend for multiple logos...')
+      console.log('📡 Sending request to backend for multiple logos...')
       
-      const response = await fetch('https://ai-logo-maker-production.up.railway.app/api/generate-multiple', {
+      const response = await fetch('/api/generate-multiple', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompts })
       })
       
       console.log('📨 Response status:', response.status)
+      
+      if (response.status === 429) {
+        // Usage limit exceeded
+        const errorData = await response.json()
+        if (errorData.limitExceeded) {
+          setUsage({ remaining: 0, total: errorData.total, used: errorData.total })
+          setShowUpgradeModal(true)
+          setLoading(false)
+          return
+        }
+      }
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -285,16 +349,24 @@ function App() {
       const data = await response.json()
       console.log('✅ Response data:', data)
       
+      // Update usage data if provided
+      if (data.usage) {
+        setUsage(data.usage)
+      }
+      
       if (data.logos && data.logos.length > 0) {
         const newLogos: Logo[] = data.logos.map((logoUrl: string, index: number) => ({
           id: `logo-${currentRound}-${index}-${Date.now()}`,
           url: logoUrl,
           prompt: prompts[index],
-          selected: false
+          selected: false,
+          number: logoCounter + index // Assign sequential number
         }))
         
         setLogos(newLogos)
         setSelectedLogos([])
+        setUserFeedback('') // Clear feedback for next round
+        setLogoCounter(prev => prev + data.logos.length) // Increment counter
         console.log('🖼️ Logos set:', newLogos)
         
         // Save to history
@@ -350,8 +422,13 @@ function App() {
   }
 
   const proceedToRefinement = () => {
-    if (selectedLogos.length === 0) {
-      alert('Please select at least one logo to refine')
+    if (selectedLogos.length > 2) {
+      alert('Please select maximum 2 logos to refine (or provide feedback without selecting any)')
+      return
+    }
+    
+    if (!userFeedback.trim()) {
+      alert('Please provide feedback about what you like or dislike in the current logos to help generate better ones')
       return
     }
     
@@ -359,14 +436,6 @@ function App() {
   }
 
 
-  const toggleLogoReference = (logoId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      preferredLogos: prev.preferredLogos.includes(logoId)
-        ? prev.preferredLogos.filter(id => id !== logoId)
-        : [...prev.preferredLogos, logoId].slice(0, 5) // Max 5 selections
-    }))
-  }
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -443,10 +512,17 @@ function App() {
 
   // Auto-scroll when logos are generated
   const handleLogoGeneration = async (isInitial: boolean = true) => {
+    const nextRound = currentRound + 1 // Calculate target round before state update
+    
+    // Reset counter if generating new set (not refinement)
+    if (isInitial) {
+      setLogoCounter(1)
+    }
+    
     await generateLogos(isInitial)
-    // Scroll to results after generation
+    // Scroll to results after generation - use the pre-calculated round
     setTimeout(() => {
-      const targetLevel = `level-${currentRound + 1}`
+      const targetLevel = `level-${nextRound + 1}` // +1 because level IDs start from 1
       scrollToLevel(targetLevel)
     }, 500)
   }
@@ -482,37 +558,50 @@ function App() {
       
       {/* Level 0: Hero Section */}
       <div id="level-0" className="h-screen relative overflow-hidden flex flex-col">
-        <div className="absolute inset-0 bg-gradient-to-r from-gray-900/80 to-black/60"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
         
-        {/* Main hero content - positioned higher */}
-        <div className="flex-1 flex items-center justify-center pt-48 pb-32 lg:pb-16">
+        {/* Main hero content - centered */}
+        <div className="flex-1 flex items-center justify-center pt-60 pb-32">
           <div className="relative max-w-6xl mx-auto px-4 text-center">
-            <p className="text-3xl lg:text-4xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed font-medium">
-              Sculpt your brand image with AI in 2 minutes. No design skills needed, completely free to use.
+            <h1 className="text-4xl lg:text-6xl hero-text mb-8 max-w-5xl mx-auto leading-tight font-extrabold">
+              Sculpt your brand image with AI
+            </h1>
+            <p className="text-xl lg:text-2xl text-gray-300 mb-4 max-w-3xl mx-auto leading-relaxed font-semibold">
+              2 minutes. No design skills needed.
             </p>
-            <div className="flex flex-wrap justify-center gap-8 lg:gap-12 text-lg lg:text-xl text-gray-400 mb-16">
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-white rounded-full mr-3"></div>
-                Powered by Google Gemini AI
+            <p className="text-lg lg:text-xl text-gray-400 mb-16 font-medium">
+              Completely free to use.
+            </p>
+            
+            <div className="flex flex-wrap justify-center gap-6 lg:gap-10 text-sm lg:text-base hero-features mb-20 -mt-3 lg:-mt-6">
+              <div className="flex items-center group">
+                <div className="w-3 h-3 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full mr-3 group-hover:scale-110 transition-transform"></div>
+                <span className="text-gray-300 group-hover:text-white transition-colors">Powered by Google Gemini AI</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-white rounded-full mr-3"></div>
-                High-quality PNG downloads
+              <div className="flex items-center group">
+                <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full mr-3 group-hover:scale-110 transition-transform"></div>
+                <span className="text-gray-300 group-hover:text-white transition-colors">High-quality PNG downloads</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-white rounded-full mr-3"></div>
-                100% Free to use
+              <div className="flex items-center group">
+                <div className="w-3 h-3 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full mr-3 group-hover:scale-110 transition-transform"></div>
+                <span className="text-gray-300 group-hover:text-white transition-colors">100% Free to use</span>
               </div>
             </div>
-            <button 
-              onClick={() => scrollToLevel('level-1')}
-              className="animate-bounce hover:animate-none transition-all duration-300 transform hover:scale-110 mobile-arrow relative z-50"
-            >
-              <div className="w-16 h-16 border-3 border-white rounded-full mx-auto flex items-center justify-center hover:bg-white hover:text-black transition-all duration-300">
-                <span className="text-3xl text-white hover:text-black">↓</span>
-              </div>
-            </button>
+            
           </div>
+        </div>
+        
+        {/* Arrow positioned outside content container */}
+        <div className="absolute bottom-36 left-0 right-0 flex justify-center z-50">
+          <button 
+            onClick={() => scrollToLevel('level-1')}
+            className="lg:animate-bounce hover:animate-none transition-all duration-300 hover:scale-110 mobile-arrow"
+          >
+            <div className="w-14 h-14 border-2 border-white/60 rounded-full flex items-center justify-center hover:bg-white/10 hover:border-white transition-all duration-300 backdrop-blur-sm">
+              <span className="text-2xl text-white">↓</span>
+            </div>
+          </button>
         </div>
         
         {/* Infinite scrolling logo band at bottom */}
@@ -691,111 +780,67 @@ function App() {
               </div>
             </div>
             
-            {/* Logo Reference Selection Section */}
+            {/* Image Upload Section */}
             <div className="bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-2xl border border-white/20 mt-8">
               <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold text-gray-800 mb-3">🎯 Step 2: Choose Logo References (Optional)</h3>
-                <p className="text-lg text-gray-600">Select up to 5 famous logos that inspire your style preferences</p>
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">📸 Step 2: Upload Reference Images (Optional)</h3>
+                <p className="text-lg text-gray-600">Upload up to 3 images of logos or designs that inspire you (max 5MB each)</p>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
-                {logoReferences.slice(0, 12).map((logo) => (
-                  <div
-                    key={logo.id}
-                    onClick={() => toggleLogoReference(logo.id)}
-                    className={`relative cursor-pointer p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105 ${
-                      formData.preferredLogos.includes(logo.id)
-                        ? 'border-purple-500 bg-purple-50 shadow-lg'
-                        : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                  >
-                    {formData.preferredLogos.includes(logo.id) && (
-                      <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                        ✓
-                      </div>
-                    )}
-                    <div className="aspect-square bg-gray-100 rounded-lg mb-2 flex items-center justify-center">
-                      <img 
-                        src={logo.imageUrl} 
-                        alt={logo.name}
-                        className="w-8 h-8 object-contain filter brightness-0"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          target.nextElementSibling!.textContent = logo.name.charAt(0);
-                        }}
-                      />
-                      <div className="hidden text-xl font-bold text-gray-400"></div>
+              <div className="mb-4">
+                <div className="flex items-center justify-center gap-4">
+                  <label className="cursor-pointer bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 border-dashed rounded-lg p-6 transition-colors duration-200">
+                    <div className="text-center">
+                      <div className="text-3xl mb-3">📁</div>
+                      <div className="text-lg font-medium text-blue-700 mb-1">Choose Images</div>
+                      <div className="text-sm text-blue-500">PNG, JPG, WEBP</div>
                     </div>
-                    <div className="text-xs font-medium text-center text-gray-700">{logo.name}</div>
-                    <div className="text-xs text-center text-gray-500">{logo.category}</div>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Custom Image Upload Section */}
-              <div className="mt-8 pt-6 border-t border-gray-200">
-                <div className="mb-4">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-2">📸 Upload Your Own References</h4>
-                  <p className="text-sm text-gray-600 mb-4">Upload up to 3 images of logos or designs that inspire you (max 5MB each)</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
                   
-                  <div className="flex items-center gap-4">
-                    <label className="cursor-pointer bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 border-dashed rounded-lg p-4 transition-colors duration-200">
-                      <div className="text-center">
-                        <div className="text-2xl mb-2">📁</div>
-                        <div className="text-sm font-medium text-blue-700">Choose Images</div>
-                        <div className="text-xs text-blue-500">PNG, JPG, WEBP</div>
-                      </div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleImageUpload}
-                        className="hidden"
-                      />
-                    </label>
-                    
-                    <div className="text-sm text-gray-500">
-                      {formData.uploadedImages.length}/3 images uploaded
-                    </div>
+                  <div className="text-lg text-gray-600 font-medium">
+                    {formData.uploadedImages.length}/3 images uploaded
                   </div>
                 </div>
-                
-                {/* Display uploaded images */}
-                {formData.uploadedImages.length > 0 && (
-                  <div className="grid grid-cols-3 gap-4">
-                    {formData.uploadedImages.map((file, index) => (
-                      <div key={index} className="relative group">
-                        <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                          <img
-                            src={URL.createObjectURL(file)}
-                            alt={`Reference ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <button
-                          onClick={() => removeUploadedImage(index)}
-                          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-red-600 transition-colors"
-                        >
-                          ×
-                        </button>
-                        <div className="text-xs text-center mt-1 text-gray-600 truncate">
-                          {file.name}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
               
-              <div className="text-center text-sm text-gray-500 mt-6">
-                Selected: {formData.preferredLogos.length}/5 brand logos • {formData.uploadedImages.length}/3 custom images
-                {(formData.preferredLogos.length > 0 || formData.uploadedImages.length > 0) && (
-                  <span className="block mt-2 text-purple-600">
-                    These will influence your logo generation style
-                  </span>
-                )}
-              </div>
+              {/* Display uploaded images */}
+              {formData.uploadedImages.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                  {formData.uploadedImages.map((file, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden shadow-lg">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Reference ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <button
+                        onClick={() => removeUploadedImage(index)}
+                        className="absolute -top-2 -right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-lg font-bold hover:bg-red-600 transition-colors shadow-lg"
+                      >
+                        ×
+                      </button>
+                      <div className="text-sm text-center mt-2 text-gray-600 font-medium truncate">
+                        {file.name}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {formData.uploadedImages.length > 0 && (
+                <div className="text-center text-sm text-purple-600 mt-6 font-medium">
+                  These images will influence your logo generation style
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -828,8 +873,8 @@ function App() {
                 </div>
                 
                 <p className="text-xl text-gray-600">
-                  {currentRound === 1 && "Select 1-2 logos you like to refine them further"}
-                  {currentRound === 2 && "Choose from refined options or select for final refinement"}
+                  {currentRound === 1 && "Provide feedback to refine logos further (optionally select 1-2 favorites)"}
+                  {currentRound === 2 && "Add feedback for final refinement (optionally select favorites)"}
                   {currentRound === 3 && "Final refined options - pick your perfect logo!"}
                 </p>
               </div>
@@ -846,34 +891,85 @@ function App() {
                         : 'hover:shadow-lg'
                     }`}
                   >
+                    {/* Logo Number */}
+                    <div className="absolute -top-2 -left-2 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center shadow-lg z-10">
+                      <span className="text-white text-sm font-bold">{logo.number || '?'}</span>
+                    </div>
+                    
                     <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
                       <img 
                         src={logo.url} 
-                        alt={`Logo Option ${logo.id}`} 
+                        alt={`Logo Option ${logo.number || '?'}`} 
                         className="w-full h-40 object-contain rounded-lg" 
                       />
                     </div>
                     
                     {/* Selection indicator */}
                     {logo.selected && (
-                      <div className="absolute -top-3 -right-3 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="absolute -top-3 -right-3 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg z-10">
                         <span className="text-white text-sm font-bold">✓</span>
                       </div>
                     )}
                     
-                    {/* Download button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        downloadLogo(logo)
-                      }}
-                      className="absolute bottom-3 right-3 bg-green-500 hover:bg-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-lg"
-                    >
-                      ⬇️
-                    </button>
+                    {/* Action buttons */}
+                    <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          saveLogo(logo)
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
+                        title="Save to collection"
+                      >
+                        💾
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          downloadLogo(logo)
+                        }}
+                        className="bg-green-500 hover:bg-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
+                        title="Download"
+                      >
+                        ⬇️
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
+
+              {/* Feedback Section for Refinement */}
+              {currentRound > 0 && currentRound < 3 && (
+                <div className="mb-8 bg-gray-50 rounded-2xl p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">
+                    Provide Feedback for Refinement
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Tell us what you like or dislike about these logos. Optionally select 1-2 specific ones to focus on:
+                  </p>
+                  <textarea
+                    value={userFeedback}
+                    onChange={(e) => setUserFeedback(e.target.value)}
+                    placeholder="Example: I like the modern look but the text is too thin. The colors are great but maybe try a different font style..."
+                    className="w-full h-24 p-4 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {userFeedback.trim() && selectedLogos.length <= 2 && (
+                    <p className="text-sm text-green-600 mt-2 flex items-center">
+                      <span className="mr-2">✓</span>
+                      {selectedLogos.length > 0 
+                        ? `Ready to refine ${selectedLogos.length} selected logo${selectedLogos.length > 1 ? 's' : ''} with your feedback`
+                        : 'Ready to refine with your general feedback'
+                      }
+                    </p>
+                  )}
+                  {selectedLogos.length > 2 && (
+                    <p className="text-sm text-orange-600 mt-2 flex items-center">
+                      <span className="mr-2">⚠️</span>
+                      Please select maximum 2 logos for refinement
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-6 justify-center">
@@ -881,18 +977,18 @@ function App() {
                   <button 
                     onClick={() => {
                       proceedToRefinement()
-                      setTimeout(() => scrollToLevel(`level-${currentRound + 1}`), 500)
+                      setTimeout(() => scrollToLevel(`level-${currentRound + 2}`), 500)
                     }}
-                    disabled={selectedLogos.length === 0}
+                    disabled={!userFeedback.trim() || selectedLogos.length > 2}
                     className={`px-12 py-6 rounded-2xl font-bold text-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
-                      selectedLogos.length === 0
+                      !userFeedback.trim() || selectedLogos.length > 2
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
                     }`}
                   >
                     <div className="flex items-center justify-center">
                       <span className="mr-3 text-2xl">✨</span>
-                      Refine Selected ({selectedLogos.length})
+{selectedLogos.length > 0 ? `Refine Selected (${selectedLogos.length})` : 'Refine with Feedback'}
                     </div>
                   </button>
                 )}
@@ -911,10 +1007,13 @@ function App() {
               </div>
 
               {/* Selection Info */}
-              {selectedLogos.length > 0 && (
+              {(selectedLogos.length > 0 || userFeedback.trim()) && (
                 <div className="text-center mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-200">
                   <p className="text-blue-800 font-medium text-lg">
-                    {selectedLogos.length} logo{selectedLogos.length > 1 ? 's' : ''} selected for refinement
+                    {selectedLogos.length > 0 
+                      ? `${selectedLogos.length} logo${selectedLogos.length > 1 ? 's' : ''} selected for refinement`
+                      : 'General feedback provided for refinement'
+                    }
                   </p>
                 </div>
               )}
@@ -950,8 +1049,8 @@ function App() {
                 </div>
                 
                 <p className="text-xl text-gray-600">
-                  {round.round === 1 && "Select 1-2 logos you like to refine them further"}
-                  {round.round === 2 && "Choose from refined options or select for final refinement"}
+                  {round.round === 1 && "Select 1-2 logos you like and provide feedback to refine them further"}
+                  {round.round === 2 && "Choose from refined options and add feedback for final refinement"}
                   {round.round === 3 && "Final refined options - pick your perfect logo!"}
                 </p>
               </div>
@@ -968,31 +1067,49 @@ function App() {
                         : 'hover:shadow-lg'
                     }`}
                   >
+                    {/* Logo Number */}
+                    <div className="absolute -top-2 -left-2 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center shadow-lg z-10">
+                      <span className="text-white text-sm font-bold">{logo.number || '?'}</span>
+                    </div>
+                    
                     <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
                       <img 
                         src={logo.url} 
-                        alt={`Logo Option ${logo.id}`} 
+                        alt={`Logo Option ${logo.number || '?'}`} 
                         className="w-full h-40 object-contain rounded-lg" 
                       />
                     </div>
                     
                     {/* Selection indicator */}
                     {logo.selected && (
-                      <div className="absolute -top-3 -right-3 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg">
+                      <div className="absolute -top-3 -right-3 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg z-10">
                         <span className="text-white text-sm font-bold">✓</span>
                       </div>
                     )}
                     
-                    {/* Download button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        downloadLogo(logo)
-                      }}
-                      className="absolute bottom-3 right-3 bg-green-500 hover:bg-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 shadow-lg"
-                    >
-                      ⬇️
-                    </button>
+                    {/* Action buttons */}
+                    <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          saveLogo(logo)
+                        }}
+                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
+                        title="Save to collection"
+                      >
+                        💾
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          downloadLogo(logo)
+                        }}
+                        className="bg-green-500 hover:bg-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
+                        title="Download"
+                      >
+                        ⬇️
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1003,18 +1120,18 @@ function App() {
                   <button 
                     onClick={() => {
                       proceedToRefinement()
-                      setTimeout(() => scrollToLevel(`level-${currentRound + 1}`), 500)
+                      setTimeout(() => scrollToLevel(`level-${currentRound + 2}`), 500)
                     }}
-                    disabled={selectedLogos.length === 0}
+                    disabled={!userFeedback.trim() || selectedLogos.length > 2}
                     className={`px-12 py-6 rounded-2xl font-bold text-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
-                      selectedLogos.length === 0
+                      !userFeedback.trim() || selectedLogos.length > 2
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
                     }`}
                   >
                     <div className="flex items-center justify-center">
                       <span className="mr-3 text-2xl">✨</span>
-                      Refine Selected ({selectedLogos.length})
+{selectedLogos.length > 0 ? `Refine Selected (${selectedLogos.length})` : 'Refine with Feedback'}
                     </div>
                   </button>
                 )}
@@ -1033,10 +1150,13 @@ function App() {
               </div>
 
               {/* Selection Info */}
-              {selectedLogos.length > 0 && (
+              {(selectedLogos.length > 0 || userFeedback.trim()) && (
                 <div className="text-center mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-200">
                   <p className="text-blue-800 font-medium text-lg">
-                    {selectedLogos.length} logo{selectedLogos.length > 1 ? 's' : ''} selected for refinement
+                    {selectedLogos.length > 0 
+                      ? `${selectedLogos.length} logo${selectedLogos.length > 1 ? 's' : ''} selected for refinement`
+                      : 'General feedback provided for refinement'
+                    }
                   </p>
                 </div>
               )}
@@ -1044,6 +1164,83 @@ function App() {
           </div>
         </div>
       ))}
+
+      {/* Saved Logos Gallery */}
+      {savedLogos.length > 0 && (
+        <div className="min-h-screen flex items-center justify-center py-20 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+          <div className="max-w-7xl mx-auto px-4 w-full">
+            <div className="bg-white/90 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border border-white/20">
+              
+              {/* Gallery Header */}
+              <div className="text-center mb-12">
+                <h2 className="text-4xl font-bold text-gray-800 mb-4">
+                  Your Saved Logo Collection
+                </h2>
+                <p className="text-xl text-gray-600">
+                  {savedLogos.length} logo{savedLogos.length > 1 ? 's' : ''} saved to your collection
+                </p>
+              </div>
+
+              {/* Saved Logo Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
+                {savedLogos.map((logo) => (
+                  <div
+                    key={logo.id}
+                    className="relative cursor-pointer transition-all duration-300 transform hover:scale-105 group"
+                  >
+                    <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
+                      <img 
+                        src={logo.url} 
+                        alt={`Saved Logo ${logo.id}`} 
+                        className="w-full h-40 object-contain rounded-lg" 
+                      />
+                    </div>
+                    
+                    {/* Action buttons */}
+                    <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          downloadLogo(logo)
+                        }}
+                        className="bg-green-500 hover:bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg text-sm"
+                        title="Download"
+                      >
+                        ⬇️
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeSavedLogo(logo.id)
+                        }}
+                        className="bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg text-sm"
+                        title="Remove from collection"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Gallery Actions */}
+              <div className="text-center">
+                <button
+                  onClick={() => {
+                    if (confirm('Are you sure you want to clear your entire logo collection?')) {
+                      setSavedLogos([])
+                      localStorage.removeItem('savedLogos')
+                    }
+                  }}
+                  className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors"
+                >
+                  Clear All Saved Logos
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="py-16 text-center">

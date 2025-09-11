@@ -5,13 +5,70 @@ import { GoogleGenAI } from '@google/genai'
 import * as fs from 'node:fs'
 import * as path from 'path'
 
-dotenv.config()
+dotenv.config({ path: '../.env' })
 
 const app = express()
 const port = process.env.PORT || 3001
 
 app.use(cors())
 app.use(express.json())
+
+// Usage tracking system
+const usageData = new Map() // Store: IP -> { count: number, date: string, isPaid: boolean }
+const DAILY_LIMIT = 3 // 3 generations per day for free users
+
+// Helper function to get today's date string
+const getTodayDate = () => new Date().toISOString().split('T')[0]
+
+// Helper function to get client IP
+const getClientIP = (req) => {
+  return req.headers['x-forwarded-for']?.split(',')[0] || 
+         req.headers['x-real-ip'] || 
+         req.connection.remoteAddress || 
+         req.socket.remoteAddress ||
+         req.ip ||
+         '127.0.0.1'
+}
+
+// Helper function to check and update usage
+const checkUsageLimit = (ip) => {
+  const today = getTodayDate()
+  const userData = usageData.get(ip)
+  
+  // If user is paid, no limits
+  if (userData?.isPaid) {
+    return { allowed: true, remaining: 999, total: 999 }
+  }
+  
+  // If no data or different day, reset
+  if (!userData || userData.date !== today) {
+    usageData.set(ip, { count: 0, date: today, isPaid: false })
+    return { allowed: true, remaining: DAILY_LIMIT - 1, total: DAILY_LIMIT }
+  }
+  
+  // Check if limit exceeded
+  if (userData.count >= DAILY_LIMIT) {
+    return { allowed: false, remaining: 0, total: DAILY_LIMIT }
+  }
+  
+  return { allowed: true, remaining: DAILY_LIMIT - userData.count - 1, total: DAILY_LIMIT }
+}
+
+// Helper function to increment usage
+const incrementUsage = (ip) => {
+  const today = getTodayDate()
+  const userData = usageData.get(ip) || { count: 0, date: today, isPaid: false }
+  
+  if (userData.date !== today) {
+    userData.count = 1
+    userData.date = today
+  } else {
+    userData.count += 1
+  }
+  
+  usageData.set(ip, userData)
+  return userData.count
+}
 
 // Create directory for generated images
 const imagesDir = './generated-logos'
@@ -21,6 +78,50 @@ if (!fs.existsSync(imagesDir)) {
 
 // Serve static files from generated-logos directory
 app.use('/images', express.static(imagesDir))
+
+// API endpoint to check usage limits
+app.get('/api/usage', (req, res) => {
+  try {
+    const ip = getClientIP(req)
+    const usage = checkUsageLimit(ip)
+    
+    console.log(`📊 Usage check for IP ${ip}: ${JSON.stringify(usage)}`)
+    
+    res.json({
+      remaining: usage.remaining,
+      total: usage.total,
+      allowed: usage.allowed
+    })
+  } catch (error) {
+    console.error('❌ Error checking usage:', error.message)
+    res.status(500).json({ error: 'Failed to check usage limits' })
+  }
+})
+
+// API endpoint to upgrade to paid (placeholder for payment integration)
+app.post('/api/upgrade', (req, res) => {
+  try {
+    const ip = getClientIP(req)
+    const { paymentToken } = req.body // In real implementation, verify payment here
+    
+    // For now, just mark as paid (replace with actual payment verification)
+    const today = getTodayDate()
+    const userData = usageData.get(ip) || { count: 0, date: today, isPaid: false }
+    userData.isPaid = true
+    usageData.set(ip, userData)
+    
+    console.log(`💰 User upgraded to paid: IP ${ip}`)
+    
+    res.json({ 
+      success: true, 
+      message: 'Successfully upgraded to unlimited access!',
+      unlimited: true 
+    })
+  } catch (error) {
+    console.error('❌ Error processing upgrade:', error.message)
+    res.status(500).json({ error: 'Failed to process upgrade' })
+  }
+})
 
 const callGeminiAPI = async (prompt) => {
   const apiKey = process.env.GEMINI_API_KEY
@@ -147,6 +248,19 @@ app.post('/api/generate-multiple', async (req, res) => {
   
   try {
     const { prompts } = req.body
+    const ip = getClientIP(req)
+
+    // Check usage limits first
+    const usage = checkUsageLimit(ip)
+    if (!usage.allowed) {
+      console.log(`🚫 Generation limit exceeded for IP ${ip}`)
+      return res.status(429).json({ 
+        error: 'Daily generation limit exceeded',
+        limitExceeded: true,
+        remaining: usage.remaining,
+        total: usage.total
+      })
+    }
 
     if (!prompts || !Array.isArray(prompts) || prompts.length === 0) {
       console.log('❌ No prompts provided or invalid format')
@@ -182,13 +296,25 @@ app.post('/api/generate-multiple', async (req, res) => {
     const logos = await Promise.all(logoPromises)
     const endTime = Date.now()
     
+    // Increment usage count after successful generation
+    const newCount = incrementUsage(ip)
+    const updatedUsage = checkUsageLimit(ip)
+    
     console.log(`✅ All ${logos.length} logos generated in ${endTime - startTime}ms`)
+    console.log(`📊 Usage updated for IP ${ip}: ${newCount}/${DAILY_LIMIT}`)
     console.log('📎 Logo URLs:')
     logos.forEach((url, index) => {
       console.log(`   ${index + 1}. ${url}`)
     })
     
-    res.json({ logos })
+    res.json({ 
+      logos,
+      usage: {
+        remaining: updatedUsage.remaining,
+        total: updatedUsage.total,
+        used: newCount
+      }
+    })
   } catch (error) {
     console.error('❌ Server error in /api/generate-multiple:', error.message)
     res.status(500).json({ error: 'Failed to generate logos: ' + error.message })

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -46,23 +48,40 @@ html {
   }
 }
 
-/* Mobile arrow positioning fix */
+/* Mobile hero section centering */
 @media (max-width: 768px) {
   #level-0 .flex-1 {
-    padding-bottom: 15rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding-top: 6rem !important;
+    padding-bottom: 6rem !important;
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
   }
   
-  #level-0 button.mobile-arrow {
-    position: absolute !important;
-    bottom: -20px !important;
-    left: 50% !important;
-    z-index: 60 !important;
-    margin: 0 !important;
-    margin-left: -32px !important;
+  #level-0 > div:has(.mobile-arrow) {
+    bottom: 7.5rem !important;
   }
   
-  #level-0 button.mobile-arrow.animate-bounce {
-    animation: bounce 1s infinite !important;
+  #level-0 .mobile-arrow {
+    animation: mobileBounce 1s infinite !important;
+  }
+  
+  #level-0 .mobile-arrow:hover {
+    animation: none !important;
+    transform: scale(0.56) !important;
+  }
+  
+  @keyframes mobileBounce {
+    0%, 100% {
+      transform: scale(0.5) translateY(-25%);
+      animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+    50% {
+      transform: scale(0.5) translateY(0);
+      animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
   }
 
   @keyframes bounce {
@@ -123,6 +142,49 @@ html {
   }
 }
 
+/* Futuristic font classes */
+.font-orbitron {
+  font-family: 'Orbitron', monospace;
+}
+
+.font-exo {
+  font-family: 'Exo 2', sans-serif;
+}
+
+.hero-text {
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 50%, #e2e8f0 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+}
+
+.hero-features {
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+/* Custom select dropdown styling */
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 1.25rem center;
+  background-size: 1rem;
+  padding-right: 3rem !important;
+}
+
+/* Ensure select and input have same height */
+select, input[type="text"], textarea {
+  min-height: 60px;
+  line-height: 1.5;
+}
+
 /* Mobile form centering */
 @media (max-width: 768px) {
   #level-1 .grid.md\:grid-cols-2 {
@@ -158,5 +220,12 @@ html {
   /* Center background style buttons on mobile */
   #level-1 .flex.gap-4 {
     justify-content: center !important;
+  }
+  
+  /* Mobile select dropdown fixes */
+  select {
+    background-position: right 1rem center !important;
+    background-size: 0.875rem !important;
+    padding-right: 2.5rem !important;
   }
 }
