@@ -5,7 +5,7 @@ import { GoogleGenAI } from '@google/genai'
 import * as fs from 'node:fs'
 import * as path from 'path'
 
-dotenv.config({ path: '../.env' })
+dotenv.config()
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -132,45 +132,44 @@ const callGeminiAPI = async (prompt) => {
   }
 
   try {
-    const ai = new GoogleGenAI({
-      apiKey: apiKey
-    })
+    const genAI = new GoogleGenAI(apiKey)
 
     // Enhanced prompt for better logo generation
     const enhancedPrompt = `Create a professional, high-quality logo design. ${prompt}. The logo should be clean, memorable, and suitable for business use. Use high contrast colors, clear typography if text is included, and ensure the design works well at different sizes. Style: modern and professional. Format: square logo suitable for business applications.`
 
     console.log('Attempting to generate logo with Gemini API...')
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image-preview",
-      contents: enhancedPrompt,
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-2.5-flash-image-preview"
     })
 
-    // Process the response
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        const imageData = part.inlineData.data
-        const buffer = Buffer.from(imageData, "base64")
-        
-        // Generate unique filename
-        const timestamp = Date.now()
-        const filename = `logo-${timestamp}.png`
-        const filepath = path.join(imagesDir, filename)
-        
-        // Save the image
-        fs.writeFileSync(filepath, buffer)
-        console.log(`Logo saved as ${filename}`)
-        
-        // Return the URL to access the image
-        const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-          ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` 
-          : `http://localhost:${port}`
-        return `${baseUrl}/images/${filename}`
-      }
+    const result = await model.generateContent([enhancedPrompt])
+    const response = result.response
+
+    // Check if we got image data
+    if (response.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+      const imageData = response.candidates[0].content.parts[0].inlineData.data
+      const buffer = Buffer.from(imageData, "base64")
+      
+      // Generate unique filename
+      const timestamp = Date.now()
+      const filename = `logo-${timestamp}.png`
+      const filepath = path.join(imagesDir, filename)
+      
+      // Save the image
+      fs.writeFileSync(filepath, buffer)
+      console.log(`Logo saved as ${filename}`)
+      
+      // Return the URL to access the image
+      const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` 
+        : `http://localhost:${port}`
+      return `${baseUrl}/images/${filename}`
+    } else {
+      // If no image generated, use enhanced placeholder
+      console.log('No image data received, using placeholder')
+      return generateEnhancedPlaceholder(prompt, 'no-image-data')
     }
-    
-    // Fallback if no image was generated
-    throw new Error('No image was generated in the response')
     
   } catch (error) {
     console.error('Gemini API Error:', error.status || error.message)
