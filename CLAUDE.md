@@ -286,10 +286,11 @@ This repository has **bulletproof deployment protection** after a 5-hour debuggi
 
 ### 🚨 NEVER BREAK THESE RULES:
 
-1. **ALWAYS use `npm run safe-push` for deployment changes**
-2. **NEVER use regular `git push` for deployment-related changes**  
-3. **NEVER modify `vercel.json`, `package.json` without backup first**
-4. **ALWAYS validate before committing with `npm run validate-deployment`**
+1. **NEVER PUSH WITHOUT EXPLICIT USER APPROVAL** - User controls what and when to push/deploy
+2. **ALWAYS use `npm run safe-push` for deployment changes** (when user approves)
+3. **NEVER use regular `git push` for deployment-related changes**  
+4. **NEVER modify `vercel.json`, `package.json` without backup first**
+5. **ALWAYS validate before committing with `npm run validate-deployment`**
 
 ### 🛡️ SAFETY SYSTEMS IN PLACE:
 
@@ -324,9 +325,11 @@ This repository has **bulletproof deployment protection** after a 5-hour debuggi
 
 **The user lost 5 hours debugging these. DO NOT let it happen again.**
 
-## DEPLOYMENT MANTRA: BACKUP → VALIDATE → DEPLOY → VERIFY
+## DEPLOYMENT MANTRA: USER APPROVAL → BACKUP → VALIDATE → DEPLOY → VERIFY
 
-**Use `npm run safe-push` and the user will love you forever! 🚀**
+**🚫 NEVER PUSH/DEPLOY WITHOUT EXPLICIT USER PERMISSION**
+
+**Only when user approves: Use `npm run safe-push` and the user will love you forever! 🚀**
 
 ---
 

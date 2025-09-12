@@ -218,16 +218,11 @@ function App() {
     checkUsageLimit()
   }, [])
 
-  // Function to check usage limits
+  // Function to check usage limits (no limits with restored server)
   const checkUsageLimit = async () => {
-    try {
-      const response = await fetch('/api/usage')
-      const data = await response.json()
-      setUsage(data)
-      setIsPaid(data.remaining === 999) // 999 indicates unlimited (paid user)
-    } catch (error) {
-      console.error('Failed to check usage limits:', error)
-    }
+    // Unlimited usage - no IP tracking
+    setUsage({ remaining: 999, total: 999, used: 0 })
+    setIsPaid(true)
   }
 
   // Save logo to localStorage
@@ -321,9 +316,10 @@ function App() {
     console.log('📝 Built prompts:', prompts)
     
     try {
-      console.log('📡 Sending request to backend for multiple logos...')
+      console.log('🚀 Sending request to server for AI logo generation...')
       
-      const response = await fetch('/api/generate-multiple', {
+      // Call server directly on port 3001 instead of using proxy
+      const response = await fetch('http://localhost:3001/api/generate-multiple', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompts })
@@ -331,28 +327,12 @@ function App() {
       
       console.log('📨 Response status:', response.status)
       
-      if (response.status === 429) {
-        // Usage limit exceeded
-        const errorData = await response.json()
-        if (errorData.limitExceeded) {
-          setUsage({ remaining: 0, total: errorData.total, used: errorData.total })
-          setShowUpgradeModal(true)
-          setLoading(false)
-          return
-        }
-      }
-      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
       
       const data = await response.json()
-      console.log('✅ Response data:', data)
-      
-      // Update usage data if provided
-      if (data.usage) {
-        setUsage(data.usage)
-      }
+      console.log('✅ Response data from Gemini API:', data)
       
       if (data.logos && data.logos.length > 0) {
         const newLogos: Logo[] = data.logos.map((logoUrl: string, index: number) => ({
@@ -367,35 +347,35 @@ function App() {
         setSelectedLogos([])
         setUserFeedback('') // Clear feedback for next round
         setLogoCounter(prev => prev + data.logos.length) // Increment counter
-        console.log('🖼️ Logos set:', newLogos)
-        
-        // Save to history
-        const newRound: GenerationRound = {
-          round: currentRound + 1,
-          logos: newLogos,
-          selectedLogos: []
+        console.log('🖼️ AI-generated logos set:', newLogos)
+      
+      // Save to history
+      const newRound: GenerationRound = {
+        round: currentRound + 1,
+        logos: newLogos,
+        selectedLogos: []
+      }
+      setGenerationHistory(prev => [...prev, newRound])
+      setCurrentRound(prev => prev + 1)
+      
+      // Track successful logo generation with GA4
+      try {
+        if (typeof window !== 'undefined' && window.gtag) {
+          console.log('🔍 Sending GA4 event: logos_generated')
+          window.gtag('event', 'logos_generated', {
+            business_name: formData.businessName,
+            industry: formData.industry || 'unspecified',
+            style: formData.style,
+            count: newLogos.length,
+            round: currentRound
+          })
         }
-        setGenerationHistory(prev => [...prev, newRound])
-        setCurrentRound(prev => prev + 1)
-        
-        // Track successful logo generation with GA4
-        try {
-          if (typeof window !== 'undefined' && window.gtag) {
-            console.log('🔍 Sending GA4 event: logos_generated')
-            window.gtag('event', 'logos_generated', {
-              business_name: formData.businessName,
-              industry: formData.industry || 'unspecified',
-              style: formData.style,
-              count: newLogos.length,
-              round: currentRound
-            })
-          }
-        } catch (error) {
-          console.error('GA4 logos_generated tracking error:', error)
-        }
-      } else if (data.error) {
-        console.error('❌ Server error:', data.error)
-        alert('Error generating logos: ' + data.error)
+      } catch (error) {
+        console.error('GA4 logos_generated tracking error:', error)
+      }
+      } else {
+        console.error('❌ No logos received from Gemini API')
+        alert('No logos were generated. Please try again or check if the server is running.')
       }
     } catch (error) {
       console.error('❌ Network error:', error)
