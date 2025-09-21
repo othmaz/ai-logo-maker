@@ -688,7 +688,7 @@ function App() {
         <div className="absolute bottom-36 left-0 right-0 flex justify-center z-50">
           <button 
             onClick={() => scrollToLevel('level-1')}
-            className="lg:animate-bounce hover:animate-none transition-all duration-300 hover:scale-110 mobile-arrow"
+            className="animate-bounce hover:animate-none hover:scale-110 transition-transform duration-300"
           >
             <div className="w-14 h-14 border-2 border-white/60 rounded-full flex items-center justify-center hover:bg-white/10 hover:border-white transition-all duration-300 backdrop-blur-sm">
               <span className="text-2xl text-white">↓</span>
