@@ -239,8 +239,20 @@ app.post('/api/generate-multiple', async (req, res) => {
     
     res.json({ logos })
   } catch (error) {
-    console.error('❌ Server error in /api/generate-multiple:', error.message)
-    res.status(500).json({ error: 'Failed to generate logos: ' + error.message })
+    console.error('❌ SERVER ERROR in /api/generate-multiple:')
+    console.error('   Error message:', error.message)
+    console.error('   Error stack:', error.stack)
+    console.error('   Error name:', error.name)
+    console.error('   Request body keys:', Object.keys(req.body || {}))
+    console.error('   Environment variables:', {
+      'GEMINI_API_KEY': process.env.GEMINI_API_KEY ? 'Present' : 'MISSING',
+      'NODE_ENV': process.env.NODE_ENV,
+      'PORT': process.env.PORT
+    })
+    res.status(500).json({
+      error: 'Failed to generate logos: ' + error.message,
+      details: error.stack
+    })
   }
 })
 
