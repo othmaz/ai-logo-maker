@@ -103,7 +103,13 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
         const imageData = part.inlineData.data
         const buffer = Buffer.from(imageData, "base64")
         
-        // Try to save image to file system, fallback to data URL
+        // In serverless environments (Vercel), always use data URLs
+        if (process.env.VERCEL) {
+          console.log('💾 Serverless environment detected - returning base64 data URL')
+          return `data:image/png;base64,${imageData}`
+        }
+
+        // For local/Railway environments, save to file system
         try {
           const timestamp = Date.now()
           const filename = `logo-${timestamp}.png`
@@ -116,14 +122,12 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
           // Return the URL to access the image
           const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN
             ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-            : process.env.VERCEL
-              ? `https://${process.env.VERCEL_URL}`
-              : `http://localhost:${port}`
+            : `http://localhost:${port}`
           return `${baseUrl}/images/${filename}`
         } catch (saveError) {
-          console.warn('⚠️ Could not save image file (serverless environment), using data URL')
+          console.warn('⚠️ Could not save image file, using data URL')
           console.log('💾 Returning base64 data URL instead')
-          // Return data URL directly for serverless environments
+          // Fallback to data URL
           return `data:image/png;base64,${imageData}`
         }
       }
