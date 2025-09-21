@@ -11,7 +11,8 @@ const app = express()
 const port = process.env.PORT || 3001
 
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }))
+app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // Create directory for generated images
 const imagesDir = './generated-logos'
@@ -22,7 +23,8 @@ if (!fs.existsSync(imagesDir)) {
 // Serve static files from generated-logos directory
 app.use('/images', express.static(imagesDir))
 
-const callGeminiAPI = async (prompt) => {
+
+const callGeminiAPI = async (prompt, referenceImages = []) => {
   const apiKey = process.env.GEMINI_API_KEY
   
   console.log('🔑 API Key status:', apiKey ? `Present (${apiKey.length} chars)` : 'MISSING')
@@ -38,16 +40,45 @@ const callGeminiAPI = async (prompt) => {
     const ai = new GoogleGenAI({ apiKey: apiKey })
     
     // Enhanced prompt for better logo generation
-    const enhancedPrompt = `Create a professional, high-quality logo design. ${prompt}. The logo should be clean, memorable, and suitable for business use. Use high contrast colors, clear typography if text is included, and ensure the design works well at different sizes. Style: modern and professional. Format: square logo suitable for business applications.`
+    let enhancedPrompt = `Create a professional, high-quality logo design. ${prompt}. The logo should be clean, memorable, and suitable for business use. Use high contrast colors, clear typography if text is included, and ensure the design works well at different sizes. Style: modern and professional. Format: square logo suitable for business applications. IMPORTANT: Do not include any taglines, slogans, or descriptive text below the logo - only the business name and/or icon elements.`
+
+    // Add specific instructions for image refinement using direct image input
+    if (referenceImages && referenceImages.length > 0) {
+      console.log('🎯 Using direct image refinement approach like Gemini chat...')
+      enhancedPrompt = `${prompt} Keep the exact same design, layout, typography, and structure as shown in the provided image. Apply only the specific changes requested while preserving everything else identical to the reference image.`
+    }
 
     console.log('🚀 Attempting to generate logo with Gemini API...')
     console.log('📝 Prompt:', enhancedPrompt.substring(0, 100) + '...')
 
     console.log('📡 Calling ai.models.generateContent()...')
+
+    // Construct contents array EXACTLY like documentation
+    if (referenceImages && referenceImages.length > 0) {
+      console.log('🖼️ Using image + text format exactly like documentation')
+      // This is the EXACT format from documentation
+      const prompt = [
+        { text: enhancedPrompt },
+        {
+          inlineData: {
+            mimeType: referenceImages[0].mimeType,
+            data: referenceImages[0].data,
+          },
+        },
+      ]
+      contents = prompt
+      console.log('📝 Sending to Gemini: documentation format - array with text + image')
+    } else {
+      contents = enhancedPrompt
+      console.log('📝 Sending to Gemini: text-only prompt')
+    }
+
+    console.log('🚀 CALLING GEMINI API NOW...')
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-image-preview",
-      contents: enhancedPrompt
+      contents: contents
     })
+    console.log('✅ Gemini API call completed')
     
     console.log('📨 Received response from Gemini API')
     console.log('🔍 Response structure:', {
@@ -134,9 +165,19 @@ const generateEnhancedPlaceholder = (prompt, errorType = 'demo') => {
 // Simple logo generation endpoint - NO IP TRACKING
 app.post('/api/generate-multiple', async (req, res) => {
   console.log('📨 Received multiple logo generation request')
-  
+  console.log('📦 Request body keys:', Object.keys(req.body))
+  console.log('📏 Request body size:', JSON.stringify(req.body).length, 'characters')
+
   try {
-    const { prompts } = req.body
+    const { prompts, referenceImages } = req.body
+
+    // DEBUG: Check if referenceImages are present
+    console.log('🔍 DEBUG: referenceImages present?', !!referenceImages)
+    console.log('🔍 DEBUG: referenceImages type:', typeof referenceImages)
+    console.log('🔍 DEBUG: referenceImages length:', referenceImages ? referenceImages.length : 'undefined')
+    if (referenceImages) {
+      console.log('🔍 DEBUG: First image keys:', Object.keys(referenceImages[0] || {}))
+    }
 
     if (!prompts || !Array.isArray(prompts) || prompts.length === 0) {
       console.log('❌ No prompts provided or invalid format')
@@ -150,16 +191,34 @@ app.post('/api/generate-multiple', async (req, res) => {
 
     console.log(`🎨 Generating ${prompts.length} logos with prompts:`)
     prompts.forEach((prompt, index) => {
-      console.log(`   ${index + 1}. ${prompt.substring(0, 80)}...`)
+      console.log(`   ${index + 1}. ${prompt.substring(0, 100)}...`)
     })
-    
+
+    // DETAILED REFERENCE IMAGE DEBUGGING
+    if (referenceImages && referenceImages.length > 0) {
+      console.log('🖼️ === REFERENCE IMAGES RECEIVED ===')
+      console.log(`   Count: ${referenceImages.length}`)
+      referenceImages.forEach((img, index) => {
+        console.log(`   Image ${index + 1}:`)
+        console.log(`     - MIME Type: ${img.mimeType}`)
+        console.log(`     - Data Length: ${img.data ? img.data.length : 'NO DATA'}`)
+        console.log(`     - Size (KB): ${img.data ? Math.round(img.data.length * 0.75 / 1024) : 0}`)
+        console.log(`     - First 50 chars: ${img.data ? img.data.substring(0, 50) + '...' : 'EMPTY'}`)
+      })
+      console.log('🖼️ === END REFERENCE IMAGES ===')
+    } else {
+      console.log('🚫 NO reference images received')
+      console.log('   referenceImages value:', referenceImages)
+      console.log('   referenceImages type:', typeof referenceImages)
+    }
+
     const startTime = Date.now()
-    
+
     // Generate all logos concurrently
     const logoPromises = prompts.map(async (prompt, index) => {
       try {
         console.log(`🔄 Starting logo ${index + 1}/${prompts.length}`)
-        const logoUrl = await callGeminiAPI(prompt)
+        const logoUrl = await callGeminiAPI(prompt, referenceImages)
         console.log(`✅ Logo ${index + 1} completed`)
         return logoUrl
       } catch (error) {

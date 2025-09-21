@@ -60,6 +60,7 @@ This is a full-stack AI logo generation application with the following structure
 
 - **Frontend**: React + TypeScript + Vite client in `client/` directory
 - **Backend**: Express.js server in `server/server.js` using Google Gemini AI
+- **Styling**: Tailwind CSS + Custom CSS animations in `client/src/animations.css`
 - **Deployment**: Supports both Vercel and Railway platforms
 
 ### Key Components
@@ -67,18 +68,31 @@ This is a full-stack AI logo generation application with the following structure
 **Client Architecture (`client/src/App.tsx`)**:
 - Single-page React app with multi-step logo generation workflow
 - Uses Tailwind CSS for styling with dark gradient theme
+- Modern fluid gradient animations for loading states
 - Implements iterative refinement system (3 rounds of logo generation)
+- Chronological layout system where refinements appear below previous results
+- Auto-scroll functionality to latest generated results
 - Google Analytics integration for tracking user interactions
 - Logo reference system using famous brand logos for style inspiration
+- Image compression and base64 conversion for API transmission
 
 **Server Architecture (`server/server.js`)**:
 - Express.js API with CORS enabled
-- Google Gemini AI integration for image generation
+- Google Gemini AI integration for image generation with image+text refinement
 - Two main endpoints:
-  - `/api/generate` - Single logo generation
+  - `/api/generate` - Single logo generation (legacy)
   - `/api/generate-multiple` - Batch logo generation (up to 5 logos)
+- Support for reference image processing in refinement mode
+- Comprehensive debugging logs for image transmission tracking
 - Fallback placeholder system when API limits are reached
 - File storage in `generated-logos/` directory
+
+**Animation System (`client/src/animations.css`)**:
+- Modern fluid gradient animations for button loading states
+- Bouncing dots with staggered timing for loading indicators
+- CSS keyframe animations for gradient movement and color transitions
+- Hover effects and interactive button states
+- Responsive animation system that adapts to different screen sizes
 
 ## Common Development Commands
 
@@ -142,12 +156,52 @@ npm run lint
 ## Key Business Logic
 
 - Logo generation uses prompt engineering with 5 different style variations
-- Refinement system allows users to iterate on selected logos
+- Iterative refinement system (3 rounds) with image+text API calls to Gemini
+- Users can select up to 2 logos for focused refinement with feedback
+- Chronological results display (Round 1 → Round 2 → Round 3)
+- Auto-scroll to latest results for seamless user experience
+- Reference image processing with compression and base64 encoding
+- Tagline exclusion by default unless explicitly requested by user
 - Fallback placeholder generation when API quotas are exceeded
 - Image uploads limited to 3 files, 5MB each
 - Reference logo system allows up to 5 brand inspirations
+- Modern loading animations with fluid gradients during generation
 
 The app is designed for entrepreneurs to quickly generate professional logos without design skills.
+
+## Recent Major Changes (2025-09)
+
+### Layout & UX Improvements
+- **Fixed refinement layout**: New refined logos now appear **below** previous results (chronological order)
+- **Auto-scroll enhancement**: Automatic smooth scroll to latest results after each generation/refinement
+- **Unified rendering system**: Single `_generationHistory.map()` loop handles all rounds instead of separate current/historical sections
+
+### Animation System Overhaul
+- **Modern gradient animations**: Replaced basic spinning circles with fluid gradient overlays
+- **Enhanced button styling**: `font-extrabold text-2xl` with white text for maximum contrast
+- **Contrasted color schemes**:
+  - Generate button: `blue-400 → purple-400 → pink-400 → red-400 → orange-400`
+  - Refine button: `purple-400 → pink-400 → cyan-400 → green-400 → yellow-400`
+- **Bouncing dot loaders**: Staggered animation timing with smooth scaling
+- **Button press effects**: Scale and shadow transitions for tactile feedback
+
+### Logo Refinement System
+- **Image+text API format**: Proper Gemini API structure with reference images and text prompts
+- **Base64 image compression**: Client-side image processing to reduce payload size
+- **Debugging system**: Comprehensive server logs for tracking image transmission
+- **Prompt engineering**: Specialized refinement prompts that preserve original design while applying changes
+
+### File Structure Updates
+```
+client/src/
+├── App.tsx          # Main app with unified layout system and modern animations
+├── animations.css   # NEW: Modern CSS animations and gradient effects
+└── ...
+
+server/
+├── server.js        # Enhanced with image+text refinement and debugging
+└── ...
+```
 
 ## Deployment Issues & Solutions
 

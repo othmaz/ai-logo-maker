@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import './animations.css'
 
 // Declare gtag for TypeScript
 declare global {
@@ -11,6 +12,7 @@ interface FormData {
   businessName: string
   industry: string
   description: string
+  logoType: 'wordmark' | 'pictorial'
   style: string
   colors: string
   aestheticDirections: string
@@ -93,7 +95,7 @@ const buildBasePrompt = (formData: FormData): string => {
 }
 
 const createPromptVariations = (basePrompt: string, formData: FormData): string[] => {
-  const { colors, hasBackground, aestheticDirections, uploadedImages } = formData
+  const { colors, hasBackground, aestheticDirections, uploadedImages, logoType } = formData
   const logoInspiration = ''
   
   // Custom image references
@@ -111,22 +113,29 @@ const createPromptVariations = (basePrompt: string, formData: FormData): string[
     ? `Additional style notes: ${aestheticDirections}. `
     : ''
   
+  // Logo type instruction
+  const logoTypeInstruction = logoType === 'wordmark' 
+    ? 'FOCUS ON WORDMARK: Create text-based logos with beautiful typography, custom letterforms, and minimal or no symbols. The company name should be the primary design element. ' 
+    : 'FOCUS ON PICTORIAL: Create icon-based or symbol-based logos with minimal text. Design a memorable symbol, icon, or pictorial mark that represents the business. Keep text secondary or minimal. '
+  
   // Create 5 completely different approaches - focus on clean, modern styles
+  const noTaglineInstruction = 'IMPORTANT: Do not include any taglines, slogans, or descriptive text below the logo - only the business name and/or icon elements. '
+
   const variations = [
     // Variation 1: Modern Brand Wordmark
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Create a clean, modern wordmark like contemporary big brands. Use a sophisticated, custom typeface with perfect letter spacing. Simple, elegant typography. ${backgroundStyle}${colors ? `Consider ${colors} but prioritize readability and elegance.` : 'Use minimal colors - could be black on white or single accent color.'}`,
-    
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Create a clean, modern wordmark like contemporary big brands. Use a sophisticated, custom typeface with perfect letter spacing. Simple, elegant typography. ${backgroundStyle}${colors ? `Consider ${colors} but prioritize readability and elegance.` : 'Use minimal colors - could be black on white or single accent color.'} ${noTaglineInstruction}`,
+
     // Variation 2: Minimal Symbol + Text
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Design a simple geometric symbol paired with clean typography. Minimal iconic element with the wordmark. ${backgroundStyle}${colors ? `Use ${colors} sparingly and strategically.` : 'Keep colors minimal and purposeful.'}`,
-    
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Design a simple geometric symbol paired with clean typography. Minimal iconic element with the wordmark. ${backgroundStyle}${colors ? `Use ${colors} sparingly and strategically.` : 'Keep colors minimal and purposeful.'} ${noTaglineInstruction}`,
+
     // Variation 3: Pure Typography Focus
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Focus entirely on beautiful, modern typography. No symbols or icons - just perfectly crafted lettering. ${backgroundStyle}${colors ? `Incorporate ${colors} in the text treatment.` : 'Use sophisticated color choices.'}`,
-    
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Focus entirely on beautiful, modern typography. No symbols or icons - just perfectly crafted lettering. ${backgroundStyle}${colors ? `Incorporate ${colors} in the text treatment.` : 'Use sophisticated color choices.'} ${noTaglineInstruction}`,
+
     // Variation 4: Geometric Minimalism
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Use very simple geometric shapes - circles, squares, triangles. Clean, mathematical precision. ${backgroundStyle}${colors ? `Work ${colors} into the geometric elements.` : 'Use bold but minimal color palette.'}`,
-    
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Use very simple geometric shapes - circles, squares, triangles. Clean, mathematical precision. ${backgroundStyle}${colors ? `Work ${colors} into the geometric elements.` : 'Use bold but minimal color palette.'} ${noTaglineInstruction}`,
+
     // Variation 5: Lettermark/Monogram
-    `${basePrompt} ${aestheticStyle}${customImageInspiration}${logoInspiration}Create a sophisticated lettermark or monogram using initials. Contemporary and refined. ${backgroundStyle}${colors ? `Use ${colors} in the lettermark design.` : 'Choose premium, professional colors.'}`
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Create a sophisticated lettermark or monogram using initials. Contemporary and refined. ${backgroundStyle}${colors ? `Use ${colors} in the lettermark design.` : 'Choose premium, professional colors.'} ${noTaglineInstruction}`
   ]
   
   return variations
@@ -134,47 +143,49 @@ const createPromptVariations = (basePrompt: string, formData: FormData): string[
 
 const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, feedback?: string): string[] => {
   const basePrompt = buildBasePrompt(formData)
-  const { colors, hasBackground, aestheticDirections, uploadedImages } = formData
-  
-  const logoInspiration = ''
-  
+  const { colors, hasBackground, aestheticDirections, logoType } = formData
+
   // User feedback integration
-  const feedbackText = feedback && feedback.trim() 
-    ? `Based on user feedback: ${feedback.trim()}. ` 
+  const feedbackText = feedback && feedback.trim()
+    ? `User refinement request: ${feedback.trim()}. `
     : ''
-  
-  // Custom image references
-  const customImageInspiration = uploadedImages.length > 0
-    ? `Continue incorporating the style from the ${uploadedImages.length} custom reference image${uploadedImages.length > 1 ? 's' : ''} provided. ` 
+
+  // Logo type instruction for refinement
+  const logoTypeInstruction = logoType === 'wordmark'
+    ? 'MAINTAIN WORDMARK FOCUS: This must remain a text-based logo with typography as the primary element. '
+    : 'MAINTAIN PICTORIAL FOCUS: This must remain an icon/symbol-based logo. '
+
+  // Background instruction - CRITICAL
+  const backgroundStyle = hasBackground
+    ? 'Keep subtle background if present. '
+    : 'CRITICAL: Background must be completely WHITE (#FFFFFF) with NO gradients, NO colors, NO patterns. '
+
+  // Aesthetic directions
+  const aestheticStyle = aestheticDirections
+    ? `Style requirements: ${aestheticDirections}. `
     : ''
-  
-  // Background instruction - VERY IMPORTANT for refinement
-  const backgroundStyle = hasBackground 
-    ? 'Maintain subtle solid color or gentle gradient background. Keep background very minimal. ' 
-    : 'CRITICAL: The background must be completely WHITE (#FFFFFF) with absolutely NO gradients, NO colors, NO patterns, NO textures - just pure solid white background. '
-  
-  // Aesthetic directions from user
-  const aestheticStyle = aestheticDirections 
-    ? `Following style notes: ${aestheticDirections}. `
-    : ''
-  
-  // Create refinements that preserve the essence of selected logos
-  const selectedLogosContext = _selectedLogos.length > 0 
-    ? `IMPORTANT: Base these refinements closely on the ${_selectedLogos.length} selected logo${_selectedLogos.length > 1 ? 's' : ''}. Keep their core design approach, style elements, and visual characteristics. ` 
-    : ''
-  
+
+  // Color requirements
+  const colorInstruction = colors
+    ? `Color palette: ${colors}. `
+    : 'Use appropriate professional colors. '
+
+  // Reference image context
+  const referenceContext = 'REFINEMENT MODE: A reference image has been provided showing the selected logo. Study this image carefully and use it as the exact design foundation. '
+
+  // Create focused refinement prompts
   const refinementPrompts = [
-    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Refine the selected style with even more elegance and sophistication. Keep the same design approach but make it cleaner and more premium. ${backgroundStyle}${colors ? `Use ${colors} with restraint and class.` : 'Use refined, minimal colors.'}`,
-    
-    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Maintain the selected design direction but simplify further - remove unnecessary elements while preserving the core style. ${backgroundStyle}${colors ? `Use ${colors} more minimally.` : 'Stick to 1-2 colors maximum.'}`,
-    
-    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Keep the essence and structure of the selected logos but refine the typography to be more modern and polished. ${backgroundStyle}${colors ? `Incorporate ${colors} in the text treatment.` : 'Use contemporary color choices.'}`,
-    
-    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Polish the selected style to be more premium and sophisticated while maintaining the same design philosophy and visual approach. ${backgroundStyle}${colors ? `Use ${colors} strategically for maximum impact.` : 'Choose luxury brand colors.'}`,
-    
-    `${basePrompt} ${selectedLogosContext}${aestheticStyle}${customImageInspiration}${logoInspiration}${feedbackText}Enhance the selected approach with subtle improvements - make it more distinctive while preserving the original style direction. ${backgroundStyle}${colors ? `Make ${colors} more memorable but still elegant.` : 'Add one subtle accent color.'}`
+    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Keep the EXACT same layout, typography, composition, and design structure from the reference image while applying only the requested modifications.`,
+
+    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Preserve all core design elements from the reference image and apply the user's changes without altering the fundamental structure.`,
+
+    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Use the reference image as the base design and implement the requested changes while maintaining the same visual approach.`,
+
+    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Keep the design foundation from the reference image intact and apply the specific modifications requested by the user.`,
+
+    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Maintain the visual identity from the reference image while incorporating the user's refinement instructions.`
   ]
-  
+
   return refinementPrompts
 }
 
@@ -183,6 +194,7 @@ function App() {
     businessName: '',
     industry: '',
     description: '',
+    logoType: 'wordmark',
     style: 'modern',
     colors: '',
     aestheticDirections: '',
@@ -201,7 +213,6 @@ function App() {
   const [lastScrollY, setLastScrollY] = useState(0)
   const [usage, setUsage] = useState({ remaining: 3, total: 3, used: 0 })
   const [isPaid, setIsPaid] = useState(false)
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
 
   // Load saved logos from localStorage on component mount
   useEffect(() => {
@@ -278,7 +289,7 @@ function App() {
     
     // Check usage limits first (unless user is paid)
     if (!isPaid && usage.remaining <= 0) {
-      setShowUpgradeModal(true)
+      console.log('Usage limit reached - upgrade needed')
       return
     }
     
@@ -311,18 +322,97 @@ function App() {
       prompts = createPromptVariations(basePrompt, formData)
     } else {
       prompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
+      console.log('🔄 REFINEMENT MODE - Selected logos:', selectedLogos.length)
+      console.log('💬 User feedback:', userFeedback || 'No feedback provided')
     }
-    
-    console.log('📝 Built prompts:', prompts)
+
+    console.log('📝 Built prompts:', prompts.map((prompt, index) => `${index + 1}. ${prompt.substring(0, 150)}...`))
     
     try {
       console.log('🚀 Sending request to server for AI logo generation...')
-      
-      // Call server directly on port 3001 instead of using proxy
-      const response = await fetch('http://localhost:3001/api/generate-multiple', {
+
+      // Prepare reference images for refinement
+      let referenceImages: Array<{data: string, mimeType: string}> = []
+      if (!isInitial && currentRound > 0 && selectedLogos.length > 0) {
+        console.log('📸 Preparing reference images for refinement...')
+
+        // Convert selected logo URLs to compressed base64 image data
+        const imagePromises = selectedLogos.map(async (logo) => {
+          try {
+            console.log(`🔄 Converting logo to compressed base64: ${logo.url}`)
+            const imageResponse = await fetch(logo.url)
+            const blob = await imageResponse.blob()
+
+            return new Promise<{data: string, mimeType: string}>((resolve) => {
+              const img = new Image()
+              img.onload = () => {
+                // Create canvas for compression
+                const canvas = document.createElement('canvas')
+                const ctx = canvas.getContext('2d')
+
+                // Resize to max 512x512 to reduce payload size
+                const maxSize = 512
+                let { width, height } = img
+
+                if (width > maxSize || height > maxSize) {
+                  const ratio = Math.min(maxSize / width, maxSize / height)
+                  width *= ratio
+                  height *= ratio
+                }
+
+                canvas.width = width
+                canvas.height = height
+
+                // Draw and compress
+                ctx!.drawImage(img, 0, 0, width, height)
+
+                // Convert to base64 with compression (0.7 quality)
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
+                const base64Data = compressedDataUrl.split(',')[1]
+
+                console.log(`✅ Compressed logo from ${blob.size} bytes to ~${base64Data.length * 0.75} bytes`)
+
+                resolve({
+                  data: base64Data,
+                  mimeType: 'image/jpeg'
+                })
+              }
+
+              const reader = new FileReader()
+              reader.onload = () => {
+                img.src = reader.result as string
+              }
+              reader.readAsDataURL(blob)
+            })
+          } catch (error) {
+            console.warn(`⚠️ Failed to convert logo ${logo.url} to base64:`, error)
+            return null
+          }
+        })
+
+        const imageResults = await Promise.all(imagePromises)
+        referenceImages = imageResults.filter(img => img !== null)
+        console.log(`✅ Prepared ${referenceImages.length} reference images`)
+        console.log('🖼️ Selected logos being sent as references:', selectedLogos.map(logo => ({
+          id: logo.id,
+          url: logo.url,
+          prompt: logo.prompt.substring(0, 100) + '...'
+        })))
+        console.log('📦 Reference images payload sizes:', referenceImages.map(img => `${Math.round(img.data.length * 0.75 / 1024)}KB`))
+      }
+
+      // Use relative URL for production, localhost for development
+      const apiUrl = import.meta.env.DEV
+        ? 'http://localhost:3001/api/generate-multiple'
+        : '/api/generate-multiple'
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompts })
+        body: JSON.stringify({
+          prompts,
+          referenceImages: referenceImages.length > 0 ? referenceImages : undefined
+        })
       })
       
       console.log('📨 Response status:', response.status)
@@ -401,18 +491,18 @@ function App() {
     setSelectedLogos(updatedSelectedLogos)
   }
 
-  const proceedToRefinement = () => {
+  const proceedToRefinement = async () => {
     if (selectedLogos.length > 2) {
       alert('Please select maximum 2 logos to refine (or provide feedback without selecting any)')
       return
     }
-    
+
     if (!userFeedback.trim()) {
       alert('Please provide feedback about what you like or dislike in the current logos to help generate better ones')
       return
     }
-    
-    generateLogos(false)
+
+    await handleRefinement()
   }
 
 
@@ -493,16 +583,27 @@ function App() {
   // Auto-scroll when logos are generated
   const handleLogoGeneration = async (isInitial: boolean = true) => {
     const nextRound = currentRound + 1 // Calculate target round before state update
-    
+
     // Reset counter if generating new set (not refinement)
     if (isInitial) {
       setLogoCounter(1)
     }
-    
+
     await generateLogos(isInitial)
     // Scroll to results after generation - use the pre-calculated round
     setTimeout(() => {
       const targetLevel = `level-${nextRound + 1}` // +1 because level IDs start from 1
+      scrollToLevel(targetLevel)
+    }, 500)
+  }
+
+  // Handle refinement with auto-scroll
+  const handleRefinement = async () => {
+    const nextRound = currentRound + 1
+    await generateLogos(false)
+    // Scroll to the newest results
+    setTimeout(() => {
+      const targetLevel = `level-${nextRound + 1}`
       scrollToLevel(targetLevel)
     }, 500)
   }
@@ -597,7 +698,7 @@ function App() {
                       <img 
                         src={logo.imageUrl} 
                         alt={logo.name}
-                        className="w-8 h-8 object-contain filter brightness-0 invert opacity-70"
+                        className="w-8 h-8 object-cover filter brightness-0 invert opacity-70"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjNGI1NTYzIi8+CjxyZWN0IHg9IjYiIHk9IjYiIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgZmlsbD0iIzk0YTNiOCIvPgo8L3N2Zz4K';
@@ -663,6 +764,38 @@ function App() {
                     placeholder="Tell us what your business does (helps create better logos)"
                     className="w-full p-5 border-0 bg-gray-700 rounded-2xl h-32 focus:ring-2 focus:ring-white focus:bg-gray-600 transition-all duration-200 text-white placeholder-gray-400 resize-none text-lg"
                   />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-lg font-medium text-gray-200">Logo Type</label>
+                  <div className="flex gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, logoType: 'wordmark'})}
+                      className={`flex-1 p-4 rounded-xl border-2 transition-all duration-200 ${
+                        formData.logoType === 'wordmark'
+                          ? 'border-white bg-gray-600 text-white'
+                          : 'border-gray-500 bg-gray-700 text-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="text-2xl mb-2">🔤</div>
+                      <div className="font-medium">Wordmark</div>
+                      <div className="text-sm opacity-75">Text-based logo</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, logoType: 'pictorial'})}
+                      className={`flex-1 p-4 rounded-xl border-2 transition-all duration-200 ${
+                        formData.logoType === 'pictorial'
+                          ? 'border-white bg-gray-600 text-white'
+                          : 'border-gray-500 bg-gray-700 text-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="text-2xl mb-2">🎨</div>
+                      <div className="font-medium">Pictorial</div>
+                      <div className="text-sm opacity-75">Icon/Symbol logo</div>
+                    </button>
+                  </div>
                 </div>
               </div>
               
@@ -735,26 +868,37 @@ function App() {
                 </div>
 
                 <div className="pt-8">
-                  <button 
+                  <button
                     onClick={() => handleLogoGeneration(true)}
                     disabled={!formData.businessName || loading}
-                    className={`w-full p-6 rounded-2xl font-bold text-xl transition-all duration-300 transform ${
-                      !formData.businessName || loading 
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    className={`relative w-full p-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform overflow-hidden ${
+                      !formData.businessName || loading
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg hover:shadow-xl'
                     }`}
                   >
-                    {loading ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-4"></div>
-                        Creating Your 5 Logos...
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center">
-                        <span className="mr-3 text-2xl">🎨</span>
-                        Generate 5 AI Logos
-                      </div>
+                    {loading && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] animate-[gradient_2s_ease-in-out_infinite]"></div>
                     )}
+                    <div className="relative z-10">
+                      {loading ? (
+                        <div className="flex items-center justify-center text-white">
+                          <div className="mr-4">
+                            <div className="flex space-x-1">
+                              <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite] [animation-delay:-0.32s]"></div>
+                              <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite] [animation-delay:-0.16s]"></div>
+                              <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite]"></div>
+                            </div>
+                          </div>
+                          <span className="text-white font-extrabold">Creating Your 5 Logos...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center text-white">
+                          <span className="mr-3 text-3xl">🎨</span>
+                          <span className="text-white font-extrabold">Generate 5 AI Logos</span>
+                        </div>
+                      )}
+                    </div>
                   </button>
                 </div>
               </div>
@@ -826,48 +970,48 @@ function App() {
         </div>
       </div>
 
-      {/* Level 2: Current Logo Results */}
-      {logos.length > 0 && (
-        <div id={`level-${currentRound + 1}`} className="min-h-screen flex items-center justify-center py-20">
+      {/* Historical Rounds - Previous generations (render in order) */}
+      {_generationHistory.map((round) => (
+        <div key={round.round} id={`level-${round.round + 1}`} className="min-h-screen flex items-center justify-center py-20">
           <div className="max-w-7xl mx-auto px-4 w-full">
             <div className="bg-white/80 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border border-white/20">
-              
+
               {/* Round Header */}
               <div className="text-center mb-12">
                 <h2 className="text-4xl font-bold text-gray-800 mb-4">
-                  Round {currentRound} - Choose Your Favorites
+                  Round {round.round} - Choose Your Favorites
                 </h2>
-                
+
                 {/* Progress Dots */}
                 <div className="flex justify-center space-x-3 mb-6">
                   {[1, 2, 3].map((step) => (
                     <div
                       key={step}
                       className={`w-4 h-4 rounded-full ${
-                        step <= currentRound 
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
+                        step <= round.round
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-500'
                           : 'bg-gray-300'
                       }`}
                     />
                   ))}
                 </div>
-                
+
                 <p className="text-xl text-gray-600">
-                  {currentRound === 1 && "Provide feedback to refine logos further (optionally select 1-2 favorites)"}
-                  {currentRound === 2 && "Add feedback for final refinement (optionally select favorites)"}
-                  {currentRound === 3 && "Final refined options - pick your perfect logo!"}
+                  {round.round === 1 && "Provide feedback to refine logos further (optionally select 1-2 favorites)"}
+                  {round.round === 2 && "Add feedback for final refinement (optionally select favorites)"}
+                  {round.round === 3 && "Final refined options - pick your perfect logo!"}
                 </p>
               </div>
 
               {/* Logo Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
-                {logos.map((logo) => (
+                {(round.round === currentRound ? logos : round.logos).map((logo) => (
                   <div
                     key={logo.id}
                     onClick={() => selectLogo(logo.id)}
                     className={`relative cursor-pointer transition-all duration-300 transform hover:scale-105 group ${
-                      logo.selected 
-                        ? 'ring-4 ring-blue-500 shadow-2xl scale-105' 
+                      logo.selected
+                        ? 'ring-4 ring-blue-500 shadow-2xl scale-105'
                         : 'hover:shadow-lg'
                     }`}
                   >
@@ -875,22 +1019,22 @@ function App() {
                     <div className="absolute -top-2 -left-2 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center shadow-lg z-10">
                       <span className="text-white text-sm font-bold">{logo.number || '?'}</span>
                     </div>
-                    
-                    <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
-                      <img 
-                        src={logo.url} 
-                        alt={`Logo Option ${logo.number || '?'}`} 
-                        className="w-full h-40 object-contain rounded-lg" 
+
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200 overflow-hidden">
+                      <img
+                        src={logo.url}
+                        alt={`Logo Option ${logo.number || '?'}`}
+                        className="w-full h-40 object-cover rounded-lg"
                       />
                     </div>
-                    
+
                     {/* Selection indicator */}
                     {logo.selected && (
                       <div className="absolute -top-3 -right-3 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg z-10">
                         <span className="text-white text-sm font-bold">✓</span>
                       </div>
                     )}
-                    
+
                     {/* Action buttons */}
                     <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
                       <button
@@ -918,8 +1062,8 @@ function App() {
                 ))}
               </div>
 
-              {/* Feedback Section for Refinement */}
-              {currentRound > 0 && currentRound < 3 && (
+              {/* Feedback Section for Refinement - Only show for current round */}
+              {round.round === currentRound && currentRound > 0 && currentRound < 3 && (
                 <div className="mb-8 bg-gray-50 rounded-2xl p-6">
                   <h3 className="text-xl font-bold text-gray-800 mb-4">
                     Provide Feedback for Refinement
@@ -936,7 +1080,7 @@ function App() {
                   {userFeedback.trim() && selectedLogos.length <= 2 && (
                     <p className="text-sm text-green-600 mt-2 flex items-center">
                       <span className="mr-2">✓</span>
-                      {selectedLogos.length > 0 
+                      {selectedLogos.length > 0
                         ? `Ready to refine ${selectedLogos.length} selected logo${selectedLogos.length > 1 ? 's' : ''} with your feedback`
                         : 'Ready to refine with your general feedback'
                       }
@@ -951,189 +1095,51 @@ function App() {
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                {currentRound < 3 && (
-                  <button 
-                    onClick={() => {
-                      proceedToRefinement()
-                      setTimeout(() => scrollToLevel(`level-${currentRound + 2}`), 500)
-                    }}
-                    disabled={!userFeedback.trim() || selectedLogos.length > 2}
-                    className={`px-12 py-6 rounded-2xl font-bold text-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
-                      !userFeedback.trim() || selectedLogos.length > 2
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-center">
-                      <span className="mr-3 text-2xl">✨</span>
-{selectedLogos.length > 0 ? `Refine Selected (${selectedLogos.length})` : 'Refine with Feedback'}
-                    </div>
-                  </button>
-                )}
-                
-                <button 
-                  onClick={() => {
-                    handleLogoGeneration(true)
-                  }}
-                  className="px-12 py-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold text-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                >
-                  <div className="flex items-center justify-center">
-                    <span className="mr-3 text-2xl">🔄</span>
-                    Generate New Set
-                  </div>
-                </button>
-              </div>
-
-              {/* Selection Info */}
-              {(selectedLogos.length > 0 || userFeedback.trim()) && (
-                <div className="text-center mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-200">
-                  <p className="text-blue-800 font-medium text-lg">
-                    {selectedLogos.length > 0 
-                      ? `${selectedLogos.length} logo${selectedLogos.length > 1 ? 's' : ''} selected for refinement`
-                      : 'General feedback provided for refinement'
-                    }
-                  </p>
+              {/* Action Buttons - Only show for current round */}
+              {round.round === currentRound && (
+                <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                  {currentRound < 3 && (
+                    <button
+                      onClick={proceedToRefinement}
+                      disabled={!userFeedback.trim() || selectedLogos.length > 2 || loading}
+                      className={`relative px-12 py-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform shadow-lg hover:shadow-xl overflow-hidden ${
+                        !userFeedback.trim() || selectedLogos.length > 2 || loading
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-105'
+                      }`}
+                    >
+                      {loading && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-pink-400 via-cyan-400 via-green-400 to-yellow-400 bg-[length:400%_100%] animate-[gradient_2s_ease-in-out_infinite]"></div>
+                      )}
+                      <div className="relative z-10 flex items-center justify-center">
+                        {loading ? (
+                          <>
+                            <div className="mr-4">
+                              <div className="flex space-x-1">
+                                <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite] [animation-delay:-0.32s]"></div>
+                                <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite] [animation-delay:-0.16s]"></div>
+                                <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite]"></div>
+                              </div>
+                            </div>
+                            <span className="text-white font-extrabold">Refining Logos...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="mr-3 text-3xl">✨</span>
+                            <span className="text-white font-extrabold">{selectedLogos.length > 0 ? `Refine Selected (${selectedLogos.length})` : 'Refine with Feedback'}</span>
+                          </>
+                        )}
+                      </div>
+                    </button>
+                  )}
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Historical Rounds - Previous generations */}
-      {_generationHistory.slice(0, -1).map((round) => (
-        <div key={round.round} id={`level-${round.round + 1}`} className="min-h-screen flex items-center justify-center py-20">
-          <div className="max-w-7xl mx-auto px-4 w-full">
-            <div className="bg-white/80 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border border-white/20">
-              
-              {/* Round Header */}
-              <div className="text-center mb-12">
-                <h2 className="text-4xl font-bold text-gray-800 mb-4">
-                  Round {round.round} - Choose Your Favorites
-                </h2>
-                
-                {/* Progress Dots */}
-                <div className="flex justify-center space-x-3 mb-6">
-                  {[1, 2, 3].map((step) => (
-                    <div
-                      key={step}
-                      className={`w-4 h-4 rounded-full ${
-                        step <= round.round 
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-500' 
-                          : 'bg-gray-300'
-                      }`}
-                    />
-                  ))}
-                </div>
-                
-                <p className="text-xl text-gray-600">
-                  {round.round === 1 && "Select 1-2 logos you like and provide feedback to refine them further"}
-                  {round.round === 2 && "Choose from refined options and add feedback for final refinement"}
-                  {round.round === 3 && "Final refined options - pick your perfect logo!"}
-                </p>
-              </div>
-
-              {/* Logo Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
-                {round.logos.map((logo) => (
-                  <div
-                    key={logo.id}
-                    onClick={() => selectLogo(logo.id)}
-                    className={`relative cursor-pointer transition-all duration-300 transform hover:scale-105 group ${
-                      logo.selected 
-                        ? 'ring-4 ring-blue-500 shadow-2xl scale-105' 
-                        : 'hover:shadow-lg'
-                    }`}
-                  >
-                    {/* Logo Number */}
-                    <div className="absolute -top-2 -left-2 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center shadow-lg z-10">
-                      <span className="text-white text-sm font-bold">{logo.number || '?'}</span>
-                    </div>
-                    
-                    <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
-                      <img 
-                        src={logo.url} 
-                        alt={`Logo Option ${logo.number || '?'}`} 
-                        className="w-full h-40 object-contain rounded-lg" 
-                      />
-                    </div>
-                    
-                    {/* Selection indicator */}
-                    {logo.selected && (
-                      <div className="absolute -top-3 -right-3 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shadow-lg z-10">
-                        <span className="text-white text-sm font-bold">✓</span>
-                      </div>
-                    )}
-                    
-                    {/* Action buttons */}
-                    <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          saveLogo(logo)
-                        }}
-                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
-                        title="Save to collection"
-                      >
-                        💾
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          downloadLogo(logo)
-                        }}
-                        className="bg-green-500 hover:bg-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
-                        title="Download"
-                      >
-                        ⬇️
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                {round.round < 3 && (
-                  <button 
-                    onClick={() => {
-                      proceedToRefinement()
-                      setTimeout(() => scrollToLevel(`level-${currentRound + 2}`), 500)
-                    }}
-                    disabled={!userFeedback.trim() || selectedLogos.length > 2}
-                    className={`px-12 py-6 rounded-2xl font-bold text-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl ${
-                      !userFeedback.trim() || selectedLogos.length > 2
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-center">
-                      <span className="mr-3 text-2xl">✨</span>
-{selectedLogos.length > 0 ? `Refine Selected (${selectedLogos.length})` : 'Refine with Feedback'}
-                    </div>
-                  </button>
-                )}
-                
-                <button 
-                  onClick={() => {
-                    handleLogoGeneration(true)
-                  }}
-                  className="px-12 py-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold text-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                >
-                  <div className="flex items-center justify-center">
-                    <span className="mr-3 text-2xl">🔄</span>
-                    Generate New Set
-                  </div>
-                </button>
-              </div>
-
-              {/* Selection Info */}
-              {(selectedLogos.length > 0 || userFeedback.trim()) && (
+              {/* Selection Info - Only show for current round */}
+              {round.round === currentRound && (selectedLogos.length > 0 || userFeedback.trim()) && (
                 <div className="text-center mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-200">
                   <p className="text-blue-800 font-medium text-lg">
-                    {selectedLogos.length > 0 
+                    {selectedLogos.length > 0
                       ? `${selectedLogos.length} logo${selectedLogos.length > 1 ? 's' : ''} selected for refinement`
                       : 'General feedback provided for refinement'
                     }
@@ -1168,11 +1174,11 @@ function App() {
                     key={logo.id}
                     className="relative cursor-pointer transition-all duration-300 transform hover:scale-105 group"
                   >
-                    <div className="bg-gradient-to-br from-gray-50 to-white p-6 rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200">
+                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200 overflow-hidden">
                       <img 
                         src={logo.url} 
                         alt={`Saved Logo ${logo.id}`} 
-                        className="w-full h-40 object-contain rounded-lg" 
+                        className="w-full h-40 object-cover rounded-lg" 
                       />
                     </div>
                     
