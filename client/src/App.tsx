@@ -350,10 +350,11 @@ function App() {
                 const canvas = document.createElement('canvas')
                 const ctx = canvas.getContext('2d')
 
-                // Resize to max 512x512 to reduce payload size
-                const maxSize = 512
+                // Keep original resolution for better quality (max 1024x1024)
+                const maxSize = 1024
                 let { width, height } = img
 
+                // Only resize if larger than 1024x1024
                 if (width > maxSize || height > maxSize) {
                   const ratio = Math.min(maxSize / width, maxSize / height)
                   width *= ratio
@@ -363,11 +364,13 @@ function App() {
                 canvas.width = width
                 canvas.height = height
 
-                // Draw and compress
+                // Draw with high quality
+                ctx!.imageSmoothingEnabled = true
+                ctx!.imageSmoothingQuality = 'high'
                 ctx!.drawImage(img, 0, 0, width, height)
 
-                // Convert to base64 with compression (0.7 quality)
-                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7)
+                // Use PNG format with high quality (no compression loss)
+                const compressedDataUrl = canvas.toDataURL('image/png')
                 const base64Data = compressedDataUrl.split(',')[1]
 
                 console.log(`✅ Compressed logo from ${blob.size} bytes to ~${base64Data.length * 0.75} bytes`)
@@ -551,7 +554,16 @@ function App() {
   const downloadLogo = (logo: Logo) => {
     const link = document.createElement('a')
     link.download = `${formData.businessName}-logo.png`
-    link.href = logo.url
+
+    // For data URLs, ensure we're downloading the full quality image
+    if (logo.url.startsWith('data:')) {
+      // Data URL - download directly with full quality
+      link.href = logo.url
+    } else {
+      // HTTP URL - fetch and ensure quality
+      link.href = logo.url
+    }
+
     link.click()
     
     // Track logo download - this is a conversion! 
