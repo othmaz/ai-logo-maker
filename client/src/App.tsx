@@ -8,6 +8,12 @@ declare global {
   }
 }
 
+interface Toast {
+  id: string
+  message: string
+  type: 'success' | 'error' | 'info' | 'warning'
+}
+
 interface FormData {
   businessName: string
   industry: string
@@ -213,6 +219,23 @@ function App() {
   const [lastScrollY, setLastScrollY] = useState(0)
   const [usage, setUsage] = useState({ remaining: 3, total: 3, used: 0 })
   const [isPaid, setIsPaid] = useState(false)
+  const [toasts, setToasts] = useState<Toast[]>([])
+
+  // Toast notification function
+  const showToast = (message: string, type: Toast['type'] = 'info') => {
+    const id = Date.now().toString()
+    const newToast: Toast = { id, message, type }
+    setToasts(prev => [...prev, newToast])
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id))
+    }, 5000)
+  }
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id))
+  }
 
   // Load saved logos from localStorage on component mount
   useEffect(() => {
@@ -241,7 +264,7 @@ function App() {
     const newSavedLogos = [...savedLogos, { ...logo, id: `saved-${Date.now()}-${Math.random()}` }]
     setSavedLogos(newSavedLogos)
     localStorage.setItem('savedLogos', JSON.stringify(newSavedLogos))
-    alert('Logo saved to your collection!')
+    showToast('Logo saved to your collection!', 'success')
   }
 
   // Remove logo from localStorage
@@ -467,11 +490,11 @@ function App() {
       }
       } else {
         console.error('❌ No logos received from Gemini API')
-        alert('No logos were generated. Please try again or check if the server is running.')
+        showToast('No logos were generated. Please try again or check if the server is running.', 'error')
       }
     } catch (error) {
       console.error('❌ Network error:', error)
-      alert('Network error: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      showToast('Network error: ' + (error instanceof Error ? error.message : 'Unknown error'), 'error')
     } finally {
       setLoading(false)
       console.log('🏁 Logo generation finished')
@@ -495,12 +518,12 @@ function App() {
 
   const proceedToRefinement = async () => {
     if (selectedLogos.length > 2) {
-      alert('Please select maximum 2 logos to refine (or provide feedback without selecting any)')
+      showToast('Please select maximum 2 logos to refine (or provide feedback without selecting any)', 'warning')
       return
     }
 
     if (!userFeedback.trim()) {
-      alert('Please provide feedback about what you like or dislike in the current logos to help generate better ones')
+      showToast('Please provide feedback about what you like or dislike in the current logos to help generate better ones', 'info')
       return
     }
 
@@ -516,7 +539,7 @@ function App() {
       const totalFiles = formData.uploadedImages.length + newFiles.length
       
       if (totalFiles > 3) {
-        alert('Maximum 3 images allowed')
+        showToast('Maximum 3 images allowed', 'warning')
         return
       }
       
@@ -526,11 +549,11 @@ function App() {
         const isValidSize = file.size <= 5 * 1024 * 1024 // 5MB limit
         
         if (!isValidType) {
-          alert(`${file.name} is not a valid image file`)
+          showToast(`${file.name} is not a valid image file`, 'error')
           return false
         }
         if (!isValidSize) {
-          alert(`${file.name} is too large. Maximum size is 5MB`)
+          showToast(`${file.name} is too large. Maximum size is 5MB`, 'error')
           return false
         }
         return true
@@ -1244,6 +1267,31 @@ function App() {
         <p className="text-gray-500 text-lg">
           Powered by Google Gemini AI • Created with ❤️ for entrepreneurs
         </p>
+      </div>
+
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`max-w-sm p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out ${
+              toast.type === 'success' ? 'bg-green-500 text-white' :
+              toast.type === 'error' ? 'bg-red-500 text-white' :
+              toast.type === 'warning' ? 'bg-yellow-500 text-black' :
+              'bg-blue-500 text-white'
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">{toast.message}</p>
+              <button
+                onClick={() => removeToast(toast.id)}
+                className="ml-3 text-current opacity-70 hover:opacity-100"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
