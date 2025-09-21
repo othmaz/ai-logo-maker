@@ -364,9 +364,8 @@ function App() {
                 canvas.width = width
                 canvas.height = height
 
-                // Draw with high quality
-                ctx!.imageSmoothingEnabled = true
-                ctx!.imageSmoothingQuality = 'high'
+                // Draw with crisp edges (disable smoothing for logos)
+                ctx!.imageSmoothingEnabled = false
                 ctx!.drawImage(img, 0, 0, width, height)
 
                 // Use PNG format with high quality (no compression loss)
