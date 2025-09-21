@@ -14,14 +14,22 @@ app.use(cors())
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
-// Create directory for generated images
-const imagesDir = './generated-logos'
-if (!fs.existsSync(imagesDir)) {
-  fs.mkdirSync(imagesDir, { recursive: true })
+// Create directory for generated images (use /tmp in serverless environments)
+const imagesDir = process.env.VERCEL ? '/tmp/generated-logos' : './generated-logos'
+try {
+  if (!fs.existsSync(imagesDir)) {
+    fs.mkdirSync(imagesDir, { recursive: true })
+    console.log('✅ Created images directory:', imagesDir)
+  }
+} catch (error) {
+  console.warn('⚠️ Could not create images directory (serverless environment):', error.message)
+  console.log('📁 Will use base64 responses instead of file storage')
 }
 
-// Serve static files from generated-logos directory
-app.use('/images', express.static(imagesDir))
+// Serve static files from generated-logos directory (only if directory exists)
+if (fs.existsSync(imagesDir)) {
+  app.use('/images', express.static(imagesDir))
+}
 
 
 const callGeminiAPI = async (prompt, referenceImages = []) => {
@@ -95,20 +103,29 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
         const imageData = part.inlineData.data
         const buffer = Buffer.from(imageData, "base64")
         
-        // Generate unique filename
-        const timestamp = Date.now()
-        const filename = `logo-${timestamp}.png`
-        const filepath = path.join(imagesDir, filename)
-        
-        // Save the image
-        fs.writeFileSync(filepath, buffer)
-        console.log(`💾 Logo saved as ${filename}`)
-        
-        // Return the URL to access the image
-        const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-          ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` 
-          : `http://localhost:${port}`
-        return `${baseUrl}/images/${filename}`
+        // Try to save image to file system, fallback to data URL
+        try {
+          const timestamp = Date.now()
+          const filename = `logo-${timestamp}.png`
+          const filepath = path.join(imagesDir, filename)
+
+          // Save the image
+          fs.writeFileSync(filepath, buffer)
+          console.log(`💾 Logo saved as ${filename}`)
+
+          // Return the URL to access the image
+          const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+            ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+            : process.env.VERCEL
+              ? `https://${process.env.VERCEL_URL}`
+              : `http://localhost:${port}`
+          return `${baseUrl}/images/${filename}`
+        } catch (saveError) {
+          console.warn('⚠️ Could not save image file (serverless environment), using data URL')
+          console.log('💾 Returning base64 data URL instead')
+          // Return data URL directly for serverless environments
+          return `data:image/png;base64,${imageData}`
+        }
       }
     }
     
