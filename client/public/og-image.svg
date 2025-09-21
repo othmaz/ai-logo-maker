@@ -1,0 +1,74 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1f2937;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#111827;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e5e7eb;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+
+  <!-- Main Title -->
+  <text x="600" y="200" font-family="Arial, sans-serif" font-size="72" font-weight="bold" text-anchor="middle" fill="url(#textGradient)">
+    AI Logo Maker
+  </text>
+
+  <!-- Subtitle -->
+  <text x="600" y="280" font-family="Arial, sans-serif" font-size="36" text-anchor="middle" fill="#d1d5db">
+    Create Professional Logos in Minutes
+  </text>
+
+  <!-- Features -->
+  <g transform="translate(600, 350)">
+    <!-- AI Powered -->
+    <rect x="-300" y="0" width="180" height="60" rx="30" fill="rgba(255,255,255,0.1)"/>
+    <text x="-210" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="600" text-anchor="middle" fill="white">
+      🤖 AI Powered
+    </text>
+
+    <!-- 100% Free -->
+    <rect x="-90" y="0" width="180" height="60" rx="30" fill="rgba(255,255,255,0.1)"/>
+    <text x="0" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="600" text-anchor="middle" fill="white">
+      🆓 100% Free
+    </text>
+
+    <!-- Instant Results -->
+    <rect x="120" y="0" width="180" height="60" rx="30" fill="rgba(255,255,255,0.1)"/>
+    <text x="210" y="40" font-family="Arial, sans-serif" font-size="20" font-weight="600" text-anchor="middle" fill="white">
+      ⚡ Instant Results
+    </text>
+  </g>
+
+  <!-- Logo Examples -->
+  <g transform="translate(950, 100)">
+    <!-- Example 1 -->
+    <rect x="0" y="0" width="80" height="80" rx="15" fill="white"/>
+    <text x="40" y="50" font-family="Arial, sans-serif" font-size="16" font-weight="bold" text-anchor="middle" fill="#1f2937">
+      LOGO
+    </text>
+
+    <!-- Example 2 -->
+    <rect x="100" y="0" width="80" height="80" rx="15" fill="white"/>
+    <text x="140" y="50" font-family="Arial, sans-serif" font-size="14" font-weight="bold" text-anchor="middle" fill="#1f2937">
+      BRAND
+    </text>
+
+    <!-- Example 3 -->
+    <rect x="50" y="100" width="80" height="80" rx="15" fill="white"/>
+    <text x="90" y="150" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="#1f2937">
+      AI
+    </text>
+  </g>
+
+  <!-- Bottom branding -->
+  <text x="600" y="550" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#9ca3af">
+    Powered by Google Gemini AI
+  </text>
+</svg>
