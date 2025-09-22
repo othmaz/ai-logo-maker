@@ -59,6 +59,11 @@
   image-rendering: crisp-edges;
 }
 
+/* Text glow effect for special emphasis */
+.text-glow {
+  text-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+}
+
 /* Fluid gradient animation for loading states */
 @keyframes gradient {
   0% {
