@@ -679,43 +679,45 @@ function App() {
         {/* Main hero content - centered */}
         <div className="flex-1 flex items-center justify-center pt-60 pb-32">
           <div className="relative max-w-6xl mx-auto px-4 text-center">
-            <h1 className="text-4xl lg:text-6xl hero-text mb-8 max-w-5xl mx-auto leading-tight font-extrabold">
-              Sculpt your brand image with AI
+            <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-8 max-w-5xl mx-auto leading-tight text-white">
+              CRAFT YOUR BRAND<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">WITH AI POWER</span>
             </h1>
-            <p className="text-xl lg:text-2xl text-gray-300 mb-4 max-w-3xl mx-auto leading-relaxed font-semibold">
-              2 minutes. No design skills needed.
+            <p className="retro-body text-lg lg:text-xl text-cyan-400 mb-4 max-w-3xl mx-auto leading-relaxed">
+              &gt; 2 MINUTES. NO DESIGN SKILLS NEEDED.
             </p>
-            <p className="text-lg lg:text-xl text-gray-400 mb-16 font-medium">
-              Completely free to use.
+            <p className="retro-mono text-base lg:text-lg text-green-400 mb-16">
+              [ COMPLETELY FREE TO USE ]
             </p>
             
             <div className="flex flex-wrap justify-center gap-6 lg:gap-10 text-sm lg:text-base hero-features mb-20 -mt-3 lg:-mt-6">
               <div className="flex items-center group">
-                <div className="w-3 h-3 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full mr-3 group-hover:scale-110 transition-transform"></div>
-                <span className="text-gray-300 group-hover:text-white transition-colors">Powered by Google Gemini AI</span>
+                <div className="w-6 h-6 mr-3 text-cyan-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🧠</div>
+                <span className="retro-mono text-gray-300 group-hover:text-cyan-400 transition-colors">POWERED BY GOOGLE GEMINI AI</span>
               </div>
               <div className="flex items-center group">
-                <div className="w-3 h-3 bg-gradient-to-r from-green-400 to-emerald-400 rounded-full mr-3 group-hover:scale-110 transition-transform"></div>
-                <span className="text-gray-300 group-hover:text-white transition-colors">High-quality PNG downloads</span>
+                <div className="w-6 h-6 mr-3 text-green-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">💾</div>
+                <span className="retro-mono text-gray-300 group-hover:text-green-400 transition-colors">HIGH-QUALITY PNG DOWNLOADS</span>
               </div>
               <div className="flex items-center group">
-                <div className="w-3 h-3 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full mr-3 group-hover:scale-110 transition-transform"></div>
-                <span className="text-gray-300 group-hover:text-white transition-colors">100% Free to use</span>
+                <div className="w-6 h-6 mr-3 text-purple-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🆓</div>
+                <span className="retro-mono text-gray-300 group-hover:text-purple-400 transition-colors">100% FREE TO USE</span>
               </div>
             </div>
             
           </div>
         </div>
         
-        {/* Arrow positioned outside content container */}
+        {/* Retro CTA button positioned outside content container */}
         <div className="absolute bottom-36 left-0 right-0 flex justify-center z-50">
-          <button 
+          <button
             onClick={() => scrollToLevel('level-1')}
-            className="animate-bounce hover:animate-none hover:scale-110 transition-transform duration-300"
+            className="animate-bounce hover:animate-none retro-button relative overflow-hidden bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] px-8 py-4 text-white"
           >
-            <div className="w-14 h-14 border-2 border-white/60 rounded-full flex items-center justify-center hover:bg-white/10 hover:border-white transition-all duration-300 backdrop-blur-sm">
-              <span className="text-2xl text-white">↓</span>
-            </div>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] animate-[gradient_2s_ease-in-out_infinite] opacity-0 hover:opacity-100 transition-opacity"></div>
+            <span className="relative z-10 retro-title text-sm">
+              START ↓
+            </span>
           </button>
         </div>
         

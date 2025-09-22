@@ -1,5 +1,64 @@
 /* Modern Gradient Animations */
 
+/* 80s Retro Font Classes */
+.retro-title {
+  font-family: 'Press Start 2P', monospace;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.retro-body {
+  font-family: 'VT323', monospace;
+  letter-spacing: 1px;
+}
+
+.retro-mono {
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: 0.5px;
+}
+
+/* Electric/Neon Colors */
+:root {
+  --electric-blue: #00ffff;
+  --neon-green: #39ff14;
+  --electric-pink: #ff10f0;
+  --retro-purple: #8b5cf6;
+}
+
+/* Retro Button Styles */
+.retro-button {
+  border-radius: 0 !important;
+  border: 2px solid var(--electric-blue);
+  box-shadow:
+    4px 4px 0px #000000,
+    0 0 20px var(--electric-blue);
+  font-family: 'Press Start 2P', monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.1s ease;
+}
+
+.retro-button:hover {
+  transform: translate(2px, 2px);
+  box-shadow:
+    2px 2px 0px #000000,
+    0 0 30px var(--electric-blue);
+}
+
+.retro-button:active {
+  transform: translate(4px, 4px);
+  box-shadow:
+    0px 0px 0px #000000,
+    0 0 15px var(--electric-blue);
+}
+
+/* Pixel-art style icons */
+.pixel-icon {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
 /* Fluid gradient animation for loading states */
 @keyframes gradient {
   0% {
