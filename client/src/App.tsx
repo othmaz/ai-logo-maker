@@ -677,7 +677,7 @@ function App() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
         
         {/* Main hero content - centered */}
-        <div className="flex-1 flex items-center justify-center py-20">
+        <div className="flex-1 flex items-center justify-center py-12 md:py-16">
           <div className="relative max-w-6xl mx-auto px-4 text-center">
             <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-6 max-w-5xl mx-auto leading-tight text-white">
               CRAFT YOUR LOGO<br />
@@ -706,7 +706,7 @@ function App() {
         </div>
         
         {/* Retro CTA button positioned below content */}
-        <div className="absolute bottom-16 md:bottom-20 left-0 right-0 flex justify-center z-50">
+        <div className="absolute bottom-16 md:bottom-24 left-0 right-0 flex justify-center z-50">
           <button
             onClick={() => scrollToLevel('level-1')}
             className="animate-bounce hover:animate-none retro-button relative overflow-hidden bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] px-4 py-2 md:px-8 md:py-4 text-white"
