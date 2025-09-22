@@ -680,14 +680,11 @@ function App() {
         <div className="flex-1 flex items-center justify-center pt-60 pb-32">
           <div className="relative max-w-6xl mx-auto px-4 text-center">
             <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-8 max-w-5xl mx-auto leading-tight text-white">
-              CRAFT YOUR BRAND<br />
+              CRAFT YOUR LOGO<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">WITH AI POWER</span>
             </h1>
-            <p className="retro-body text-lg lg:text-xl text-cyan-400 mb-4 max-w-3xl mx-auto leading-relaxed">
+            <p className="retro-body text-lg lg:text-xl text-cyan-400 mb-16 max-w-3xl mx-auto leading-relaxed">
               &gt; 2 MINUTES. NO DESIGN SKILLS NEEDED.
-            </p>
-            <p className="retro-mono text-base lg:text-lg text-green-400 mb-16">
-              [ COMPLETELY FREE TO USE ]
             </p>
             
             <div className="flex flex-wrap justify-center gap-6 lg:gap-10 text-sm lg:text-base hero-features mb-20 -mt-3 lg:-mt-6">
@@ -709,7 +706,7 @@ function App() {
         </div>
         
         {/* Retro CTA button positioned outside content container */}
-        <div className="absolute bottom-36 left-0 right-0 flex justify-center z-50">
+        <div className="absolute bottom-48 left-0 right-0 flex justify-center z-50">
           <button
             onClick={() => scrollToLevel('level-1')}
             className="animate-bounce hover:animate-none retro-button relative overflow-hidden bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] px-8 py-4 text-white"
