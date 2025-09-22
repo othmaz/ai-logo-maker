@@ -677,17 +677,17 @@ function App() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent"></div>
         
         {/* Main hero content - centered */}
-        <div className="flex-1 flex items-center justify-center pt-60 pb-32">
+        <div className="flex-1 flex items-center justify-center py-20">
           <div className="relative max-w-6xl mx-auto px-4 text-center">
-            <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-8 max-w-5xl mx-auto leading-tight text-white">
+            <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-6 max-w-5xl mx-auto leading-tight text-white">
               CRAFT YOUR LOGO<br />
               <span className="text-glow text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">WITH AI POWER</span>
             </h1>
-            <p className="retro-body text-lg lg:text-xl text-cyan-400 mb-16 max-w-3xl mx-auto leading-relaxed">
+            <p className="retro-body text-base md:text-lg lg:text-xl text-cyan-400 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed">
               &gt; 2 MINUTES. NO DESIGN SKILLS NEEDED.
             </p>
-            
-            <div className="flex flex-wrap justify-center gap-6 lg:gap-10 text-sm lg:text-base hero-features mb-20 -mt-3 lg:-mt-6">
+
+            <div className="flex flex-wrap justify-center gap-4 md:gap-6 lg:gap-10 text-xs md:text-sm lg:text-base hero-features mb-12 md:mb-16">
               <div className="flex items-center group">
                 <div className="w-6 h-6 mr-3 text-cyan-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🧠</div>
                 <span className="retro-mono text-gray-300 group-hover:text-cyan-400 transition-colors">POWERED BY GOOGLE GEMINI AI</span>
@@ -705,45 +705,17 @@ function App() {
           </div>
         </div>
         
-        {/* Retro CTA button positioned outside content container */}
-        <div className="absolute bottom-32 md:bottom-48 left-0 right-0 flex justify-center z-50">
+        {/* Retro CTA button positioned below content */}
+        <div className="absolute bottom-16 md:bottom-20 left-0 right-0 flex justify-center z-50">
           <button
             onClick={() => scrollToLevel('level-1')}
-            className="animate-bounce hover:animate-none retro-button relative overflow-hidden bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] px-8 py-4 text-white"
+            className="animate-bounce hover:animate-none retro-button relative overflow-hidden bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] px-4 py-2 md:px-8 md:py-4 text-white"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] animate-[gradient_2s_ease-in-out_infinite] opacity-0 hover:opacity-100 transition-opacity"></div>
-            <span className="relative z-10 retro-title text-sm">
+            <span className="relative z-10 retro-title text-xs md:text-sm">
               START ↓
             </span>
           </button>
-        </div>
-        
-        {/* Infinite scrolling logo band at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-700 py-6">
-          <div className="relative overflow-hidden">
-            <p className="text-center text-sm text-gray-400 mb-4 font-medium">Trusted by brands worldwide</p>
-            <div className="flex animate-scroll whitespace-nowrap">
-              {/* Generate many sets of logos for long scrolling */}
-              {[...Array(20)].map((_, setIndex) => (
-                <div key={setIndex} className="flex items-center space-x-16 mr-16">
-                  {logoReferences.map((logo) => (
-                    <div key={`${setIndex}-${logo.id}`} className="flex items-center space-x-3 text-gray-300">
-                      <img 
-                        src={logo.imageUrl} 
-                        alt={logo.name}
-                        className="w-8 h-8 object-cover filter brightness-0 invert opacity-70"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiBmaWxsPSIjNGI1NTYzIi8+CjxyZWN0IHg9IjYiIHk9IjYiIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiIgZmlsbD0iIzk0YTNiOCIvPgo8L3N2Zz4K';
-                        }}
-                      />
-                      <span className="text-lg font-medium">{logo.name}</span>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
