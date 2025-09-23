@@ -75,13 +75,21 @@ This is a full-stack AI logo generation application with the following structure
 - Google Analytics integration for tracking user interactions
 - Logo reference system using famous brand logos for style inspiration
 - Image compression and base64 conversion for API transmission
+- **Clerk Authentication**: Full user authentication with Sign In/Sign Up components
+- **Freemium Business Logic**: 3 free generations for anonymous users, unlimited for paid
+- **Legal & Support System**: Terms of Service, Privacy Policy, and Contact Us modals
+- **Premium Download System**: Automatic upscaling for paid users (1K → 8K resolution)
+- **Floating Contact Button**: Always-visible customer support access
+- **Upgrade Modal**: Payment flow integration for premium features
 
 **Server Architecture (`server/server.js`)**:
 - Express.js API with CORS enabled
 - Google Gemini AI integration for image generation with image+text refinement
-- Two main endpoints:
+- Replicate AI integration for Real-ESRGAN upscaling (premium feature)
+- Three main endpoints:
   - `/api/generate` - Single logo generation (legacy)
   - `/api/generate-multiple` - Batch logo generation (up to 5 logos)
+  - `/api/upscale` - Logo upscaling using Real-ESRGAN (post-payment)
 - Support for reference image processing in refinement mode
 - Comprehensive debugging logs for image transmission tracking
 - Fallback placeholder system when API limits are reached
@@ -93,6 +101,11 @@ This is a full-stack AI logo generation application with the following structure
 - CSS keyframe animations for gradient movement and color transitions
 - Hover effects and interactive button states
 - Responsive animation system that adapts to different screen sizes
+- Hardware acceleration optimizations for smooth performance
+- Infinite scrolling title animation with 300s cycle timing
+- Retro button effects with shadow-based press animations
+- Navigation shimmer effects on hover
+- Performance fixes to prevent animation blinking
 
 ## Common Development Commands
 
@@ -146,6 +159,8 @@ npm run lint
 ### Environment Setup
 - Copy `.env.example` to `.env`
 - Set `GEMINI_API_KEY` for AI logo generation
+- Set `REPLICATE_API_TOKEN` for logo upscaling (premium feature)
+- Set `VITE_CLERK_PUBLISHABLE_KEY` in `client/.env.local` for user authentication
 - Server runs on port 3001, client on port 5174
 
 ## Deployment Configurations
@@ -169,6 +184,13 @@ npm run lint
 - 80s retro aesthetic with pixel-perfect typography and electric color scheme
 - Professional toast notification system for enhanced user experience
 - SEO-optimized for search discoverability and social media sharing
+
+### Freemium Business Model
+- **Free Tier**: 3 logo generations at 1024x1024 resolution
+- **Premium Tier**: €10 payment for unlimited generations + automatic 8K upscaling
+- **Register-at-Checkout**: Users only create accounts when making payment
+- **Smart Download System**: Free users get standard resolution, paid users get upscaled versions
+- **Legal Compliance**: Comprehensive Terms of Service and Privacy Policy for EU/GDPR compliance
 
 The app is designed for entrepreneurs to quickly generate professional logos without design skills, featuring a distinctive 80s retro aesthetic that stands out from generic modern logo makers.
 
@@ -203,11 +225,53 @@ The app is designed for entrepreneurs to quickly generate professional logos wit
 - **Pixel-art icons**: 🧠 for AI-powered, 💾 for downloads, 🆓 for free features
 - **Retro button effects**: Shadow-based press animations and gradient cycling
 
+### Navigation System Overhaul (September 2025)
+- **Infinite Scrolling Title**: Seamless 300s cycle with hardware-accelerated smooth scrolling
+- **Performance Optimizations**: Fixed animation blinking issues with `translateZ(0)` and `backface-visibility: hidden`
+- **Mobile-Responsive Navigation**: Full hamburger menu implementation for screens under 1280px
+- **Retro Navigation Styling**: Monospace fonts, electric blue borders, vertical-spanning buttons
+- **Authentication Positioning**: Fixed Sign In/Sign Up button overlap with scrolling title
+- **Clickable Title Bar**: Entire scrolling title acts as home button for smooth scroll-to-top
+- **Mobile Menu Overlay**: 60% width, left-aligned, glass-morphism backdrop with proper spacing
+
+### Title Bar Responsive Improvements (September 2025)
+- **Unified Font Implementation**: Removed `mobile-font` overrides to use consistent Phosphate font across all devices
+- **Responsive Font Scaling**: Font sizes precisely match container heights with 5% overflow for bold effect
+  - Mobile (`h-16`/64px): `text-[4.2rem]` (67.2px) - 105% of container height
+  - Medium (`md:h-24`/96px): `md:text-[6.3rem]` (100.8px) - 105% of container height
+  - Large (`lg:h-32`/128px): `lg:text-[8.82rem]` (141.12px) - 110% of container height
+- **Perfect Positioning**: Top-aligned text that fills entire vertical space of title bar
+- **Hardware Acceleration**: CSS transforms with `translateZ(0)` for smooth performance
+- **Container Architecture**: Clean separation between title bar and navigation bar layers
+- **Cross-Device Consistency**: Same retro stretched aesthetic on mobile, tablet, and desktop
+
 ### Production-Ready Features
 - **SEO optimization**: Comprehensive meta tags, Open Graph cards, Twitter previews
 - **Professional notifications**: Toast system replacing browser alerts (success/error/warning/info)
 - **Social media ready**: Custom 1200x630 SVG preview image for platform sharing
 - **Image quality improvements**: Full 1024x1024 PNG output with lossless refinement
+
+### Legal & Business Compliance (September 2025)
+- **Terms of Service Modal**: Comprehensive ToS covering freemium model, payment terms, refund policy
+- **Privacy Policy Modal**: GDPR-compliant privacy documentation with data collection transparency
+- **Contact Us System**: Floating button with multi-channel support (email, live chat, help center)
+- **Register-at-Checkout Compliance**: Legal framework for payment-gated account creation
+- **Premium Download Infrastructure**: Automatic logo upscaling for paid users (1K → 8K resolution)
+
+### AI Upscaling System (September 2025)
+- **Replicate Integration**: Real-ESRGAN model for 4x logo upscaling (1024x1024 → 4096x4096)
+- **Cost-Optimized Workflow**: Upscaling only triggered after payment, not during generation
+- **Smart Download Logic**: Automatic detection of paid vs free users for appropriate resolution
+- **Fallback System**: Graceful degradation to original resolution if upscaling fails
+- **Premium Tracking**: Enhanced analytics for premium downloads and upscaling success rates
+
+### Clerk Authentication System (September 2025)
+- **React Integration**: Full Clerk authentication using `@clerk/clerk-react` package
+- **User Authentication**: Sign In/Sign Up buttons with UserButton in header
+- **Freemium Logic**: Anonymous users (3 free), signed-in users (3 free), paid users (unlimited)
+- **Usage Tracking**: localStorage for anonymous users, Clerk metadata for authenticated users
+- **Payment Flow**: Upgrade modal with premium benefits and authentication flow
+- **User State Management**: `useUser` hook integration with existing business logic
 
 ### File Structure Updates
 ```
@@ -217,15 +281,177 @@ client/
 │   ├── og-image.svg         # Social media preview image (1200x630)
 │   └── og-image.html        # Template for preview generation
 ├── src/
-│   ├── App.tsx              # Main app with retro styling and toast notifications
+│   ├── App.tsx              # Main app with Clerk auth, retro styling and toast notifications
 │   ├── animations.css       # Modern animations + retro 80s styling system
-│   └── main.tsx
+│   └── main.tsx             # ClerkProvider integration with React app
+├── .env.local               # VITE_CLERK_PUBLISHABLE_KEY for authentication
 └── index.html               # Enhanced with SEO meta tags and retro fonts
 
 server/
-├── server.js                # Serverless-ready with data URL fallbacks
+├── server.js                # Serverless-ready with data URL fallbacks + Replicate upscaling
+├── package.json             # Includes replicate dependency for AI upscaling
 └── ...
 ```
+
+### Navigation Technical Implementation
+
+**Mobile Responsiveness**:
+- **Breakpoint Strategy**: Changed from `md:` (768px) to `xl:` (1280px) for desktop navigation display
+- **Hamburger Menu**: Animated three-line icon that transforms to X when opened
+- **Overlay System**: Mobile menu appears as 60% width overlay with glass-morphism backdrop
+- **Touch-Friendly**: All mobile interactions optimized for touch interfaces
+
+**Desktop Navigation**:
+- **Retro Styling**: Press Start 2P font, electric blue borders, full vertical height buttons
+- **Pipe Separators**: Visual delimiters between navigation sections
+- **Shimmer Effects**: Diagonal shimmer animation on hover using `.nav-shimmer` class
+- **Button Spacing**: Optimized horizontal and vertical padding for consistent layout
+
+**Scrolling Title System**:
+- **Infinite Animation**: 300s cycle with `-1000%` translateX for seamless infinite effect
+- **Hardware Acceleration**: `will-change: transform` and `translateZ(0)` for smooth performance
+- **Clickable Area**: Entire title bar acts as home button with `scrollToHome()` function
+- **Text Spacing**: Adjusted `marginRight: '-60px'` for tighter title spacing
+
+**Title Bar Responsive Implementation**:
+- **Font Consistency**: Removed `mobile-font` class to use Phosphate font universally
+- **Responsive Heights**: Title bar scales with `h-16 md:h-24 lg:h-32` container heights
+- **Precise Font Sizing**: Direct font size mapping to container heights plus overflow
+- **Top Alignment**: `items-start` positioning ensures text sticks to top of container
+- **Overflow Strategy**: 5-10% font overflow creates bold, extended visual effect
+
+**Animation Performance**:
+- **Blinking Fix**: Added `backface-visibility: hidden` and hardware acceleration
+- **Smooth Scrolling**: `scroll({ behavior: 'smooth' })` for navigation interactions
+- **Optimized Keyframes**: Reduced GPU strain with transform-only animations
+
+## Latest Implementation Details (September 2025)
+
+### Replicate Upscaling System
+
+**Backend Implementation (`server/server.js`)**:
+```javascript
+// New dependencies
+const Replicate = require('replicate')
+
+// New endpoint: /api/upscale
+app.post('/api/upscale', async (req, res) => {
+  // Uses Real-ESRGAN model: nightmareai/real-esrgan
+  // Scales logos from 1024x1024 to 4096x4096 (4x upscaling)
+  // Includes comprehensive error handling and authentication
+})
+```
+
+**Frontend Integration (`client/src/App.tsx`)**:
+```javascript
+// New functions for premium downloads
+const upscaleLogo = async (logoUrl, scale = 4) => { /* API call to /api/upscale */ }
+const processLogoForDownload = async (logo) => { /* Post-payment processing */ }
+const downloadLogo = async (logo) => { /* Smart download with upscaling for paid users */ }
+```
+
+**Environment Variables**:
+```bash
+GEMINI_API_KEY=your_gemini_key      # For logo generation
+REPLICATE_API_TOKEN=your_token      # For AI upscaling
+```
+
+### Legal & Support Modals
+
+**Modal System**: Three comprehensive modals accessible via footer links and floating button:
+- **Terms of Service**: Covers freemium model, payment terms, refund policy, IP rights
+- **Privacy Policy**: GDPR-compliant data collection, usage, and user rights documentation
+- **Contact Us**: Multi-channel support with contact form and business information
+
+**Floating Contact Button**: Fixed position bottom-right, always visible during scroll
+
+### Business Logic Integration
+
+**Free Users**:
+- Generate up to 3 logos at 1024x1024 resolution
+- Download original resolution images
+- Access to all refinement features
+
+**Paid Users (€10)**:
+- Unlimited logo generation
+- **Automatic 8K upscaling** via Real-ESRGAN on download
+- Premium filename: `business-name-logo-8K.png`
+- Enhanced analytics tracking for premium features
+
+**Cost Control**:
+- Upscaling only occurs AFTER payment confirmation
+- No upscaling during generation phase to minimize API costs
+- Fallback to original resolution if upscaling fails
+
+### Dependencies Added
+
+**Server (`server/package.json`)**:
+```json
+{
+  "dependencies": {
+    "replicate": "^latest"
+  }
+}
+```
+
+**Client (`client/package.json`)**:
+```json
+{
+  "dependencies": {
+    "@clerk/clerk-react": "^5.48.1"
+  }
+}
+```
+
+### Clerk Authentication System
+
+**Setup (`client/src/main.tsx`)**:
+```javascript
+import { ClerkProvider } from '@clerk/clerk-react'
+
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing Clerk Publishable Key")
+}
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <App />
+    </ClerkProvider>
+  </StrictMode>
+)
+```
+
+**Authentication Components (`client/src/App.tsx`)**:
+```javascript
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from '@clerk/clerk-react'
+
+// Authentication header
+<SignedOut>
+  <SignInButton />
+  <SignUpButton />
+</SignedOut>
+<SignedIn>
+  <UserButton />
+</SignedIn>
+
+// Business logic integration
+const { isSignedIn, user } = useUser()
+const isPaid = isSignedIn && user?.publicMetadata?.isPaid === true
+```
+
+**Environment Variables**:
+```bash
+# client/.env.local
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
+```
+
+**Freemium Business Logic**:
+- **Anonymous Users**: 3 free generations tracked in localStorage
+- **Signed-in Users**: 3 free generations tracked in Clerk user metadata
+- **Paid Users**: Unlimited generations with 8K upscaling
+- **Upgrade Flow**: Modal-based payment integration ready for Stripe
 
 ## Deployment Issues & Solutions
 

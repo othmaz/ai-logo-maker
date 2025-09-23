@@ -1,5 +1,26 @@
 /* Modern Gradient Animations */
 
+/* Performance optimizations for animations */
+* {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* Hardware acceleration for smooth animations */
+.animate-scroll,
+.gradient-button,
+.fluid-loading-overlay,
+.morphing-gradient,
+[class*="animate-"] {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* 80s Retro Font Classes */
 .retro-title {
   font-family: 'Press Start 2P', monospace;
@@ -64,7 +85,7 @@
   text-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
 }
 
-/* Fluid gradient animation for loading states */
+/* Fluid gradient animation for loading states - optimized */
 @keyframes gradient {
   0% {
     background-position: 0% 50%;
@@ -75,6 +96,13 @@
   100% {
     background-position: 0% 50%;
   }
+}
+
+/* Force hardware acceleration for gradient animations */
+.animate-gradient {
+  will-change: background-position;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 /* Enhanced bounce animation for loading dots */
@@ -109,26 +137,25 @@
   }
 }
 
-/* Gradient wave animation */
+/* Gradient wave animation - optimized to reduce blinking */
 @keyframes gradient-wave {
   0% {
     background-position: 0% 50%;
-    filter: hue-rotate(0deg);
-  }
-  25% {
-    background-position: 100% 50%;
-    filter: hue-rotate(90deg);
   }
   50% {
-    background-position: 100% 100%;
-    filter: hue-rotate(180deg);
-  }
-  75% {
-    background-position: 0% 100%;
-    filter: hue-rotate(270deg);
+    background-position: 100% 50%;
   }
   100% {
     background-position: 0% 50%;
+  }
+}
+
+/* Separate hue rotation animation for better performance */
+@keyframes hue-rotate {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
     filter: hue-rotate(360deg);
   }
 }
@@ -175,11 +202,14 @@
 .loading-dot:nth-child(2) { animation-delay: -0.16s; }
 .loading-dot:nth-child(3) { animation-delay: 0s; }
 
-/* Gradient button hover effects */
+/* Gradient button hover effects - optimized */
 .gradient-button {
   position: relative;
   background-size: 200% 200%;
   transition: all 0.3s ease;
+  will-change: background-position, transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 
 .gradient-button:hover {
@@ -187,10 +217,10 @@
 }
 
 .gradient-button:active {
-  transform: scale(0.98);
+  transform: scale(0.98) translateZ(0);
 }
 
-/* Fluid loading overlay */
+/* Fluid loading overlay - optimized */
 .fluid-loading-overlay {
   position: absolute;
   top: 0;
@@ -208,6 +238,11 @@
   background-size: 400% 400%;
   animation: gradient-wave 3s ease infinite;
   opacity: 0.9;
+  will-change: background-position;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 /* Pulsing ring effect */
@@ -316,4 +351,104 @@
 .btn-press:active {
   transform: scale(0.95);
   box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Optimized scrolling animation for title band */
+@keyframes smooth-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-1000%);
+  }
+}
+
+.optimize-scroll {
+  animation: smooth-scroll 300s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Diagonal shimmer effect for navigation buttons */
+@keyframes diagonal-shimmer {
+  0% {
+    transform: translateX(-100%) rotate(35deg);
+  }
+  100% {
+    transform: translateX(200%) rotate(35deg);
+  }
+}
+
+.nav-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-shimmer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    35deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 80%
+  );
+  transform: translateX(-100%) rotate(35deg);
+  transition: none;
+  pointer-events: none;
+}
+
+.nav-shimmer:hover::before {
+  animation: diagonal-shimmer 0.6s ease-out;
+}
+
+/* Additional performance fixes */
+.no-blur {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeSpeed;
+}
+
+/* Fix for font rendering issues that cause blinking */
+.stable-font {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Animated gradient for "WITH AI POWER" text */
+@keyframes animated-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  25% {
+    background-position: 100% 100%;
+  }
+  50% {
+    background-position: 50% 0%;
+  }
+  75% {
+    background-position: 0% 100%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-text-gradient {
+  background: linear-gradient(-45deg, #22d3ee, #06b6d4, #8b5cf6, #a855f7, #22d3ee, #06b6d4);
+  background-size: 600% 600%;
+  animation: animated-gradient 8s ease-in-out infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }

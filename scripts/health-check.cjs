@@ -11,7 +11,7 @@ const https = require('https');
 const http = require('http');
 
 // Production Vercel deployment URL
-const DEPLOYMENT_URL = process.env.DEPLOYMENT_URL || process.env.VERCEL_URL || 'https://ai-logo-maker-pi.vercel.app';
+const DEPLOYMENT_URL = process.env.DEPLOYMENT_URL || process.env.VERCEL_URL || 'https://www.craftyourlogo.com';
 
 function makeRequest(url) {
   return new Promise((resolve, reject) => {

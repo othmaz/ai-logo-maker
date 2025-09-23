@@ -1,0 +1,39 @@
+This checklist is now tailored to your low-friction, "register-at-checkout" model.
+
+Tier 1: Critical (Must-Haves for Launch)
+Implement Stateless Generation Tracking:
+
+Use the browser's localStorage to track the 3 free generation rounds for anonymous users.
+
+Update all Website Copy:
+
+Change all "100% Free" language to reflect the freemium model ("Start for free," etc.).
+
+"Register-at-Checkout" User Account System:
+
+Build a user registration flow that is integrated into the payment process. A user should not be asked to register until they have decided to pay.
+
+Payment Gateway Integration:
+
+Integrate a payment provider (e.g., Stripe) to handle the €10 fee.
+
+Develop the Paywall & Gated Features:
+
+Build the UI that locks generation after 3 rounds and directs users to the payment/registration flow.
+
+Ensure SVG downloads are restricted until a user has successfully paid.
+
+Terms of Service & Privacy Policy:
+
+Update your ToS to include payment terms, refund policy, and account creation details.
+
+Ensure your Privacy Policy is accurate.
+
+Add a "Contact Us" / Support Method.
+
+Implement API Rate Limiting: (Server-side) Still essential to prevent programmatic abuse of your free generation endpoint.
+
+Tier 2: Highly Recommended
+"Claim Your Logos" Feature: If a user clears their cache and loses their guest session, have a way for them to "claim" their work if they remember the prompts, or offer support to help them find it.
+
+User Dashboard: After registering, users should be taken to a simple dashboard where they can see all the logos they created as a guest and their new premium status.

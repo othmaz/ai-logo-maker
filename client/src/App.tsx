@@ -1,4 +1,12 @@
 import { useState, useEffect } from 'react'
+import {
+  SignedIn,
+  SignedOut,
+  SignInButton,
+  SignUpButton,
+  UserButton,
+  useUser
+} from '@clerk/clerk-react'
 import './animations.css'
 
 // Declare gtag for TypeScript
@@ -12,6 +20,10 @@ interface Toast {
   id: string
   message: string
   type: 'success' | 'error' | 'info' | 'warning'
+}
+
+interface Modal {
+  type: 'tos' | 'privacy' | 'contact' | 'upgrade' | null
 }
 
 interface FormData {
@@ -49,6 +61,7 @@ interface GenerationRound {
 }
 
 // Collection of famous logos as references
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const logoReferences: LogoReference[] = [
   // Modern Wordmarks
   { id: 'google', name: 'Google', description: 'Clean, colorful wordmark', category: 'wordmark', imageUrl: 'https://cdn.jsdelivr.net/gh/simple-icons/simple-icons@v9/icons/google.svg' },
@@ -196,6 +209,8 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
 }
 
 function App() {
+  const { isSignedIn, user } = useUser()
+
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
     industry: '',
@@ -218,8 +233,18 @@ function App() {
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [usage, setUsage] = useState({ remaining: 3, total: 3, used: 0 })
-  const [isPaid, setIsPaid] = useState(false)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [activeModal, setActiveModal] = useState<Modal['type']>(null)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [showChatButton, setShowChatButton] = useState(false)
+
+  // Check if user has paid (based on Clerk user metadata or subscription)
+  const isPaid = isSignedIn && user?.publicMetadata?.isPaid === true
+
+  // Scroll to top function for title bar home button
+  const scrollToHome = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   // Toast notification function
   const showToast = (message: string, type: Toast['type'] = 'info') => {
@@ -237,6 +262,100 @@ function App() {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
+  // Upscale logo using Replicate (for post-payment use)
+  const upscaleLogo = async (logoUrl: string, scale: number = 4): Promise<string> => {
+    try {
+      console.log('🔍 Starting logo upscaling for:', logoUrl)
+      showToast('Upscaling your logo to higher resolution...', 'info')
+
+      // Use relative URL for production, localhost for development
+      const apiUrl = import.meta.env.DEV
+        ? 'http://localhost:3001/api/upscale'
+        : '/api/upscale'
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageUrl: logoUrl,
+          scale: scale
+        })
+      })
+
+      console.log('📨 Upscale response status:', response.status)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      console.log('✅ Upscaling completed:', data)
+
+      showToast('Logo successfully upscaled to higher resolution!', 'success')
+      return data.upscaledUrl
+
+    } catch (error) {
+      console.error('❌ Upscaling error:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      showToast('Failed to upscale logo: ' + errorMessage, 'error')
+      throw error
+    }
+  }
+
+  // Handle payment upgrade process
+  const handlePaymentUpgrade = async () => {
+    try {
+      showToast('Redirecting to payment...', 'info')
+
+      // TODO: Integrate with Stripe or other payment processor
+      // This would redirect to a payment page or open a payment modal
+      // After successful payment, update user metadata to isPaid: true
+
+      console.log('Payment integration needed - redirect to payment processor')
+      showToast('Payment integration coming soon!', 'info')
+
+    } catch (error) {
+      console.error('Payment error:', error)
+      showToast('Payment failed. Please try again.', 'error')
+    }
+  }
+
+  // Process logo for download after payment (includes upscaling)
+  const processLogoForDownload = async (logo: Logo): Promise<string> => {
+    try {
+      console.log('💳 Processing logo for paid download:', logo.id)
+
+      // Show processing notification
+      showToast('Processing your premium logo...', 'info')
+
+      // Upscale the logo to 8K resolution
+      const upscaledUrl = await upscaleLogo(logo.url, 4)
+
+      // Track the premium download event
+      try {
+        if (typeof window !== 'undefined' && window.gtag) {
+          console.log('🔍 Sending GA4 event: premium_logo_download')
+          window.gtag('event', 'premium_logo_download', {
+            business_name: formData.businessName,
+            logo_id: logo.id,
+            original_url: logo.url,
+            upscaled_url: upscaledUrl
+          })
+        }
+      } catch (trackingError) {
+        console.error('GA4 tracking error:', trackingError)
+      }
+
+      return upscaledUrl
+    } catch (error) {
+      console.error('❌ Error processing logo for download:', error)
+      showToast('Error processing logo. Using original resolution.', 'warning')
+      // Fallback to original logo if upscaling fails
+      return logo.url
+    }
+  }
+
   // Load saved logos from localStorage on component mount
   useEffect(() => {
     const saved = localStorage.getItem('savedLogos')
@@ -247,16 +366,30 @@ function App() {
         console.error('Error loading saved logos:', error)
       }
     }
-    
-    // Check usage limits on load
-    checkUsageLimit()
   }, [])
 
-  // Function to check usage limits (no limits with restored server)
+  // Check usage limits when authentication or user state changes
+  useEffect(() => {
+    checkUsageLimit()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, user, isPaid])
+
+  // Function to check usage limits based on authentication and payment status
   const checkUsageLimit = async () => {
-    // Unlimited usage - no IP tracking
-    setUsage({ remaining: 999, total: 999, used: 0 })
-    setIsPaid(true)
+    if (!isSignedIn) {
+      // Anonymous users get 3 free generations
+      const usedGenerations = parseInt(localStorage.getItem('anonymousGenerationsUsed') || '0')
+      const remaining = Math.max(0, 3 - usedGenerations)
+      setUsage({ remaining, total: 3, used: usedGenerations })
+    } else if (isPaid) {
+      // Paid users have unlimited usage
+      setUsage({ remaining: 999, total: 999, used: 0 })
+    } else {
+      // Signed in but not paid users get 3 free generations
+      const userGenerations = parseInt(user?.publicMetadata?.generationsUsed as string || '0')
+      const remaining = Math.max(0, 3 - userGenerations)
+      setUsage({ remaining, total: 3, used: userGenerations })
+    }
   }
 
   // Save logo to localStorage
@@ -278,15 +411,17 @@ function App() {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY
-      
+
       if (currentScrollY > lastScrollY && currentScrollY > 50) {
         // Scrolling down and past initial offset
         setIsHeaderVisible(false)
+        setShowChatButton(true)  // Show chat button when scrolling down
       } else if (currentScrollY < lastScrollY) {
         // Scrolling up
         setIsHeaderVisible(true)
+        setShowChatButton(false)  // Hide chat button when scrolling up
       }
-      
+
       setLastScrollY(currentScrollY)
     }
 
@@ -313,6 +448,7 @@ function App() {
     // Check usage limits first (unless user is paid)
     if (!isPaid && usage.remaining <= 0) {
       console.log('Usage limit reached - upgrade needed')
+      setActiveModal('upgrade')
       return
     }
     
@@ -482,11 +618,27 @@ function App() {
             industry: formData.industry || 'unspecified',
             style: formData.style,
             count: newLogos.length,
-            round: currentRound
+            round: currentRound,
+            user_type: isSignedIn ? (isPaid ? 'paid' : 'free_user') : 'anonymous'
           })
         }
       } catch (error) {
         console.error('GA4 logos_generated tracking error:', error)
+      }
+
+      // Update usage tracking for non-paid users
+      if (!isPaid && isInitial) {
+        if (!isSignedIn) {
+          // Update anonymous user usage in localStorage
+          const currentUsed = parseInt(localStorage.getItem('anonymousGenerationsUsed') || '0')
+          const newUsed = currentUsed + 1
+          localStorage.setItem('anonymousGenerationsUsed', newUsed.toString())
+          setUsage(prev => ({ ...prev, used: newUsed, remaining: Math.max(0, 3 - newUsed) }))
+        } else {
+          // TODO: Update user metadata via API call to track generations used
+          // This would require a backend endpoint to update Clerk user metadata
+          console.log('TODO: Update user generation count in Clerk metadata')
+        }
       }
       } else {
         console.error('❌ No logos received from Gemini API')
@@ -573,36 +725,54 @@ function App() {
     }))
   }
 
-  const downloadLogo = (logo: Logo) => {
+  const downloadLogo = async (logo: Logo) => {
     const link = document.createElement('a')
-    link.download = `${formData.businessName}-logo.png`
+    link.download = `${formData.businessName}-logo-premium.png`
 
-    // For data URLs, ensure we're downloading the full quality image
-    if (logo.url.startsWith('data:')) {
-      // Data URL - download directly with full quality
-      link.href = logo.url
-    } else {
-      // HTTP URL - fetch and ensure quality
-      link.href = logo.url
-    }
-
-    link.click()
-    
-    // Track logo download - this is a conversion! 
     try {
-      if (typeof window !== 'undefined' && window.gtag) {
-        console.log('🔍 Sending GA4 event: logo_downloaded')
-        window.gtag('event', 'logo_downloaded', {
-          business_name: formData.businessName,
-          industry: formData.industry || 'unspecified',
-          style: formData.style,
-          round: currentRound
-        })
+      let downloadUrl = logo.url
+
+      // If user has paid, process the logo with upscaling
+      if (isPaid) {
+        console.log('💳 User has paid - processing premium download')
+        downloadUrl = await processLogoForDownload(logo)
+        link.download = `${formData.businessName}-logo-8K.png`
       } else {
-        console.log('⚠️ GA4 gtag not available for logo_downloaded')
+        console.log('🆓 Free download - using original resolution')
+      }
+
+      // For data URLs, ensure we're downloading the full quality image
+      if (downloadUrl.startsWith('data:')) {
+        // Data URL - download directly with full quality
+        link.href = downloadUrl
+      } else {
+        // HTTP URL - fetch and ensure quality
+        link.href = downloadUrl
+      }
+
+      link.click()
+
+      // Track logo download - this is a conversion!
+      try {
+        if (typeof window !== 'undefined' && window.gtag) {
+          console.log('🔍 Sending GA4 event: logo_downloaded')
+          window.gtag('event', 'logo_downloaded', {
+            business_name: formData.businessName,
+            industry: formData.industry || 'unspecified',
+            style: formData.style,
+            round: currentRound,
+            is_premium: isPaid,
+            is_upscaled: isPaid
+          })
+        } else {
+          console.log('⚠️ GA4 gtag not available for logo_downloaded')
+        }
+      } catch (error) {
+        console.error('GA4 logo_downloaded tracking error:', error)
       }
     } catch (error) {
-      console.error('GA4 logo_downloaded tracking error:', error)
+      console.error('❌ Error in downloadLogo:', error)
+      showToast('Download failed. Please try again.', 'error')
     }
   }
 
@@ -644,33 +814,116 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
-      
-      {/* Sticky Top Title Band */}
-      <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 h-16 md:h-24 lg:h-32 transition-transform duration-300 ${
-        isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
-      }`}>
+
+
+      {/* Sticky Top Title Band - clickable home button */}
+      <button
+        onClick={scrollToHome}
+        className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 h-16 md:h-24 lg:h-32 transition-transform duration-300 cursor-pointer ${
+          isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+        }`}
+      >
         <div className="relative overflow-hidden h-full">
-          <div className="flex animate-scroll whitespace-nowrap h-full">
+          <div className="flex optimize-scroll whitespace-nowrap h-full stable-font">
             {/* First set of titles */}
-            <div className="flex items-center space-x-0 mr-0 h-full">
+            <div className="flex items-start space-x-0 mr-0 h-full">
               {[...Array(50)].map((_, i) => (
-                <h1 key={`first-${i}`} className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0 -mr-16 lg:-mr-48" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
+                <h1 key={`first-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.2rem] md:text-[6.3rem] lg:text-[8.82rem]" style={{fontStretch: 'ultra-condensed', marginRight: '-60px', lineHeight: '4rem'}}>
                   FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
             {/* Second set for seamless loop */}
-            <div className="flex items-center space-x-0 mr-0 h-full">
+            <div className="flex items-start space-x-0 mr-0 h-full">
               {[...Array(50)].map((_, i) => (
-                <h1 key={`second-${i}`} className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[10rem] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate mobile-font tracking-tighter leading-none flex items-center h-full m-0 p-0 -mr-16 lg:-mr-48" style={{fontStretch: 'ultra-condensed', transform: 'scaleY(1.35) scaleX(0.8)'}}>
+                <h1 key={`second-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.2rem] md:text-[6.3rem] lg:text-[8.82rem]" style={{fontStretch: 'ultra-condensed', marginRight: '-60px', lineHeight: '4rem'}}>
                   FREE AI LOGO MAKER
                 </h1>
               ))}
             </div>
           </div>
         </div>
+      </button>
+
+      {/* Navigation Band - always visible below title band */}
+      <div className={`fixed left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-b border-gray-600/50 z-[60] h-12 md:h-14 transition-all duration-300 ${
+        isHeaderVisible ? 'top-16 md:top-24 lg:top-32' : 'top-0'
+      }`}>
+        <div className="w-full h-full relative">
+          {/* Desktop Navigation - hidden on mobile and tablets */}
+          <div className="hidden xl:absolute xl:inset-0 xl:flex xl:items-center xl:justify-center">
+            <div className="flex items-center h-full">
+              {['Home', 'Collection', 'Pricing', 'API', 'About'].map((item, index) => (
+                <div key={item} className="flex items-center h-full">
+                  <button className="nav-shimmer flex items-center justify-center h-full px-4 md:px-6 text-base md:text-lg lg:text-xl retro-mono font-bold text-gray-300 hover:text-cyan-400 transition-colors duration-200 uppercase">
+                    {item}
+                  </button>
+                  {index < 4 && (
+                    <span className="mx-3 md:mx-4 text-gray-600 text-base md:text-lg font-bold">|</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile & Tablet Hamburger Menu */}
+          <div className="xl:hidden absolute left-4 top-0 h-full flex items-center">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="flex flex-col justify-center items-center w-8 h-8 space-y-1"
+            >
+              <span className={`block w-6 h-0.5 bg-gray-300 transform transition duration-300 ${isMobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
+              <span className={`block w-6 h-0.5 bg-gray-300 transition duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`}></span>
+              <span className={`block w-6 h-0.5 bg-gray-300 transform transition duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
+            </button>
+          </div>
+
+          {/* Authentication Buttons - responsive sizing */}
+          <div className="absolute right-4 top-0 h-full flex items-center gap-2">
+            <SignedOut>
+              <SignInButton>
+                <button className="px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
+                  SIGN IN
+                </button>
+              </SignInButton>
+              <SignUpButton>
+                <button className="px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg hover:bg-pink-500 transition-all duration-200 border-2 border-purple-500 hover:border-pink-500 hover:shadow-[0_0_15px_rgba(255,16,240,0.5)] retro-mono text-xs">
+                  SIGN UP
+                </button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
+          </div>
+        </div>
+
+        {/* Mobile & Tablet Menu - positioned relative to nav bar */}
+        {isMobileMenuOpen && (
+          <div className="absolute top-full left-4 mt-4 w-[60%] bg-gray-800/95 backdrop-blur-sm border border-gray-600/50 rounded-lg z-[70] xl:hidden">
+            <div className="flex flex-col">
+              {['Home', 'Collection', 'Pricing', 'API', 'About'].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="nav-shimmer flex items-center justify-center py-4 px-6 text-lg retro-mono font-bold text-gray-300 hover:text-cyan-400 hover:bg-gray-700/30 transition-colors duration-200 uppercase border-b border-gray-600/30 last:border-b-0 first:rounded-t-lg last:rounded-b-lg"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Menu Backdrop */}
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-[60] xl:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+        )}
       </div>
-      
+
       {/* Level 0: Hero Section */}
       <div id="level-0" className="h-screen relative overflow-hidden flex flex-col">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-black"></div>
@@ -678,10 +931,10 @@ function App() {
         
         {/* Main hero content - centered */}
         <div className="flex-1 flex items-center justify-center py-12 md:py-8">
-          <div className="relative max-w-6xl mx-auto px-4 text-center">
+          <div className="relative max-w-6xl mx-auto px-4 text-center mt-8 md:mt-12">
             <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-6 max-w-5xl mx-auto leading-tight text-white">
               CRAFT YOUR LOGO<br />
-              <span className="text-glow text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500">WITH AI POWER</span>
+              <span className="text-glow animated-text-gradient">WITH AI POWER</span>
             </h1>
             <p className="retro-body text-base md:text-lg lg:text-xl text-cyan-400 mb-8 md:mb-12 max-w-3xl mx-auto leading-relaxed">
               &gt; 2 MINUTES. NO DESIGN SKILLS NEEDED.
@@ -689,12 +942,12 @@ function App() {
 
             <div className="flex flex-wrap justify-center gap-4 md:gap-6 lg:gap-10 text-xs md:text-sm lg:text-base hero-features mb-12 md:mb-16">
               <div className="flex items-center group">
-                <div className="w-6 h-6 mr-3 text-cyan-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🧠</div>
+                <div className="w-6 h-6 mr-3 text-cyan-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🍌</div>
                 <span className="retro-mono text-gray-300 group-hover:text-cyan-400 transition-colors">POWERED BY GOOGLE GEMINI AI</span>
               </div>
               <div className="flex items-center group">
-                <div className="w-6 h-6 mr-3 text-green-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">💾</div>
-                <span className="retro-mono text-gray-300 group-hover:text-green-400 transition-colors">HIGH-QUALITY PNG DOWNLOADS</span>
+                <div className="w-6 h-6 mr-3 text-green-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🎨</div>
+                <span className="retro-mono text-gray-300 group-hover:text-green-400 transition-colors">8K PNG & SVG FILES</span>
               </div>
               <div className="flex items-center group">
                 <div className="w-6 h-6 mr-3 text-purple-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🆓</div>
@@ -706,12 +959,12 @@ function App() {
         </div>
         
         {/* Retro CTA button positioned below content */}
-        <div className="absolute bottom-16 md:bottom-32 left-0 right-0 flex justify-center z-50">
+        <div className="absolute bottom-16 md:bottom-32 left-0 right-0 flex justify-center z-40">
           <button
             onClick={() => scrollToLevel('level-1')}
-            className="animate-bounce hover:animate-none retro-button relative overflow-hidden bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] px-4 py-2 md:px-8 md:py-4 text-white"
+            className="group animate-bounce hover:animate-none retro-button relative overflow-hidden bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] px-4 py-2 md:px-8 md:py-4 text-white"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] animate-[gradient_2s_ease-in-out_infinite] opacity-0 hover:opacity-100 transition-opacity"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] animate-[gradient_2s_ease-in-out_infinite] opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
             <span className="relative z-10 retro-title text-xs md:text-sm">
               START ↓
             </span>
@@ -1238,7 +1491,32 @@ function App() {
         <p className="text-gray-500 text-lg">
           Powered by Google Gemini AI • Created with ❤️ for entrepreneurs
         </p>
+        <div className="mt-6 space-x-6">
+          <button
+            onClick={() => setActiveModal('tos')}
+            className="text-gray-400 hover:text-white transition-colors underline"
+          >
+            Terms of Service
+          </button>
+          <button
+            onClick={() => setActiveModal('privacy')}
+            className="text-gray-400 hover:text-white transition-colors underline"
+          >
+            Privacy Policy
+          </button>
+        </div>
       </div>
+
+      {/* Floating Contact Us Button */}
+      <button
+        onClick={() => setActiveModal('contact')}
+        className={`fixed right-6 z-40 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full w-8 h-8 md:w-16 md:h-16 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-110 group ${
+          showChatButton ? 'bottom-6 translate-y-0' : 'bottom-0 translate-y-20'
+        }`}
+        title="Contact Us"
+      >
+        <span className="text-sm md:text-2xl group-hover:scale-110 transition-transform">💬</span>
+      </button>
 
       {/* Toast Notifications */}
       <div className="fixed top-4 right-4 z-50 space-y-2">
@@ -1264,6 +1542,292 @@ function App() {
           </div>
         ))}
       </div>
+
+      {/* Modals */}
+      {activeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-800">
+                {activeModal === 'tos' && 'Terms of Service'}
+                {activeModal === 'privacy' && 'Privacy Policy'}
+                {activeModal === 'contact' && 'Contact Us'}
+                {activeModal === 'upgrade' && 'Upgrade to Premium'}
+              </h2>
+              <button
+                onClick={() => setActiveModal(null)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {activeModal === 'tos' && (
+                <div className="space-y-6 text-gray-700">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">1. Service Description</h3>
+                    <p>AI Logo Maker provides artificial intelligence-powered logo generation services. Users can create up to 3 logos for free, after which a €10 payment is required for unlimited access.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">2. Payment Terms</h3>
+                    <ul className="list-disc pl-6 space-y-2">
+                      <li>First 3 logo generations are completely free</li>
+                      <li>Additional access requires a one-time payment of €10</li>
+                      <li>Payment provides unlimited logo generation for your account</li>
+                      <li>All payments are processed securely through Stripe</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">3. Refund Policy</h3>
+                    <p>Due to the digital nature of our service and immediate delivery of AI-generated content, we offer refunds within 24 hours of purchase only in cases of technical failure preventing service delivery. All refund requests must be submitted to our support team with detailed explanation.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">4. User Account Registration</h3>
+                    <p>Account registration is only required at checkout when making a payment. We follow a "register-at-checkout" model to minimize friction for users. Account information is used solely for service delivery and support.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">5. Intellectual Property</h3>
+                    <p>Users retain full ownership and commercial rights to all logos generated through our service. We do not claim ownership of generated content. However, users are responsible for ensuring their chosen business names and concepts do not infringe on existing trademarks.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">6. Service Availability</h3>
+                    <p>We strive to maintain 99% uptime but cannot guarantee uninterrupted service due to the dependency on third-party AI services. Planned maintenance will be announced in advance when possible.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">7. Limitation of Liability</h3>
+                    <p>Our liability is limited to the amount paid for the service (€10 maximum). We are not responsible for business losses, trademark disputes, or other consequential damages arising from logo usage.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">8. Contact Information</h3>
+                    <p>For questions regarding these terms, please contact us through the Contact Us button or email support at the address provided in our contact form.</p>
+                  </div>
+
+                  <p className="text-sm text-gray-500 mt-8">Last updated: {new Date().toLocaleDateString()}</p>
+                </div>
+              )}
+
+              {activeModal === 'privacy' && (
+                <div className="space-y-6 text-gray-700">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">Information We Collect</h3>
+                    <ul className="list-disc pl-6 space-y-2">
+                      <li><strong>Business Information:</strong> Business name, industry, description, and design preferences you provide</li>
+                      <li><strong>Generated Content:</strong> Logos and images created during your session</li>
+                      <li><strong>Usage Data:</strong> Number of generations used, selected preferences, and session activity</li>
+                      <li><strong>Payment Information:</strong> Processed securely by Stripe (we don't store payment details)</li>
+                      <li><strong>Account Data:</strong> Email address and basic account information (only when you register at checkout)</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">How We Use Your Information</h3>
+                    <ul className="list-disc pl-6 space-y-2">
+                      <li>Generate personalized logos based on your business requirements</li>
+                      <li>Track your usage against the 3-generation free limit</li>
+                      <li>Process payments and manage your account</li>
+                      <li>Provide customer support and respond to inquiries</li>
+                      <li>Improve our AI algorithms and service quality</li>
+                      <li>Send service-related communications (not marketing emails)</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">Data Storage and Security</h3>
+                    <p>Your data is stored securely and used only for service delivery. We use industry-standard encryption and security practices. Generated logos are stored temporarily to enable downloads and refinements during your session.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">Third-Party Services</h3>
+                    <ul className="list-disc pl-6 space-y-2">
+                      <li><strong>Google Gemini AI:</strong> Powers our logo generation (subject to Google's privacy policy)</li>
+                      <li><strong>Stripe:</strong> Processes payments securely (subject to Stripe's privacy policy)</li>
+                      <li><strong>Google Analytics:</strong> Tracks usage patterns for service improvement</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">Your Rights</h3>
+                    <ul className="list-disc pl-6 space-y-2">
+                      <li>Access your personal data and generated content</li>
+                      <li>Request correction of inaccurate information</li>
+                      <li>Request deletion of your account and associated data</li>
+                      <li>Withdraw consent for data processing (may limit service functionality)</li>
+                      <li>Export your generated logos and account data</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">Data Retention</h3>
+                    <p>Account data is retained until you request deletion. Generated logos are stored temporarily for session continuity and permanently if you save them to your collection. Anonymous usage analytics may be retained for service improvement.</p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">Contact for Privacy Matters</h3>
+                    <p>For privacy-related questions, data requests, or concerns, please contact us through the Contact Us button or email our privacy team at the address provided in our contact form.</p>
+                  </div>
+
+                  <p className="text-sm text-gray-500 mt-8">Last updated: {new Date().toLocaleDateString()}</p>
+                </div>
+              )}
+
+              {activeModal === 'contact' && (
+                <div className="space-y-6">
+                  <div className="text-center mb-8">
+                    <p className="text-gray-600">We'd love to hear from you! Get in touch with our team.</p>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <div className="bg-gray-50 p-6 rounded-xl">
+                        <h4 className="font-semibold text-gray-800 mb-2">📧 Email Support</h4>
+                        <p className="text-gray-600">support@ailogomaker.com</p>
+                        <p className="text-sm text-gray-500 mt-2">Response within 24 hours</p>
+                      </div>
+
+                      <div className="bg-gray-50 p-6 rounded-xl">
+                        <h4 className="font-semibold text-gray-800 mb-2">💬 Live Chat</h4>
+                        <p className="text-gray-600">Available during business hours</p>
+                        <p className="text-sm text-gray-500 mt-2">Monday - Friday, 9 AM - 6 PM CET</p>
+                      </div>
+
+                      <div className="bg-gray-50 p-6 rounded-xl">
+                        <h4 className="font-semibold text-gray-800 mb-2">❓ FAQ & Help</h4>
+                        <p className="text-gray-600">Check our comprehensive help center</p>
+                        <p className="text-sm text-gray-500 mt-2">Self-service solutions available 24/7</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="font-semibold text-gray-800">Send us a message</h4>
+                      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); showToast('Message sent! We\'ll get back to you soon.', 'success'); setActiveModal(null); }}>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                          <input
+                            type="text"
+                            required
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Your name"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                          <input
+                            type="email"
+                            required
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="your@email.com"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                          <select className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option>General Inquiry</option>
+                            <option>Technical Support</option>
+                            <option>Billing Question</option>
+                            <option>Feature Request</option>
+                            <option>Bug Report</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
+                          <textarea
+                            required
+                            rows={4}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            placeholder="How can we help you?"
+                          ></textarea>
+                        </div>
+                        <button
+                          type="submit"
+                          className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white p-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
+                        >
+                          Send Message
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeModal === 'upgrade' && (
+                <div className="space-y-6 text-center">
+                  <div className="mb-8">
+                    <div className="text-6xl mb-4">🚀</div>
+                    <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                      You've reached your free limit!
+                    </h3>
+                    <p className="text-gray-600 text-lg">
+                      {!isSignedIn
+                        ? "You've used all 3 free logo generations. Sign up to get unlimited access!"
+                        : "Upgrade to Premium for unlimited logo generation and 8K upscaling!"}
+                    </p>
+                  </div>
+
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-8 rounded-xl">
+                    <h4 className="text-xl font-semibold text-gray-800 mb-4">Premium Benefits</h4>
+                    <ul className="text-left space-y-3 mb-6">
+                      <li className="flex items-center">
+                        <span className="text-green-500 mr-3">✓</span>
+                        <span>Unlimited logo generation</span>
+                      </li>
+                      <li className="flex items-center">
+                        <span className="text-green-500 mr-3">✓</span>
+                        <span>8K upscaling for premium quality</span>
+                      </li>
+                      <li className="flex items-center">
+                        <span className="text-green-500 mr-3">✓</span>
+                        <span>Priority customer support</span>
+                      </li>
+                      <li className="flex items-center">
+                        <span className="text-green-500 mr-3">✓</span>
+                        <span>Commercial usage rights</span>
+                      </li>
+                    </ul>
+
+                    <div className="text-3xl font-bold text-gray-800 mb-6">
+                      Only €10 <span className="text-lg font-normal text-gray-600">one-time payment</span>
+                    </div>
+
+                    <div className="space-y-4">
+                      {!isSignedIn ? (
+                        <div className="space-y-3">
+                          <SignUpButton>
+                            <button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200">
+                              Sign Up & Get Premium
+                            </button>
+                          </SignUpButton>
+                          <p className="text-sm text-gray-500">
+                            Already have an account?
+                            <SignInButton>
+                              <button className="text-blue-600 hover:text-blue-700 ml-1 underline">
+                                Sign In
+                              </button>
+                            </SignInButton>
+                          </p>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handlePaymentUpgrade}
+                          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
+                        >
+                          Upgrade to Premium - €10
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

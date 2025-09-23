@@ -4,8 +4,14 @@ const dotenv = require('dotenv')
 const { GoogleGenAI } = require('@google/genai')
 const fs = require('fs')
 const path = require('path')
+const Replicate = require('replicate')
 
 dotenv.config({ path: path.join(__dirname, '../.env') })
+
+// Initialize Replicate client
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+})
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -273,6 +279,86 @@ app.post('/api/generate-multiple', async (req, res) => {
     res.status(500).json({
       error: 'Failed to generate logos: ' + error.message,
       details: error.stack
+    })
+  }
+})
+
+// Image upscaling endpoint using Replicate Real-ESRGAN
+app.post('/api/upscale', async (req, res) => {
+  console.log('🔍 Received upscaling request')
+  console.log('📦 Request body keys:', Object.keys(req.body))
+
+  try {
+    const { imageUrl, scale = 4 } = req.body
+
+    if (!imageUrl) {
+      console.log('❌ No image URL provided')
+      return res.status(400).json({ error: 'Image URL is required' })
+    }
+
+    // Validate the Replicate API token
+    if (!process.env.REPLICATE_API_TOKEN) {
+      console.log('❌ REPLICATE_API_TOKEN not found')
+      return res.status(500).json({ error: 'Replicate API token not configured' })
+    }
+
+    console.log('🔍 Upscaling image URL:', imageUrl)
+    console.log('📏 Scale factor:', scale)
+    console.log('🔑 Replicate API token status:', process.env.REPLICATE_API_TOKEN ? 'Present' : 'MISSING')
+
+    const startTime = Date.now()
+
+    // Call Replicate Real-ESRGAN model for upscaling
+    console.log('🚀 Starting Replicate Real-ESRGAN upscaling...')
+    const output = await replicate.run(
+      "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
+      {
+        input: {
+          image: imageUrl,
+          scale: scale,
+          face_enhance: false, // Keep false for logos to avoid face detection artifacts
+        }
+      }
+    )
+
+    const endTime = Date.now()
+    console.log(`✅ Upscaling completed in ${endTime - startTime}ms`)
+    console.log('📎 Upscaled image URL:', output)
+
+    // The output is typically a URL to the upscaled image
+    res.json({
+      originalUrl: imageUrl,
+      upscaledUrl: output,
+      scale: scale,
+      processingTime: endTime - startTime
+    })
+
+  } catch (error) {
+    console.error('❌ SERVER ERROR in /api/upscale:')
+    console.error('   Error message:', error.message)
+    console.error('   Error stack:', error.stack)
+    console.error('   Error name:', error.name)
+    console.error('   Request body:', req.body)
+    console.error('   Environment variables:', {
+      'REPLICATE_API_TOKEN': process.env.REPLICATE_API_TOKEN ? 'Present' : 'MISSING'
+    })
+
+    // Handle specific Replicate errors
+    if (error.message.includes('Authentication failed')) {
+      return res.status(401).json({
+        error: 'Replicate API authentication failed. Please check your API token.'
+      })
+    }
+
+    if (error.message.includes('quota') || error.message.includes('limit')) {
+      return res.status(429).json({
+        error: 'Replicate API quota exceeded. Please try again later.'
+      })
+    }
+
+    res.status(500).json({
+      error: 'Failed to upscale image: ' + error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     })
   }
 })
