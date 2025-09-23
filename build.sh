@@ -4,6 +4,12 @@
 echo "Installing root dependencies..."
 npm install --production
 
+# Install server dependencies
+echo "Installing server dependencies..."
+cd server
+npm install --production
+cd ..
+
 # Install client dependencies
 echo "Installing client dependencies..."
 cd client
