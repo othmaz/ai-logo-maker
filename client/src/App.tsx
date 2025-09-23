@@ -209,7 +209,7 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
 }
 
 function App() {
-  const { isSignedIn, user } = useUser()
+  const { isSignedIn, user, isLoaded } = useUser()
 
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
@@ -880,21 +880,44 @@ function App() {
 
           {/* Authentication Buttons - responsive sizing */}
           <div className="absolute right-4 top-0 h-full flex items-center gap-2">
-            <SignedOut>
-              <SignInButton>
-                <button className="px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
-                  SIGN IN
-                </button>
-              </SignInButton>
-              <SignUpButton>
-                <button className="px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg hover:bg-pink-500 transition-all duration-200 border-2 border-purple-500 hover:border-pink-500 hover:shadow-[0_0_15px_rgba(255,16,240,0.5)] retro-mono text-xs">
-                  SIGN UP
-                </button>
-              </SignUpButton>
-            </SignedOut>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
+            {/* Static placeholder buttons (always visible) */}
+            <div className="flex items-center gap-2">
+              {!isSignedIn ? (
+                /* Show sign in/up placeholders for signed out state */
+                <>
+                  <button className="px-2 md:px-4 py-1 md:py-2 bg-gray-600/20 text-gray-500 font-bold rounded-lg border-2 border-gray-600/30 retro-mono text-xs pointer-events-none">
+                    SIGN IN
+                  </button>
+                  <button className="px-2 md:px-4 py-1 md:py-2 bg-gray-600/20 text-gray-500 font-bold rounded-lg border-2 border-gray-600/30 retro-mono text-xs pointer-events-none">
+                    SIGN UP
+                  </button>
+                </>
+              ) : (
+                /* Show user button placeholder for signed in state */
+                <div className="w-8 h-8 bg-gray-600/20 rounded-full border-2 border-gray-600/30 pointer-events-none"></div>
+              )}
+            </div>
+
+            {/* Real Clerk buttons (appear on top when loaded) */}
+            {isLoaded && (
+              <div className="absolute inset-0 flex items-center gap-2">
+                <SignedOut>
+                  <SignInButton>
+                    <button className="px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
+                      SIGN IN
+                    </button>
+                  </SignInButton>
+                  <SignUpButton>
+                    <button className="px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg hover:bg-pink-500 transition-all duration-200 border-2 border-purple-500 hover:border-pink-500 hover:shadow-[0_0_15px_rgba(255,16,240,0.5)] retro-mono text-xs">
+                      SIGN UP
+                    </button>
+                  </SignUpButton>
+                </SignedOut>
+                <SignedIn>
+                  <UserButton />
+                </SignedIn>
+              </div>
+            )}
           </div>
         </div>
 
