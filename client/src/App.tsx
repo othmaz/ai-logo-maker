@@ -977,12 +977,12 @@ function App() {
                 <span className="retro-mono text-gray-300 group-hover:text-purple-400 transition-colors">100% FREE TO USE</span>
               </div>
             </div>
-            
+
           </div>
         </div>
-        
-        {/* Retro CTA button positioned below content */}
-        <div className="absolute bottom-[114px] md:bottom-[148px] left-0 right-0 flex justify-center z-40">
+
+        {/* Retro CTA button positioned dynamically at 15% from bottom */}
+        <div className="absolute bottom-[15%] left-0 right-0 flex justify-center z-40">
           <button
             onClick={() => scrollToLevel('level-1')}
             className="group animate-bounce hover:animate-none retro-button relative overflow-hidden bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] px-4 py-2 md:px-8 md:py-4 text-white"
