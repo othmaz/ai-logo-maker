@@ -5,6 +5,7 @@ const { GoogleGenAI } = require('@google/genai')
 const fs = require('fs')
 const path = require('path')
 const Replicate = require('replicate')
+const Stripe = require('stripe')
 
 dotenv.config({ path: path.join(__dirname, '../.env') })
 
@@ -12,6 +13,9 @@ dotenv.config({ path: path.join(__dirname, '../.env') })
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 })
+
+// Initialize Stripe client
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -362,6 +366,29 @@ app.post('/api/upscale', async (req, res) => {
     })
   }
 })
+
+// Create payment intent endpoint
+app.post('/api/create-payment-intent', async (req, res) => {
+  try {
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: 1000, // €10 in cents
+      currency: 'eur',
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
+
+    res.send({
+      clientSecret: paymentIntent.client_secret,
+    });
+  } catch (error) {
+    res.status(400).send({
+      error: {
+        message: error.message,
+      },
+    });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)

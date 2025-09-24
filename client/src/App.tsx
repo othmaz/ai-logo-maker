@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react'
+import { loadStripe } from '@stripe/stripe-js';
+import {
+  Elements,
+} from '@stripe/react-stripe-js';
 import {
   SignedIn,
   SignedOut,
@@ -10,6 +14,9 @@ import {
   useUser
 } from '@clerk/clerk-react'
 import './animations.css'
+import CheckoutForm from './CheckoutForm';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
 // Declare gtag for TypeScript
 declare global {
@@ -239,6 +246,7 @@ function App() {
   const [activeModal, setActiveModal] = useState<Modal['type']>(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showChatButton, setShowChatButton] = useState(false)
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   // Check if user has paid (based on Clerk user metadata or subscription)
   const isPaid = isSignedIn && user?.publicMetadata?.isPaid === true
@@ -310,13 +318,13 @@ function App() {
     try {
       showToast('Redirecting to payment...', 'info')
 
-      // TODO: Integrate with Stripe or other payment processor
-      // This would redirect to a payment page or open a payment modal
-      // After successful payment, update user metadata to isPaid: true
-
-      console.log('Payment integration needed - redirect to payment processor')
-      showToast('Payment integration coming soon!', 'info')
-
+      // Create PaymentIntent as soon as the page loads
+      const response = await fetch('/api/create-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const { clientSecret } = await response.json();
+      setClientSecret(clientSecret);
     } catch (error) {
       console.error('Payment error:', error)
       showToast('Payment failed. Please try again.', 'error')
@@ -376,22 +384,65 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn, user, isPaid])
 
+  // Setup debug utilities
+  useEffect(() => {
+    // DEBUG: Function to manually test usage limits (call from browser console)
+    (window as any).debugUsageLimits = {
+      setAnonymousUsage: (count: number) => {
+        localStorage.setItem('anonymousGenerationsUsed', count.toString());
+        console.log(`Set anonymous usage to ${count}, call debugUsageLimits.recheckUsage() to update state`);
+      },
+      recheckUsage: () => {
+        checkUsageLimit();
+      },
+      resetUsage: () => {
+        localStorage.removeItem('anonymousGenerationsUsed');
+        checkUsageLimit();
+        console.log('Reset anonymous usage to 0');
+      },
+      showCurrentState: () => {
+        const stored = localStorage.getItem('anonymousGenerationsUsed');
+        console.log('Current localStorage:', stored);
+        console.log('Current usage state:', usage);
+        console.log('Current isPaid:', isPaid);
+        console.log('Current isSignedIn:', isSignedIn);
+      },
+      testUpgradeModal: () => {
+        console.log('Manually triggering upgrade modal...');
+        setActiveModal('upgrade');
+      },
+      hideModal: () => {
+        console.log('Hiding modal...');
+        setActiveModal(null);
+      }
+    };
+  }, [usage, isPaid, isSignedIn]);
+
   // Function to check usage limits based on authentication and payment status
   const checkUsageLimit = async () => {
+    console.log('=== checkUsageLimit() CALLED ===');
+    console.log('📊 Current auth state - isSignedIn:', isSignedIn, ', isPaid:', isPaid);
+    console.log('📊 Current usage state before update:', usage);
+
     if (!isSignedIn) {
       // Anonymous users get 3 free generations
       const usedGenerations = parseInt(localStorage.getItem('anonymousGenerationsUsed') || '0')
       const remaining = Math.max(0, 3 - usedGenerations)
       setUsage({ remaining, total: 3, used: usedGenerations })
+      console.log('👤 Anonymous user usage: usedGenerations =', usedGenerations, ', remaining =', remaining);
     } else if (isPaid) {
       // Paid users have unlimited usage
       setUsage({ remaining: 999, total: 999, used: 0 })
+      console.log('💎 Paid user - unlimited usage');
     } else {
       // Signed in but not paid users get 3 free generations
       const userGenerations = parseInt(user?.publicMetadata?.generationsUsed as string || '0')
       const remaining = Math.max(0, 3 - userGenerations)
       setUsage({ remaining, total: 3, used: userGenerations })
+      console.log('👤 Signed-in free user usage: userGenerations =', userGenerations, ', remaining =', remaining);
     }
+
+    console.log('=== checkUsageLimit() COMPLETED ===');
   }
 
   // Save logo to localStorage
@@ -446,13 +497,31 @@ function App() {
 
   const generateLogos = async (isInitial: boolean = true) => {
     if (!formData.businessName) return
-    
+
     // Check usage limits first (unless user is paid)
+    console.log('=== USAGE LIMIT CHECK START ===');
+    console.log('DEBUG: generateLogos - isSignedIn:', isSignedIn);
+    console.log('DEBUG: generateLogos - isPaid:', isPaid);
+    console.log('DEBUG: generateLogos - usage.remaining:', usage.remaining);
+    console.log('DEBUG: generateLogos - usage.used:', usage.used);
+    console.log('DEBUG: generateLogos - usage.total:', usage.total);
+
+    // Check localStorage directly for anonymous users
+    if (!isSignedIn) {
+      const storedUsed = localStorage.getItem('anonymousGenerationsUsed');
+      console.log('DEBUG: localStorage anonymousGenerationsUsed:', storedUsed);
+    }
+
     if (!isPaid && usage.remaining <= 0) {
-      console.log('Usage limit reached - upgrade needed')
-      setActiveModal('upgrade')
+      console.log('🚨 CRITICAL: Usage limit reached - setting activeModal to upgrade');
+      console.log('DEBUG: Current activeModal before setting:', activeModal);
+      setActiveModal('upgrade');
+      console.log('DEBUG: setActiveModal("upgrade") called');
       return
     }
+
+    console.log('✅ Usage limit check passed - proceeding with generation');
+    console.log('=== USAGE LIMIT CHECK END ===');
     
     setLoading(true)
     console.log('🎨 Starting logo generation...')
@@ -630,16 +699,30 @@ function App() {
 
       // Update usage tracking for non-paid users
       if (!isPaid && isInitial) {
+        console.log('=== UPDATING USAGE TRACKING ===');
         if (!isSignedIn) {
           // Update anonymous user usage in localStorage
           const currentUsed = parseInt(localStorage.getItem('anonymousGenerationsUsed') || '0')
           const newUsed = currentUsed + 1
           localStorage.setItem('anonymousGenerationsUsed', newUsed.toString())
-          setUsage(prev => ({ ...prev, used: newUsed, remaining: Math.max(0, 3 - newUsed) }))
+          const newRemaining = Math.max(0, 3 - newUsed);
+          setUsage(prev => ({ ...prev, used: newUsed, remaining: newRemaining }))
+          console.log('🔢 Anonymous user - updated usage: currentUsed =', currentUsed, '→ newUsed =', newUsed, ', remaining =', newRemaining);
+
+          // Check if this puts us over the limit for next time
+          if (newRemaining <= 0) {
+            console.log('⚠️  CRITICAL: This was the last free generation for anonymous user!');
+          }
         } else {
           // TODO: Update user metadata via API call to track generations used
           // This would require a backend endpoint to update Clerk user metadata
-          console.log('TODO: Update user generation count in Clerk metadata')
+          console.log('TODO: Update user generation count in Clerk metadata');
+          // For now, we'll simulate the usage update for signed-in free users
+          const userGenerations = parseInt(user?.publicMetadata?.generationsUsed as string || '0') + 1;
+          // This would be an API call to Clerk to update metadata
+          // For local testing, we can just update the state directly
+          setUsage(prev => ({ ...prev, used: userGenerations, remaining: Math.max(0, 3 - userGenerations) }));
+          console.log('DEBUG: Signed-in free user - simulated updated usage: userGenerations =', userGenerations, ', remaining =', Math.max(0, 3 - userGenerations));
         }
       }
       } else {
@@ -1783,70 +1866,78 @@ function App() {
 
               {activeModal === 'upgrade' && (
                 <div className="space-y-6 text-center">
-                  <div className="mb-8">
-                    <div className="text-6xl mb-4">🚀</div>
-                    <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                      You've reached your free limit!
-                    </h3>
-                    <p className="text-gray-600 text-lg">
-                      {!isSignedIn
-                        ? "You've used all 3 free logo generations. Sign up to get unlimited access!"
-                        : "Upgrade to Premium for unlimited logo generation and 8K upscaling!"}
-                    </p>
-                  </div>
-
-                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-8 rounded-xl">
-                    <h4 className="text-xl font-semibold text-gray-800 mb-4">Premium Benefits</h4>
-                    <ul className="text-left space-y-3 mb-6">
-                      <li className="flex items-center">
-                        <span className="text-green-500 mr-3">✓</span>
-                        <span>Unlimited logo generation</span>
-                      </li>
-                      <li className="flex items-center">
-                        <span className="text-green-500 mr-3">✓</span>
-                        <span>8K upscaling for premium quality</span>
-                      </li>
-                      <li className="flex items-center">
-                        <span className="text-green-500 mr-3">✓</span>
-                        <span>Priority customer support</span>
-                      </li>
-                      <li className="flex items-center">
-                        <span className="text-green-500 mr-3">✓</span>
-                        <span>Commercial usage rights</span>
-                      </li>
-                    </ul>
-
-                    <div className="text-3xl font-bold text-gray-800 mb-6">
-                      Only €10 <span className="text-lg font-normal text-gray-600">one-time payment</span>
+                  {clientSecret ? (
+                    <Elements options={{ clientSecret }} stripe={stripePromise}>
+                      <CheckoutForm />
+                    </Elements>
+                  ) : (
+                  <>
+                    <div className="mb-8">
+                      <div className="text-6xl mb-4">🚀</div>
+                      <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                        You've reached your free limit!
+                      </h3>
+                      <p className="text-gray-600 text-lg">
+                        {!isSignedIn
+                          ? "You've used all 3 free logo generations. Sign up to get unlimited access!"
+                          : "Upgrade to Premium for unlimited logo generation and 8K upscaling!"}
+                      </p>
                     </div>
 
-                    <div className="space-y-4">
-                      {!isSignedIn ? (
-                        <div className="space-y-3">
-                          <SignUpButton mode="redirect">
-                            <button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200">
-                              Sign Up & Get Premium
-                            </button>
-                          </SignUpButton>
-                          <p className="text-sm text-gray-500">
-                            Already have an account?
-                            <SignInButton mode="redirect">
-                              <button className="text-blue-600 hover:text-blue-700 ml-1 underline">
-                                Sign In
+                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-8 rounded-xl">
+                      <h4 className="text-xl font-semibold text-gray-800 mb-4">Premium Benefits</h4>
+                      <ul className="text-left space-y-3 mb-6">
+                        <li className="flex items-center">
+                          <span className="text-green-500 mr-3">✓</span>
+                          <span>Unlimited logo generation</span>
+                        </li>
+                        <li className="flex items-center">
+                          <span className="text-green-500 mr-3">✓</span>
+                          <span>8K upscaling for premium quality</span>
+                        </li>
+                        <li className="flex items-center">
+                          <span className="text-green-500 mr-3">✓</span>
+                          <span>Priority customer support</span>
+                        </li>
+                        <li className="flex items-center">
+                          <span className="text-green-500 mr-3">✓</span>
+                          <span>Commercial usage rights</span>
+                        </li>
+                      </ul>
+
+                      <div className="text-3xl font-bold text-gray-800 mb-6">
+                        Only €10 <span className="text-lg font-normal text-gray-600">one-time payment</span>
+                      </div>
+
+                      <div className="space-y-4">
+                        {!isSignedIn ? (
+                          <div className="space-y-3">
+                            <SignUpButton mode="redirect">
+                              <button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200">
+                                Sign Up & Get Premium
                               </button>
-                            </SignInButton>
-                          </p>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={handlePaymentUpgrade}
-                          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
-                        >
-                          Upgrade to Premium - €10
-                        </button>
-                      )}
+                            </SignUpButton>
+                            <p className="text-sm text-gray-500">
+                              Already have an account?
+                              <SignInButton mode="redirect">
+                                <button className="text-blue-600 hover:text-blue-700 ml-1 underline">
+                                  Sign In
+                                </button>
+                              </SignInButton>
+                            </p>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handlePaymentUpgrade}
+                            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
+                          >
+                            Upgrade to Premium - €10
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </>
+                  )}
                 </div>
               )}
             </div>
