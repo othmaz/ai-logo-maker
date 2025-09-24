@@ -296,6 +296,8 @@ createRoot(document.getElementById('root')!).render(
     <ClerkProvider
       publishableKey={CLERK_PUBLISHABLE_KEY}
       appearance={clerkAppearance}
+      signInFallbackRedirectUrl="/"
+      signUpFallbackRedirectUrl="/"
     >
       <App />
       <SpeedInsights />

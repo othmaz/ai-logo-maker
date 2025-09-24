@@ -392,13 +392,21 @@ function App() {
         localStorage.setItem('anonymousGenerationsUsed', count.toString());
         console.log(`Set anonymous usage to ${count}, call debugUsageLimits.recheckUsage() to update state`);
       },
+      setSignedInUsage: (count: number) => {
+        console.log(`🔧 Setting signed-in user usage to ${count} (this simulates having generated ${count} logos)`);
+        setUsage(prev => ({ ...prev, used: count }));
+        checkUsageLimit();
+      },
       recheckUsage: () => {
         checkUsageLimit();
       },
       resetUsage: () => {
         localStorage.removeItem('anonymousGenerationsUsed');
+        if (isSignedIn) {
+          setUsage(prev => ({ ...prev, used: 0 }));
+        }
         checkUsageLimit();
-        console.log('Reset anonymous usage to 0');
+        console.log('Reset usage to 0');
       },
       showCurrentState: () => {
         const stored = localStorage.getItem('anonymousGenerationsUsed');
@@ -414,6 +422,16 @@ function App() {
       hideModal: () => {
         console.log('Hiding modal...');
         setActiveModal(null);
+      },
+      getDebugInfo: () => {
+        console.log('🔍 CURRENT DEBUG STATE:');
+        console.log(`   isSignedIn: ${isSignedIn}`);
+        console.log(`   isPaid: ${isPaid}`);
+        console.log(`   usage.used: ${usage.used}`);
+        console.log(`   usage.total: ${usage.total}`);
+        console.log(`   remaining: ${usage.remaining}`);
+        console.log(`   anonymous localStorage: ${localStorage.getItem('anonymousGenerationsUsed') || '0'}`);
+        return { isSignedIn, isPaid, usage, anonymousUsage: localStorage.getItem('anonymousGenerationsUsed') };
       }
     };
   }, [usage, isPaid, isSignedIn]);
