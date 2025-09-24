@@ -242,6 +242,7 @@ function App() {
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [usage, setUsage] = useState({ remaining: 3, total: 3, used: 0 })
+  const [debugUsageOverride, setDebugUsageOverride] = useState<number | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [activeModal, setActiveModal] = useState<Modal['type']>(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
@@ -394,7 +395,7 @@ function App() {
       },
       setSignedInUsage: (count: number) => {
         console.log(`🔧 Setting signed-in user usage to ${count} (this simulates having generated ${count} logos)`);
-        setUsage(prev => ({ ...prev, used: count }));
+        setDebugUsageOverride(count);
         checkUsageLimit();
       },
       recheckUsage: () => {
@@ -402,9 +403,7 @@ function App() {
       },
       resetUsage: () => {
         localStorage.removeItem('anonymousGenerationsUsed');
-        if (isSignedIn) {
-          setUsage(prev => ({ ...prev, used: 0 }));
-        }
+        setDebugUsageOverride(null);
         checkUsageLimit();
         console.log('Reset usage to 0');
       },
@@ -454,10 +453,13 @@ function App() {
       console.log('💎 Paid user - unlimited usage');
     } else {
       // Signed in but not paid users get 3 free generations
-      const userGenerations = parseInt(user?.publicMetadata?.generationsUsed as string || '0')
+      const userGenerations = debugUsageOverride !== null ? debugUsageOverride : parseInt(user?.publicMetadata?.generationsUsed as string || '0')
       const remaining = Math.max(0, 3 - userGenerations)
       setUsage({ remaining, total: 3, used: userGenerations })
       console.log('👤 Signed-in free user usage: userGenerations =', userGenerations, ', remaining =', remaining);
+      if (debugUsageOverride !== null) {
+        console.log('🔧 DEBUG: Using override usage value:', debugUsageOverride);
+      }
     }
 
     console.log('=== checkUsageLimit() COMPLETED ===');
