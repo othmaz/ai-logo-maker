@@ -965,15 +965,15 @@ function App() {
 
             <div className="flex flex-wrap justify-center gap-4 md:gap-6 lg:gap-10 text-xs md:text-sm lg:text-base hero-features mb-12 md:mb-16">
               <div className="flex items-center group">
-                <div className="w-6 h-6 mr-3 text-cyan-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🍌</div>
+                <div className="w-15 h-15 mr-3 text-cyan-400 flex items-center justify-center pixel-icon text-2xl group-hover:text-white transition-colors">🍌</div>
                 <span className="retro-mono text-gray-300 group-hover:text-cyan-400 transition-colors">POWERED BY GOOGLE GEMINI AI</span>
               </div>
               <div className="flex items-center group">
-                <div className="w-6 h-6 mr-3 text-green-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🎨</div>
+                <div className="w-15 h-15 mr-3 text-green-400 flex items-center justify-center pixel-icon text-2xl group-hover:text-white transition-colors">🎨</div>
                 <span className="retro-mono text-gray-300 group-hover:text-green-400 transition-colors">8K PNG & SVG FILES</span>
               </div>
               <div className="flex items-center group">
-                <div className="w-6 h-6 mr-3 text-purple-400 flex items-center justify-center pixel-icon text-xs group-hover:text-white transition-colors">🆓</div>
+                <div className="w-15 h-15 mr-3 text-purple-400 flex items-center justify-center pixel-icon text-2xl group-hover:text-white transition-colors">🆓</div>
                 <span className="retro-mono text-gray-300 group-hover:text-purple-400 transition-colors">100% FREE TO USE</span>
               </div>
             </div>
