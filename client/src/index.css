@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Self-hosted Phosphate Font */
+@font-face {
+  font-family: 'Phosphate';
+  src: url('/fonts/phosphate-solid.woff2') format('woff2'),
+       url('/fonts/phosphate-solid.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Smooth scrolling improvements */
 html {
   scroll-behavior: smooth;
@@ -36,22 +46,49 @@ html {
   animation-play-state: paused;
 }
 
-/* Desktop transform scaling for Phosphate font */
+/* Base Phosphate font styling - applies to all screens, positioning overridden by media queries */
 .font-phosphate {
-  transform: scaleY(1.35) scaleX(0.8) translateZ(0);
+  font-family: 'Phosphate', 'Arial Black', 'Helvetica', sans-serif;
+  font-weight: 900;
+  font-stretch: ultra-condensed !important;
+  transform-origin: center !important;
+  transform: translateY(0px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
 }
 
-/* Mobile font stretching - 30% more stretched */
+/* Mobile font stretching - adjusted for smaller screens */
 @media (max-width: 768px) {
   .font-phosphate {
-    transform: scaleY(1.76) scaleX(0.8) translateZ(0) !important;
+    transform: translateY(-12px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
+    font-stretch: ultra-condensed !important;
+    transform-origin: center !important;
+  }
+
+  /* Reduce title overlap on mobile */
+  .font-phosphate {
+    margin-right: -12.5px !important;
   }
 }
 
-/* Tablet font stretching */
-@media (min-width: 769px) and (max-width: 1024px) {
+/* Extra small mobile devices (≤425px) */
+@media (max-width: 425px) {
   .font-phosphate {
-    transform: scaleY(1.55) scaleX(0.8) translateZ(0) !important;
+    margin-right: -10px !important;
+  }
+}
+
+/* Medium screens (tablet) */
+@media (min-width: 769px) and (max-width: 1023px) {
+  .font-phosphate {
+    transform: translateY(0px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
+    margin-right: -22.5px !important;
+  }
+}
+
+/* Large screens (desktop) */
+@media (min-width: 1024px) {
+  .font-phosphate {
+    transform: translateY(20px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
+    margin-right: -27.5px !important;
   }
 }
 
@@ -106,12 +143,8 @@ html {
   .animate-scroll {
     animation-duration: 200s !important;
   }
+}
   
-  /* Ensure title band fits mobile screens - 30% taller height */
-  .fixed.top-0.bg-gray-900\/95 {
-    height: 90px !important;
-    padding-top: 0 !important;
-  }
   
   .fixed.top-0 .h-full {
     height: 100% !important;
@@ -147,7 +180,6 @@ html {
     bottom: 0px !important;
     margin-top: 6px !important;
   }
-}
 
 /* Futuristic font classes */
 .font-orbitron {

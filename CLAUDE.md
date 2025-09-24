@@ -54,6 +54,145 @@ npm run validate-deployment              # Confirm it works
 - `npm run validate-deployment` - Check config
 - `npm run health-check` - Test live deployment
 
+## 📺 TITLE BAR SYSTEM DOCUMENTATION
+
+### Critical Title Bar Components (MUST READ FIRST!)
+
+The scrolling title bar is a complex system with multiple interconnected parts:
+
+#### **1. HTML Structure** (`client/src/App.tsx`)
+```jsx
+<div className="flex animate-scroll whitespace-nowrap h-full stable-font">
+  {/* DUAL SET SYSTEM - Required for infinite scroll */}
+  <div className="flex items-start space-x-0 mr-0 h-full">
+    {[...Array(50)].map((_, i) => (
+      <h1 key={`first-${i}`} className="font-phosphate [responsive-classes]"
+          style={{marginRight: '-110px', lineHeight: '4rem'}}>
+        FREE AI LOGO MAKER
+      </h1>
+    ))}
+  </div>
+  {/* Second identical set for seamless looping */}
+  <div className="flex items-start space-x-0 mr-0 h-full">
+    {[...Array(50)].map((_, i) => (
+      <h1 key={`second-${i}`} className="font-phosphate [responsive-classes]"
+          style={{marginRight: '-110px', lineHeight: '4rem'}}>
+        FREE AI LOGO MAKER
+      </h1>
+    ))}
+  </div>
+</div>
+```
+
+#### **2. Animation System** (`client/src/index.css`)
+```css
+/* KEYFRAME ANIMATION - Controls scroll distance/speed */
+@keyframes scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); } /* ADJUST THIS % FOR SPEED */
+}
+
+/* ANIMATION CLASS - MUST match className in JSX */
+.animate-scroll {
+  animation: scroll 100s linear infinite;  /* DESKTOP DURATION */
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* MOBILE OVERRIDE */
+@media (max-width: 768px) {
+  .animate-scroll {
+    animation-duration: 200s !important;  /* MOBILE DURATION */
+  }
+}
+```
+
+#### **3. Font Styling & Positioning** (`client/src/index.css`)
+```css
+.font-phosphate {
+  font-family: 'Phosphate', 'Arial Black', 'Helvetica', sans-serif;
+  font-weight: 900;
+  /* CRITICAL: translateY positions text vertically in title bar */
+  transform: translateY(-18px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
+  font-stretch: ultra-condensed !important;
+  transform-origin: center !important;
+}
+
+/* RESPONSIVE POSITIONING & SPACING */
+@media (max-width: 425px) {
+  .font-phosphate { margin-right: -40px !important; }
+}
+@media (max-width: 768px) {
+  .font-phosphate {
+    transform: translateY(-12px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
+    margin-right: -50px !important;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .font-phosphate {
+    transform: translateY(-19px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
+    margin-right: -90px !important;
+  }
+}
+@media (min-width: 1024px) {
+  .font-phosphate {
+    transform: translateY(-22px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
+    margin-right: -110px !important;
+  }
+}
+```
+
+#### **4. Self-Hosted Phosphate Font** (`client/src/index.css` + `client/public/fonts/`)
+```css
+@font-face {
+  font-family: 'Phosphate';
+  src: url('/fonts/phosphate-solid.woff2') format('woff2'),
+       url('/fonts/phosphate-solid.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+```
+
+#### **5. Responsive Container Heights** (`client/src/App.tsx`)
+```jsx
+className="h-16 md:h-24 lg:h-32"  /* Container heights */
+className="text-[4.41rem] md:text-[7.15rem] lg:text-[8.47rem]"  /* Font sizes */
+```
+
+### 🎯 HOW TO MODIFY THE TITLE BAR:
+
+#### **Speed Changes:**
+- **Faster**: Increase `translateX(-)` percentage OR decrease duration
+- **Slower**: Decrease `translateX(-)` percentage OR increase duration
+- **Example**: `-100%` = slow, `-3000%` = very fast
+
+#### **Font Appearance:**
+- **Thickness**: Adjust `font-weight` (900 = thickest)
+- **Width**: Adjust `scaleX()` value (0.9 = condensed, 1.2 = wide)
+- **Height**: Adjust `scaleY()` value (1.35 = stretched)
+- **Vertical Position**: Adjust `translateY()` (-22px = higher, -10px = lower)
+
+#### **Spacing Between Titles:**
+- **Closer**: More negative `marginRight` (-110px = tight)
+- **Further**: Less negative `marginRight` (-20px = spaced)
+- **Mobile responsiveness**: Different margins per breakpoint
+
+#### **CRITICAL TROUBLESHOOTING:**
+1. **Animation not working?** Check `animate-scroll` class matches CSS
+2. **Font not loading?** Verify `/fonts/phosphate-solid.woff2` exists
+3. **Text cut off?** Adjust container `h-16 md:h-24 lg:h-32` heights
+4. **Overlapping text?** Reduce negative `marginRight` values
+5. **Text positioning wrong?** Adjust `translateY()` in transforms
+
+#### **DUAL SET REQUIREMENT:**
+- Two identical sets create infinite scroll illusion
+- When set 1 exits left, set 2 appears right seamlessly
+- **NEVER remove the dual set structure**
+
 ## Architecture Overview
 
 This is a full-stack AI logo generation application with the following structure:
