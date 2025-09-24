@@ -46,6 +46,13 @@ html {
   animation-play-state: paused;
 }
 
+/* Safari-specific hover fix - disable hover pause entirely */
+@supports (-webkit-appearance: none) and (not (-ms-ime-align: auto)) {
+  .animate-scroll:hover {
+    animation-play-state: running !important; /* Force animation to keep running */
+  }
+}
+
 /* Base Phosphate font styling - applies to all screens, positioning overridden by media queries */
 .font-phosphate {
   font-family: 'Phosphate', 'Arial Black', 'Helvetica', sans-serif;
@@ -53,6 +60,30 @@ html {
   font-stretch: ultra-condensed !important;
   transform-origin: center !important;
   transform: translateY(0px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
+  /* Cross-browser font rendering consistency */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Normalize letter spacing across browsers */
+  letter-spacing: -0.05em;
+  font-kerning: none;
+  font-feature-settings: normal;
+}
+
+/* Safari-specific adjustments */
+@supports (-webkit-appearance: none) and (not (-ms-ime-align: auto)) {
+  .font-phosphate {
+    letter-spacing: -0.08em; /* Tighter spacing for Safari */
+    font-weight: 999; /* Much thicker for Safari */
+  }
+}
+
+/* Chrome-specific adjustments */
+@supports (-webkit-appearance: none) and (-webkit-background-clip: text) {
+  .font-phosphate {
+    font-weight: 850; /* Lighter weight for Chrome to match Safari */
+    -webkit-font-smoothing: subpixel-antialiased; /* Softer rendering */
+  }
 }
 
 /* Mobile font stretching - adjusted for smaller screens */
