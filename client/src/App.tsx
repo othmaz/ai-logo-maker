@@ -396,7 +396,8 @@ function App() {
       setSignedInUsage: (count: number) => {
         console.log(`🔧 Setting signed-in user usage to ${count} (this simulates having generated ${count} logos)`);
         setDebugUsageOverride(count);
-        checkUsageLimit();
+        // Use setTimeout to ensure state update happens before checkUsageLimit
+        setTimeout(() => checkUsageLimit(), 0);
       },
       recheckUsage: () => {
         checkUsageLimit();
