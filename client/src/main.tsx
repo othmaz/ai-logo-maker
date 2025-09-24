@@ -51,7 +51,7 @@ const clerkAppearance = {
     headerSubtitle: {
       color: '#e5e7eb',
       fontFamily: '"VT323", monospace',
-      fontSize: '1rem',
+      fontSize: '1.2rem',
     },
     formButtonPrimary: {
       backgroundColor: '#00ffff',
@@ -59,7 +59,7 @@ const clerkAppearance = {
       border: '2px solid #00ffff',
       fontFamily: '"Press Start 2P", monospace',
       textTransform: 'uppercase',
-      fontSize: '0.75rem',
+      fontSize: '1rem',
       borderRadius: '0px',
       fontWeight: 'bold',
       boxShadow: '4px 4px 0px #000000, 0 0 20px rgba(0, 255, 255, 0.3)',
@@ -83,7 +83,7 @@ const clerkAppearance = {
       borderRadius: '0px',
       border: '2px solid #00ffff',
       fontFamily: '"VT323", monospace',
-      fontSize: '1rem',
+      fontSize: '1.2rem',
       '&:focus': {
         borderColor: '#39ff14',
         boxShadow: '0 0 15px rgba(57, 255, 20, 0.4)',
@@ -93,13 +93,14 @@ const clerkAppearance = {
     formFieldLabel: {
       color: '#00ffff',
       fontFamily: '"VT323", monospace',
-      fontSize: '1rem',
+      fontSize: '1.2rem',
       textTransform: 'uppercase',
       letterSpacing: '1px',
     },
     identityPreviewText: {
       color: '#00ffff',
       fontFamily: '"VT323", monospace',
+      fontSize: '1.1rem',
     },
     identityPreviewEditButton: {
       color: '#00ffff',
@@ -110,9 +111,11 @@ const clerkAppearance = {
     footerActionText: {
       color: '#e5e7eb',
       fontFamily: '"VT323", monospace',
+      fontSize: '1.1rem',
     },
     footerActionLink: {
       color: '#00ffff',
+      fontSize: '1.1rem',
       '&:hover': {
         color: '#39ff14',
       },
@@ -123,6 +126,7 @@ const clerkAppearance = {
       color: '#ffffff',
       borderRadius: '0px',
       fontFamily: '"VT323", monospace',
+      fontSize: '1.2rem',
       '&:hover': {
         borderColor: '#a855f7',
         backgroundColor: '#8b5cf6',
@@ -146,6 +150,7 @@ const clerkAppearance = {
     userButtonPopoverActionButton: {
       color: '#ffffff',
       fontFamily: '"VT323", monospace',
+      fontSize: '1.2rem',
       '&:hover': {
         backgroundColor: '#374151',
         color: '#22d3ee',
@@ -153,6 +158,7 @@ const clerkAppearance = {
     },
     userButtonPopoverActionButtonText: {
       color: '#ffffff',
+      fontSize: '1.2rem',
     },
     userButtonPopoverActionButtonIcon: {
       color: '#22d3ee',
