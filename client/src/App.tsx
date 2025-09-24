@@ -396,8 +396,10 @@ function App() {
       setSignedInUsage: (count: number) => {
         console.log(`🔧 Setting signed-in user usage to ${count} (this simulates having generated ${count} logos)`);
         setDebugUsageOverride(count);
-        // Use setTimeout to ensure state update happens before checkUsageLimit
-        setTimeout(() => checkUsageLimit(), 0);
+        // Force immediate usage calculation with the new value
+        const remaining = Math.max(0, 3 - count);
+        setUsage({ remaining, total: 3, used: count });
+        console.log('🔧 DEBUG: Forced usage update - userGenerations =', count, ', remaining =', remaining);
       },
       recheckUsage: () => {
         checkUsageLimit();
