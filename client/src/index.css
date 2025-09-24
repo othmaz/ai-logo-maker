@@ -141,7 +141,7 @@ html {
 
   /* Mobile title band adjustments */
   .animate-scroll {
-    animation-duration: 200s !important;
+    animation-duration: 100s !important;
   }
 }
   
