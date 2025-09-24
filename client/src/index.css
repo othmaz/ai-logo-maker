@@ -4,14 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Self-hosted Phosphate Font */
+/* Self-hosted Phosphate Font - Optimized for mobile performance */
 @font-face {
   font-family: 'Phosphate';
   src: url('/fonts/phosphate-solid.woff2') format('woff2'),
        url('/fonts/phosphate-solid.woff') format('woff');
   font-weight: normal;
   font-style: normal;
-  font-display: swap;
+  font-display: optional;
+  font-feature-settings: 'kern' 1;
+  font-variant: normal;
 }
 
 /* Smooth scrolling improvements */
