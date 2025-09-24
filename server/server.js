@@ -14,7 +14,13 @@ const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 })
 
-// Initialize Stripe client
+// Initialize Stripe client with error handling
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.error('❌ STRIPE_SECRET_KEY environment variable is missing!')
+  console.error('📋 Available environment variables:', Object.keys(process.env).filter(key => key.includes('STRIPE')))
+  process.exit(1)
+}
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 const app = express()
