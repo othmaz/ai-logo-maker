@@ -433,7 +433,7 @@ function App() {
         return { isSignedIn, isPaid, usage, anonymousUsage: localStorage.getItem('anonymousGenerationsUsed') };
       }
     };
-  }, [usage, isPaid, isSignedIn]);
+  }, [usage, isPaid, isSignedIn, debugUsageOverride]);
 
   // Function to check usage limits based on authentication and payment status
   const checkUsageLimit = async () => {
@@ -453,6 +453,8 @@ function App() {
       console.log('💎 Paid user - unlimited usage');
     } else {
       // Signed in but not paid users get 3 free generations
+      console.log('🔧 DEBUG: debugUsageOverride state value:', debugUsageOverride);
+      console.log('🔧 DEBUG: user?.publicMetadata?.generationsUsed:', user?.publicMetadata?.generationsUsed);
       const userGenerations = debugUsageOverride !== null ? debugUsageOverride : parseInt(user?.publicMetadata?.generationsUsed as string || '0')
       const remaining = Math.max(0, 3 - userGenerations)
       setUsage({ remaining, total: 3, used: userGenerations })
