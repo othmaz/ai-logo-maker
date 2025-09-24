@@ -385,6 +385,46 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSignedIn, user, isPaid])
 
+  // Handle payment success
+  useEffect(() => {
+    const handlePaymentSuccess = async () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const paymentIntent = urlParams.get('payment_intent')
+      const paymentIntentClientSecret = urlParams.get('payment_intent_client_secret')
+
+      if (paymentIntent && paymentIntentClientSecret && isSignedIn && user) {
+        try {
+          console.log('🎉 Payment success detected, updating user metadata...')
+
+          // Update user metadata to mark as paid
+          await user.update({
+            publicMetadata: {
+              ...user.publicMetadata,
+              isPaid: true,
+              paymentDate: new Date().toISOString(),
+              paymentIntent: paymentIntent
+            }
+          })
+
+          console.log('✅ User marked as paid successfully')
+          showToast('Payment successful! You now have unlimited logo generation.', 'success')
+
+          // Clear the URL parameters
+          window.history.replaceState({}, document.title, window.location.pathname)
+
+          // Refresh usage limits
+          checkUsageLimit()
+
+        } catch (error) {
+          console.error('❌ Error updating user metadata:', error)
+          showToast('Payment processed but there was an error updating your account. Please contact support.', 'error')
+        }
+      }
+    }
+
+    handlePaymentSuccess()
+  }, [isSignedIn, user])
+
   // Setup debug utilities
   useEffect(() => {
     // DEBUG: Function to manually test usage limits (call from browser console)
@@ -470,8 +510,19 @@ function App() {
     console.log('=== checkUsageLimit() COMPLETED ===');
   }
 
+  // Check if a logo is already saved
+  const isLogoSaved = (logoUrl: string) => {
+    return savedLogos.some(savedLogo => savedLogo.url === logoUrl)
+  }
+
   // Save logo to localStorage
   const saveLogo = (logo: Logo) => {
+    // Check if logo is already saved
+    if (isLogoSaved(logo.url)) {
+      showToast('Logo is already in your collection!', 'info')
+      return
+    }
+
     const newSavedLogos = [...savedLogos, { ...logo, id: `saved-${Date.now()}-${Math.random()}` }]
     setSavedLogos(newSavedLogos)
     localStorage.setItem('savedLogos', JSON.stringify(newSavedLogos))
@@ -722,8 +773,8 @@ function App() {
         console.error('GA4 logos_generated tracking error:', error)
       }
 
-      // Update usage tracking for non-paid users
-      if (!isPaid && isInitial) {
+      // Update usage tracking for non-paid users (count both initial generations and refinements)
+      if (!isPaid) {
         console.log('=== UPDATING USAGE TRACKING ===');
         if (!isSignedIn) {
           // Update anonymous user usage in localStorage
@@ -739,15 +790,33 @@ function App() {
             console.log('⚠️  CRITICAL: This was the last free generation for anonymous user!');
           }
         } else {
-          // TODO: Update user metadata via API call to track generations used
-          // This would require a backend endpoint to update Clerk user metadata
-          console.log('TODO: Update user generation count in Clerk metadata');
-          // For now, we'll simulate the usage update for signed-in free users
-          const userGenerations = parseInt(user?.publicMetadata?.generationsUsed as string || '0') + 1;
-          // This would be an API call to Clerk to update metadata
-          // For local testing, we can just update the state directly
-          setUsage(prev => ({ ...prev, used: userGenerations, remaining: Math.max(0, 3 - userGenerations) }));
-          console.log('DEBUG: Signed-in free user - simulated updated usage: userGenerations =', userGenerations, ', remaining =', Math.max(0, 3 - userGenerations));
+          // Update Clerk user metadata to properly track generations used
+          try {
+            const currentGenerations = parseInt(user?.publicMetadata?.generationsUsed as string || '0');
+            const newGenerations = currentGenerations + 1;
+
+            console.log('🔄 Updating user metadata: currentGenerations =', currentGenerations, '→ newGenerations =', newGenerations);
+
+            // Update Clerk user metadata
+            await user.update({
+              publicMetadata: {
+                ...user.publicMetadata,
+                generationsUsed: newGenerations
+              }
+            });
+
+            const newRemaining = Math.max(0, 3 - newGenerations);
+            setUsage(prev => ({ ...prev, used: newGenerations, remaining: newRemaining }));
+            console.log('✅ Signed-in user metadata updated: userGenerations =', newGenerations, ', remaining =', newRemaining);
+
+            // Check if this puts us over the limit for next time
+            if (newRemaining <= 0) {
+              console.log('⚠️  CRITICAL: This was the last free generation for signed-in user!');
+            }
+          } catch (error) {
+            console.error('❌ Failed to update user metadata:', error);
+            showToast('Error tracking usage. Please refresh and try again.', 'error');
+          }
         }
       }
       } else {
@@ -1426,27 +1495,21 @@ function App() {
                       </div>
                     )}
 
-                    {/* Action buttons */}
-                    <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    {/* Save button - heart icon on top right */}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200">
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           saveLogo(logo)
                         }}
-                        className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
-                        title="Save to collection"
+                        className={`rounded-full w-10 h-10 flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-200 ${
+                          isLogoSaved(logo.url)
+                            ? 'bg-red-100/80 hover:bg-red-200/80 text-red-600'
+                            : 'bg-white/80 hover:bg-white text-gray-700 hover:text-red-500'
+                        }`}
+                        title={isLogoSaved(logo.url) ? "Already saved" : "Save to collection"}
                       >
-                        💾
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          downloadLogo(logo)
-                        }}
-                        className="bg-green-500 hover:bg-green-600 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg"
-                        title="Download"
-                      >
-                        ⬇️
+                        {isLogoSaved(logo.url) ? '❤️' : '🤍'}
                       </button>
                     </div>
                   </div>
@@ -1573,18 +1636,8 @@ function App() {
                       />
                     </div>
                     
-                    {/* Action buttons */}
-                    <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          downloadLogo(logo)
-                        }}
-                        className="bg-green-500 hover:bg-green-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg text-sm"
-                        title="Download"
-                      >
-                        ⬇️
-                      </button>
+                    {/* Remove button only */}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200">
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -1652,7 +1705,11 @@ function App() {
       </button>
 
       {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-50 space-y-2">
+      <div className={`fixed right-4 z-[70] space-y-2 transition-all duration-300 ${
+        isHeaderVisible
+          ? 'top-20 md:top-28 lg:top-36'
+          : 'top-20'
+      }`}>
         {toasts.map((toast) => (
           <div
             key={toast.id}
@@ -1678,7 +1735,7 @@ function App() {
 
       {/* Modals */}
       {activeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[80] flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="text-2xl font-bold text-gray-800">
@@ -1956,7 +2013,7 @@ function App() {
                             onClick={handlePaymentUpgrade}
                             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
                           >
-                            Upgrade to Premium - €10
+                            Upgrade to Premium - €9.99
                           </button>
                         )}
                       </div>
