@@ -104,9 +104,6 @@ const clerkAppearance = {
     },
     identityPreviewEditButton: {
       color: '#00ffff',
-      '&:hover': {
-        color: '#39ff14',
-      },
     },
     footerActionText: {
       color: '#e5e7eb',
@@ -116,9 +113,6 @@ const clerkAppearance = {
     footerActionLink: {
       color: '#00ffff',
       fontSize: '1.1rem',
-      '&:hover': {
-        color: '#39ff14',
-      },
     },
     socialButtonsBlockButton: {
       border: '2px solid #8b5cf6',
@@ -151,10 +145,6 @@ const clerkAppearance = {
       color: '#ffffff',
       fontFamily: '"VT323", monospace',
       fontSize: '1.2rem',
-      '&:hover': {
-        backgroundColor: '#374151',
-        color: '#22d3ee',
-      },
     },
     userButtonPopoverActionButtonText: {
       color: '#ffffff',
@@ -262,9 +252,41 @@ const clerkAppearance = {
       color: '#22d3ee',
       fontFamily: '"VT323", monospace',
       fontSize: '1.2rem',
-      '&:hover': {
-        color: '#39ff14',
-      },
+    },
+    // Specific profile page elements that were still small
+    profileSection: {
+      backgroundColor: '#1f2937',
+    },
+    profileSectionTitle: {
+      color: '#22d3ee',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.4rem',
+      textTransform: 'uppercase',
+    },
+    profileSectionContent: {
+      color: '#ffffff',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.3rem',
+    },
+    profileEmailAddress: {
+      color: '#e5e7eb',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.2rem',
+    },
+    profileConnectionTitle: {
+      color: '#22d3ee',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.3rem',
+    },
+    profileConnectionText: {
+      color: '#ffffff',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.2rem',
+    },
+    profileBadge: {
+      color: '#39ff14',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.1rem',
     },
   },
 }
