@@ -4,6 +4,8 @@ import {
   SignedOut,
   SignInButton,
   SignUpButton,
+  SignIn,
+  SignUp,
   UserButton,
   useUser
 } from '@clerk/clerk-react'
@@ -902,12 +904,12 @@ function App() {
             {isLoaded && (
               <div className="absolute inset-0 flex items-center gap-2">
                 <SignedOut>
-                  <SignInButton>
+                  <SignInButton mode="redirect">
                     <button className="px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
                       SIGN IN
                     </button>
                   </SignInButton>
-                  <SignUpButton>
+                  <SignUpButton mode="redirect">
                     <button className="px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg hover:bg-pink-500 transition-all duration-200 border-2 border-purple-500 hover:border-pink-500 hover:shadow-[0_0_15px_rgba(255,16,240,0.5)] retro-mono text-xs">
                       SIGN UP
                     </button>
@@ -1821,14 +1823,14 @@ function App() {
                     <div className="space-y-4">
                       {!isSignedIn ? (
                         <div className="space-y-3">
-                          <SignUpButton>
+                          <SignUpButton mode="redirect">
                             <button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200">
                               Sign Up & Get Premium
                             </button>
                           </SignUpButton>
                           <p className="text-sm text-gray-500">
                             Already have an account?
-                            <SignInButton>
+                            <SignInButton mode="redirect">
                               <button className="text-blue-600 hover:text-blue-700 ml-1 underline">
                                 Sign In
                               </button>

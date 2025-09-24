@@ -15,35 +15,43 @@ if (!PUBLISHABLE_KEY) {
 const clerkAppearance = {
   baseTheme: undefined,
   variables: {
-    colorPrimary: '#00ffff', // Cyan
-    colorBackground: '#1a1a1a', // Dark background
-    colorInputBackground: '#2a2a2a', // Dark input background
+    colorPrimary: '#00ffff', // Electric cyan
+    colorBackground: '#1f2937', // Match website dark background
+    colorInputBackground: '#374151', // Darker gray for inputs
     colorInputText: '#ffffff', // White text
     colorText: '#ffffff', // White text
     colorTextSecondary: '#00ffff', // Cyan secondary text
+    colorTextOnPrimaryBackground: '#000000', // Black text on cyan
     colorDanger: '#ff10f0', // Electric pink for errors
     colorSuccess: '#39ff14', // Neon green for success
-    colorWarning: '#ffff00', // Neon yellow for warnings
-    borderRadius: '0.5rem', // Rounded corners
-    fontFamily: '"Courier New", "Press Start 2P", monospace', // Retro font
+    colorWarning: '#ffff00', // Electric yellow for warnings
+    borderRadius: '0px', // Sharp corners like retro buttons
+    fontFamily: '"VT323", "Press Start 2P", monospace', // Retro monospace
+    spacingUnit: '1rem',
   },
   elements: {
     rootBox: {
-      backgroundColor: '#1a1a1a',
+      backgroundColor: 'rgba(31, 41, 55, 0.95)', // Semi-transparent dark
+      backdropFilter: 'blur(10px)', // Glass effect
     },
     card: {
-      backgroundColor: '#2a2a2a',
+      backgroundColor: '#1f2937',
       border: '2px solid #00ffff',
-      boxShadow: '0 0 20px rgba(0, 255, 255, 0.3)',
+      boxShadow: '4px 4px 0px #000000, 0 0 30px rgba(0, 255, 255, 0.4)',
+      borderRadius: '0px', // Sharp retro corners
     },
     headerTitle: {
       color: '#00ffff',
       fontFamily: '"Press Start 2P", monospace',
-      fontSize: '1.5rem',
+      fontSize: '1.2rem',
       textTransform: 'uppercase',
+      letterSpacing: '2px',
+      textShadow: '0 0 10px rgba(0, 255, 255, 0.6)',
     },
     headerSubtitle: {
-      color: '#ffffff',
+      color: '#e5e7eb',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1rem',
     },
     formButtonPrimary: {
       backgroundColor: '#00ffff',
@@ -51,27 +59,130 @@ const clerkAppearance = {
       border: '2px solid #00ffff',
       fontFamily: '"Press Start 2P", monospace',
       textTransform: 'uppercase',
-      fontSize: '0.8rem',
+      fontSize: '0.75rem',
+      borderRadius: '0px',
+      fontWeight: 'bold',
+      boxShadow: '4px 4px 0px #000000, 0 0 20px rgba(0, 255, 255, 0.3)',
+      transition: 'all 0.1s ease',
       '&:hover': {
         backgroundColor: '#39ff14',
         borderColor: '#39ff14',
-        boxShadow: '0 0 15px rgba(57, 255, 20, 0.5)',
+        color: '#000000',
+        boxShadow: '2px 2px 0px #000000, 0 0 30px rgba(57, 255, 20, 0.5)',
+        transform: 'translate(2px, 2px)',
+      },
+      '&:active': {
+        transform: 'translate(4px, 4px)',
+        boxShadow: '0px 0px 0px #000000, 0 0 15px rgba(0, 255, 255, 0.5)',
       },
     },
     formFieldInput: {
-      backgroundColor: '#2a2a2a',
+      backgroundColor: '#374151',
       borderColor: '#00ffff',
       color: '#ffffff',
+      borderRadius: '0px',
+      border: '2px solid #00ffff',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1rem',
       '&:focus': {
         borderColor: '#39ff14',
-        boxShadow: '0 0 10px rgba(57, 255, 20, 0.3)',
+        boxShadow: '0 0 15px rgba(57, 255, 20, 0.4)',
+        backgroundColor: '#374151',
       },
+    },
+    formFieldLabel: {
+      color: '#00ffff',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1rem',
+      textTransform: 'uppercase',
+      letterSpacing: '1px',
     },
     identityPreviewText: {
       color: '#00ffff',
+      fontFamily: '"VT323", monospace',
     },
     identityPreviewEditButton: {
       color: '#00ffff',
+      '&:hover': {
+        color: '#39ff14',
+      },
+    },
+    footerActionText: {
+      color: '#e5e7eb',
+      fontFamily: '"VT323", monospace',
+    },
+    footerActionLink: {
+      color: '#00ffff',
+      '&:hover': {
+        color: '#39ff14',
+      },
+    },
+    socialButtonsBlockButton: {
+      border: '2px solid #8b5cf6',
+      backgroundColor: '#1f2937',
+      color: '#ffffff',
+      borderRadius: '0px',
+      fontFamily: '"VT323", monospace',
+      '&:hover': {
+        borderColor: '#a855f7',
+        backgroundColor: '#8b5cf6',
+        boxShadow: '0 0 15px rgba(139, 92, 246, 0.4)',
+      },
+    },
+    dividerLine: {
+      backgroundColor: '#00ffff',
+      height: '2px',
+    },
+    dividerText: {
+      color: '#00ffff',
+      fontFamily: '"VT323", monospace',
+      textTransform: 'uppercase',
+    },
+    userButtonPopoverCard: {
+      backgroundColor: '#1f2937',
+      border: '2px solid #22d3ee',
+      boxShadow: '4px 4px 0px #000000, 0 0 20px rgba(34, 211, 238, 0.3)',
+    },
+    userButtonPopoverActionButton: {
+      color: '#ffffff',
+      fontFamily: '"VT323", monospace',
+      '&:hover': {
+        backgroundColor: '#374151',
+        color: '#22d3ee',
+      },
+    },
+    userButtonPopoverActionButtonText: {
+      color: '#ffffff',
+    },
+    userButtonPopoverActionButtonIcon: {
+      color: '#22d3ee',
+    },
+    userButtonPopoverFooter: {
+      backgroundColor: '#1f2937',
+      borderTop: '1px solid #22d3ee',
+    },
+    userButtonAvatarBox: {
+      width: '32px',
+      height: '32px',
+      borderRadius: '50%',
+      border: '2px solid #22d3ee',
+      boxShadow: '0 0 10px rgba(34, 211, 238, 0.3)',
+    },
+    userButtonAvatarImage: {
+      borderRadius: '50%',
+    },
+    userButtonTrigger: {
+      backgroundColor: 'transparent',
+      border: 'none',
+      padding: '0',
+      borderRadius: '50%',
+      '&:hover': {
+        backgroundColor: 'transparent',
+      },
+      '&:focus': {
+        backgroundColor: 'transparent',
+        boxShadow: '0 0 0 2px #22d3ee',
+      },
     },
   },
 }
