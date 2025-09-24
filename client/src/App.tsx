@@ -982,7 +982,7 @@ function App() {
         </div>
         
         {/* Retro CTA button positioned below content */}
-        <div className="absolute bottom-16 md:bottom-32 left-0 right-0 flex justify-center z-40">
+        <div className="absolute bottom-[84px] md:bottom-[148px] left-0 right-0 flex justify-center z-40">
           <button
             onClick={() => scrollToLevel('level-1')}
             className="group animate-bounce hover:animate-none retro-button relative overflow-hidden bg-gradient-to-r from-blue-400 via-purple-400 via-pink-400 via-red-400 to-orange-400 bg-[length:400%_100%] px-4 py-2 md:px-8 md:py-4 text-white"
