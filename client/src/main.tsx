@@ -190,6 +190,82 @@ const clerkAppearance = {
         boxShadow: '0 0 0 2px #22d3ee',
       },
     },
+    // User Profile Management Pages
+    userProfileModal: {
+      backgroundColor: '#1f2937',
+      border: '2px solid #22d3ee',
+      boxShadow: '4px 4px 0px #000000, 0 0 30px rgba(34, 211, 238, 0.3)',
+    },
+    userProfileSection: {
+      backgroundColor: '#1f2937',
+    },
+    userProfileSectionTitle: {
+      color: '#22d3ee',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '1.3rem',
+      textTransform: 'uppercase',
+      letterSpacing: '2px',
+    },
+    userProfileSectionDescription: {
+      color: '#e5e7eb',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.2rem',
+    },
+    userProfileFieldLabel: {
+      color: '#22d3ee',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.2rem',
+      textTransform: 'uppercase',
+    },
+    userProfileFieldInput: {
+      backgroundColor: '#374151',
+      borderColor: '#22d3ee',
+      color: '#ffffff',
+      borderRadius: '0px',
+      border: '2px solid #22d3ee',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.2rem',
+    },
+    userProfileButton: {
+      backgroundColor: '#22d3ee',
+      color: '#000000',
+      border: '2px solid #22d3ee',
+      fontFamily: '"Press Start 2P", monospace',
+      textTransform: 'uppercase',
+      fontSize: '1rem',
+      borderRadius: '0px',
+      '&:hover': {
+        backgroundColor: '#39ff14',
+        borderColor: '#39ff14',
+      },
+    },
+    userProfileText: {
+      color: '#ffffff',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.2rem',
+    },
+    userProfileSecondaryText: {
+      color: '#e5e7eb',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.1rem',
+    },
+    navbar: {
+      backgroundColor: '#1f2937',
+    },
+    navbarTitle: {
+      color: '#22d3ee',
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: '1.4rem',
+      textTransform: 'uppercase',
+    },
+    navbarButton: {
+      color: '#22d3ee',
+      fontFamily: '"VT323", monospace',
+      fontSize: '1.2rem',
+      '&:hover': {
+        color: '#39ff14',
+      },
+    },
   },
 }
 
