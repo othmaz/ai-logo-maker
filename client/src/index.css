@@ -181,20 +181,6 @@ html {
     height: 100% !important;
   }
   
-  /* Use Futura Bold for mobile with vertical stretching */
-  .mobile-font {
-    font-family: 'Futura', 'Futura Bold', 'Futura-Bold', 'Futura Bold BT', 'Arial Black', sans-serif;
-    font-weight: 900;
-    font-stretch: ultra-condensed;
-    letter-spacing: -0.04em;
-    transform: scaleY(1.8) scaleX(0.8) !important;
-    transform-origin: center bottom !important;
-    line-height: 0.8 !important;
-    font-size: 4.2rem !important;
-    margin-top: -8px !important;
-    margin-bottom: 0 !important;
-  }
-  
   /* Ensure text completely fills band vertically */
   .fixed.top-0.bg-gray-900\/95 .flex.items-center {
     align-items: stretch !important;

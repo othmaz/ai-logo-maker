@@ -85,6 +85,15 @@
   text-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
 }
 
+/* Safari-specific glow reduction using @media selector */
+@media not all and (min-resolution:.001dpcm) {
+  @supports (-webkit-appearance:none) {
+    .text-glow {
+      text-shadow: 0 2px 10px rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
 /* Fluid gradient animation for loading states - optimized */
 @keyframes gradient {
   0% {
