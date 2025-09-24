@@ -375,7 +375,13 @@ app.post('/api/upscale', async (req, res) => {
 
 // Create payment intent endpoint
 app.post('/api/create-payment-intent', async (req, res) => {
+  console.log('🔍 create-payment-intent endpoint called');
+  console.log('🔑 STRIPE_SECRET_KEY present:', !!process.env.STRIPE_SECRET_KEY);
+  console.log('🔑 STRIPE_SECRET_KEY length:', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.length : 'undefined');
+  console.log('🔑 STRIPE_SECRET_KEY starts with:', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.substring(0, 10) : 'undefined');
+
   try {
+    console.log('💳 Creating payment intent...');
     const paymentIntent = await stripe.paymentIntents.create({
       amount: 1000, // €10 in cents
       currency: 'eur',
@@ -384,13 +390,23 @@ app.post('/api/create-payment-intent', async (req, res) => {
       },
     });
 
+    console.log('✅ Payment intent created successfully');
     res.send({
       clientSecret: paymentIntent.client_secret,
     });
   } catch (error) {
+    console.error('❌ Stripe payment intent error:');
+    console.error('   Error type:', error.constructor.name);
+    console.error('   Error message:', error.message);
+    console.error('   Error code:', error.code);
+    console.error('   Error type from Stripe:', error.type);
+    console.error('   Full error:', error);
+
     res.status(400).send({
       error: {
         message: error.message,
+        type: error.type,
+        code: error.code
       },
     });
   }
