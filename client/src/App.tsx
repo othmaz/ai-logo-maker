@@ -248,6 +248,8 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showChatButton, setShowChatButton] = useState(false)
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   // Check if user has paid (based on Clerk user metadata or subscription)
   const isPaid = isSignedIn && user?.publicMetadata?.isPaid === true
@@ -407,7 +409,9 @@ function App() {
           })
 
           console.log('✅ User marked as paid successfully')
-          showToast('Payment successful! You now have unlimited logo generation.', 'success')
+
+          // Show payment success page
+          setShowPaymentSuccess(true)
 
           // Clear the URL parameters
           window.history.replaceState({}, document.title, window.location.pathname)
@@ -989,6 +993,269 @@ function App() {
       const targetLevel = `level-${nextRound + 1}`
       scrollToLevel(targetLevel)
     }, 500)
+  }
+
+  // Show payment success page if payment was successful
+  if (showPaymentSuccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+        {/* Navigation Header */}
+        <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 transition-transform duration-300`}>
+          <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <button
+                onClick={() => setShowPaymentSuccess(false)}
+                className="text-2xl font-bold text-cyan-400 hover:text-cyan-300 transition-colors font-mono"
+              >
+                AI LOGO MAKER
+              </button>
+              <div className="flex items-center space-x-4">
+                <SignedIn>
+                  <UserButton />
+                </SignedIn>
+              </div>
+            </div>
+          </nav>
+        </div>
+
+        {/* Payment Success Content */}
+        <div className="pt-24 pb-16 px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            {/* Success Icon */}
+            <div className="mb-8">
+              <div className="mx-auto w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6">
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 font-mono">
+                PAYMENT SUCCESSFUL! 🎉
+              </h1>
+              <p className="text-xl text-gray-300 mb-8 font-mono">
+                Welcome to Premium! You now have unlimited logo generation.
+              </p>
+            </div>
+
+            {/* Premium Benefits */}
+            <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-8 mb-8 max-w-2xl mx-auto">
+              <h2 className="text-2xl font-bold text-cyan-400 mb-6 font-mono">YOUR PREMIUM BENEFITS:</h2>
+              <div className="grid md:grid-cols-2 gap-4 text-left">
+                <div className="flex items-center space-x-3">
+                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-300 font-mono">Unlimited Logo Generation</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-300 font-mono">8K High-Resolution Downloads</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-300 font-mono">Priority Support</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-300 font-mono">Commercial Usage Rights</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={() => setShowPaymentSuccess(false)}
+                className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200 font-mono text-lg"
+              >
+                START CREATING LOGOS
+              </button>
+              <button
+                onClick={() => {
+                  setShowPaymentSuccess(false)
+                  setShowDashboard(true)
+                }}
+                className="px-8 py-4 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-all duration-200 font-mono text-lg border border-gray-600"
+              >
+                VIEW DASHBOARD
+              </button>
+            </div>
+
+            {/* Receipt Info */}
+            <div className="mt-8 text-gray-400 font-mono text-sm">
+              <p>Receipt sent to your email • €9.99 charged successfully</p>
+              <p>Need help? Contact support anytime</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show dashboard for paid users
+  if (showDashboard && isPaid) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+        {/* Navigation Header */}
+        <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 transition-transform duration-300`}>
+          <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
+              <button
+                onClick={() => setShowDashboard(false)}
+                className="text-2xl font-bold text-cyan-400 hover:text-cyan-300 transition-colors font-mono"
+              >
+                AI LOGO MAKER
+              </button>
+              <div className="flex items-center space-x-4">
+                <span className="text-green-400 font-mono text-sm">✨ PREMIUM</span>
+                <SignedIn>
+                  <UserButton />
+                </SignedIn>
+              </div>
+            </div>
+          </nav>
+        </div>
+
+        {/* Dashboard Content */}
+        <div className="pt-24 pb-16 px-4">
+          <div className="max-w-6xl mx-auto">
+            {/* Dashboard Header */}
+            <div className="text-center mb-12">
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 font-mono">
+                YOUR DASHBOARD
+              </h1>
+              <p className="text-xl text-gray-300 font-mono">
+                Welcome back, {user?.firstName || user?.emailAddresses[0]?.emailAddress}
+              </p>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid md:grid-cols-3 gap-6 mb-12">
+              {/* Account Status */}
+              <div className="bg-gray-800/50 rounded-2xl border border-green-400/30 p-6">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-green-400 font-mono">PREMIUM ACTIVE</h3>
+                </div>
+                <p className="text-gray-300 font-mono">Unlimited logo generation</p>
+                <p className="text-gray-400 font-mono text-sm mt-2">
+                  Purchased: {user?.publicMetadata?.paymentDate ?
+                    new Date(user.publicMetadata.paymentDate as string).toLocaleDateString() :
+                    'Recently'
+                  }
+                </p>
+              </div>
+
+              {/* Generation Count */}
+              <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-6">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-cyan-400 font-mono">LOGOS CREATED</h3>
+                </div>
+                <p className="text-3xl font-bold text-white font-mono">
+                  {(user?.publicMetadata?.generationsUsed as number) || 0}
+                </p>
+                <p className="text-gray-400 font-mono text-sm">Since upgrade</p>
+              </div>
+
+              {/* Saved Logos */}
+              <div className="bg-gray-800/50 rounded-2xl border border-purple-400/30 p-6">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold text-purple-400 font-mono">SAVED LOGOS</h3>
+                </div>
+                <p className="text-3xl font-bold text-white font-mono">{savedLogos.length}</p>
+                <p className="text-gray-400 font-mono text-sm">In your collection</p>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="grid md:grid-cols-2 gap-8 mb-12">
+              {/* Create New Logo */}
+              <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-8">
+                <h3 className="text-2xl font-bold text-cyan-400 font-mono mb-4">CREATE NEW LOGO</h3>
+                <p className="text-gray-300 font-mono mb-6">Generate unlimited professional logos with AI</p>
+                <button
+                  onClick={() => setShowDashboard(false)}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200 font-mono text-lg"
+                >
+                  START CREATING
+                </button>
+              </div>
+
+              {/* View Saved Collection */}
+              <div className="bg-gray-800/50 rounded-2xl border border-purple-400/30 p-8">
+                <h3 className="text-2xl font-bold text-purple-400 font-mono mb-4">SAVED COLLECTION</h3>
+                <p className="text-gray-300 font-mono mb-6">Access your saved logos and download in high quality</p>
+                <button
+                  onClick={() => {
+                    setShowDashboard(false)
+                    // Scroll to saved logos section
+                    setTimeout(() => {
+                      const element = document.querySelector('[data-saved-logos]')
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth' })
+                      }
+                    }, 100)
+                  }}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-200 font-mono text-lg"
+                >
+                  VIEW COLLECTION ({savedLogos.length})
+                </button>
+              </div>
+            </div>
+
+            {/* Premium Benefits Reminder */}
+            <div className="bg-gray-800/50 rounded-2xl border border-green-400/30 p-8 text-center">
+              <h3 className="text-2xl font-bold text-green-400 font-mono mb-4">PREMIUM BENEFITS ACTIVE</h3>
+              <div className="grid md:grid-cols-4 gap-4">
+                <div className="text-gray-300">
+                  <div className="text-2xl mb-2">🚀</div>
+                  <p className="font-mono text-sm">Unlimited Generation</p>
+                </div>
+                <div className="text-gray-300">
+                  <div className="text-2xl mb-2">✨</div>
+                  <p className="font-mono text-sm">8K High Resolution</p>
+                </div>
+                <div className="text-gray-300">
+                  <div className="text-2xl mb-2">⚡</div>
+                  <p className="font-mono text-sm">Priority Support</p>
+                </div>
+                <div className="text-gray-300">
+                  <div className="text-2xl mb-2">💼</div>
+                  <p className="font-mono text-sm">Commercial Rights</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -1607,7 +1874,7 @@ function App() {
 
       {/* Saved Logos Gallery */}
       {savedLogos.length > 0 && (
-        <div className="min-h-screen flex items-center justify-center py-20 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+        <div data-saved-logos className="min-h-screen flex items-center justify-center py-20 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
           <div className="max-w-7xl mx-auto px-4 w-full">
             <div className="bg-white/90 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border border-white/20">
               
