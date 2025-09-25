@@ -107,32 +107,46 @@ export const DatabaseProvider = ({ children }) => {
         return { success: false, error: 'User not signed in' };
       }
 
-      await refreshSavedLogos();
+      // Optimistic UI update - immediately add logo to local state
+      const optimisticLogo = {
+        id: saveResult.logoId || Date.now().toString(), // Use returned ID or fallback
+        ...logoData,
+        created_at: new Date().toISOString()
+      };
+      setSavedLogos(prev => [...prev, optimisticLogo]);
 
-      // Track analytics
-      await db.trackAnalytics('save', {
+      // Track analytics in background (don't await)
+      db.trackAnalytics('save', {
         logoId: logoData.id,
         prompt: logoData.prompt
-      });
+      }).catch(err => console.warn('Analytics tracking failed:', err));
 
       return { success: true };
     } catch (error) {
       console.error('Failed to save logo:', error);
+      // Refresh on error to ensure consistency
+      await refreshSavedLogos();
       return { success: false, error: error.message };
     }
   };
 
   const removeLogoFromDB = async (logoId) => {
     try {
-      await db.removeLogo(logoId);
-      await refreshSavedLogos();
+      // Optimistic UI update - immediately remove from local state
+      setSavedLogos(prev => prev.filter(logo => logo.id !== logoId));
 
-      // Track analytics
-      await db.trackAnalytics('delete', { logoId });
+      await db.removeLogo(logoId);
+
+      // Track analytics in background (don't await)
+      db.trackAnalytics('delete', { logoId }).catch(err =>
+        console.warn('Analytics tracking failed:', err)
+      );
 
       return { success: true };
     } catch (error) {
       console.error('Failed to remove logo:', error);
+      // Refresh on error to ensure consistency
+      await refreshSavedLogos();
       return { success: false, error: error.message };
     }
   };
