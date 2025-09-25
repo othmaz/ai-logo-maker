@@ -32,7 +32,15 @@ interface Toast {
 }
 
 interface Modal {
-  type: 'tos' | 'privacy' | 'contact' | 'upgrade' | null
+  type: 'tos' | 'privacy' | 'contact' | 'upgrade' | 'confirm' | null
+}
+
+interface ConfirmationModal {
+  isOpen: boolean
+  title: string
+  message: string
+  onConfirm: () => void
+  onCancel: () => void
 }
 
 interface FormData {
@@ -245,6 +253,13 @@ function App() {
   const [debugUsageOverride, setDebugUsageOverride] = useState<number | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [activeModal, setActiveModal] = useState<Modal['type']>(null)
+  const [confirmModal, setConfirmModal] = useState<ConfirmationModal>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    onCancel: () => {}
+  })
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showChatButton, setShowChatButton] = useState(false)
   const [clientSecret, setClientSecret] = useState<string | null>(null);
@@ -399,12 +414,16 @@ function App() {
           console.log('🎉 Payment success detected, updating user metadata...')
 
           // Update user metadata to mark as paid
+          // WORKAROUND: Clerk's User.update expects unsafeMetadata for updates if publicMetadata isn't directly typed as writable.
+          // We're nesting publicMetadata inside unsafeMetadata for the update call.
           await user.update({
-            publicMetadata: {
-              ...user.publicMetadata,
-              isPaid: true,
-              paymentDate: new Date().toISOString(),
-              paymentIntent: paymentIntent
+            unsafeMetadata: {
+              publicMetadata: {
+                ...(user.publicMetadata as any), // Cast to any to allow spread of potentially untyped publicMetadata
+                isPaid: true,
+                paymentDate: new Date().toISOString(),
+                paymentIntent: paymentIntent
+              }
             }
           })
 
@@ -538,6 +557,22 @@ function App() {
     const newSavedLogos = savedLogos.filter(logo => logo.id !== logoId)
     setSavedLogos(newSavedLogos)
     localStorage.setItem('savedLogos', JSON.stringify(newSavedLogos))
+  }
+
+  // Show confirmation modal
+  const showConfirmation = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm()
+        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {}, onCancel: () => {} })
+      },
+      onCancel: () => {
+        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {}, onCancel: () => {} })
+      }
+    })
   }
 
   // Handle scroll-based header visibility
@@ -802,10 +837,14 @@ function App() {
             console.log('🔄 Updating user metadata: currentGenerations =', currentGenerations, '→ newGenerations =', newGenerations);
 
             // Update Clerk user metadata
+            // WORKAROUND: Clerk's User.update expects unsafeMetadata for updates if publicMetadata isn't directly typed as writable.
+            // We're nesting publicMetadata inside unsafeMetadata for the update call.
             await user.update({
-              publicMetadata: {
-                ...user.publicMetadata,
-                generationsUsed: newGenerations
+              unsafeMetadata: {
+                publicMetadata: {
+                  ...(user.publicMetadata as any), // Cast to any to allow spread of potentially untyped publicMetadata
+                  generationsUsed: newGenerations
+                }
               }
             });
 
@@ -999,37 +1038,147 @@ function App() {
   if (showPaymentSuccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
-        {/* Navigation Header */}
-        <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 transition-transform duration-300`}>
-          <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <button
-                onClick={() => setShowPaymentSuccess(false)}
-                className="text-2xl font-bold text-cyan-400 hover:text-cyan-300 transition-colors font-mono"
-              >
-                AI LOGO MAKER
-              </button>
-              <div className="flex items-center space-x-4">
-                <SignedIn>
-                  <UserButton />
-                </SignedIn>
+        {/* Scrolling Title Bar */}
+        <button
+          onClick={() => setShowPaymentSuccess(false)}
+          className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 h-16 md:h-24 lg:h-32 transition-transform duration-300 cursor-pointer ${
+            isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+          }`}
+        >
+          <div className="relative overflow-hidden h-full">
+            <div className="flex animate-scroll whitespace-nowrap h-full stable-font">
+              {/* First set of titles */}
+              <div className="flex items-start space-x-0 mr-0 h-full">
+                {[...Array(50)].map((_, i) => (
+                  <h1 key={`first-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.41rem] md:text-[7.15rem] lg:text-[8.89rem]" style={{marginRight: '-27.5px', lineHeight: '4rem'}}>
+                    FREE AI LOGO MAKER
+                  </h1>
+                ))}
+              </div>
+              {/* Second set for seamless loop */}
+              <div className="flex items-start space-x-0 mr-0 h-full">
+                {[...Array(50)].map((_, i) => (
+                  <h1 key={`second-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.41rem] md:text-[7.15rem] lg:text-[8.89rem]" style={{marginRight: '-27.5px', lineHeight: '4rem'}}>
+                    FREE AI LOGO MAKER
+                  </h1>
+                ))}
               </div>
             </div>
-          </nav>
+          </div>
+        </button>
+
+        {/* Navigation Band */}
+        <div className={`fixed left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-b border-gray-600/50 z-[60] h-12 md:h-14 transition-all duration-300 ${isHeaderVisible ? 'top-16 md:top-24 lg:top-32' : 'top-0'}`}>
+          <div className="w-full h-full relative">
+            {/* Desktop Navigation */}
+            <div className="hidden xl:absolute xl:inset-0 xl:flex xl:items-center xl:justify-center">
+              <div className="flex items-center h-full">
+                {['Home', 'Dashboard', 'Pricing', 'API', 'About'].map((item, index) => (
+                  <div key={item} className="flex items-center h-full">
+                    <button
+                      onClick={() => {
+                        if (item === 'Dashboard') setShowDashboard(true);
+                        else if (item === 'Home') setShowPaymentSuccess(false);
+                      }}
+                      className="nav-shimmer flex items-center justify-center h-full px-4 md:px-6 text-base md:text-lg lg:text-xl retro-mono font-bold text-gray-300 hover:text-cyan-400 transition-colors duration-200 uppercase"
+                    >
+                      {item}
+                    </button>
+                    {index < 4 && (
+                      <span className="mx-3 md:mx-4 text-gray-600 text-base md:text-lg font-bold">|</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile & Tablet Hamburger Menu */}
+            <div className="xl:hidden absolute left-4 top-0 h-full flex items-center">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="flex flex-col justify-center items-center w-8 h-8 space-y-1"
+              >
+                <span className={`block w-6 h-0.5 bg-gray-300 transform transition duration-300 ${isMobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
+                <span className={`block w-6 h-0.5 bg-gray-300 transition duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`}></span>
+                <span className={`block w-6 h-0.5 bg-gray-300 transform transition duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
+              </button>
+            </div>
+
+            {/* Authentication Buttons */}
+            <div className="absolute right-4 top-0 h-full flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                {!isSignedIn ? (
+                  <>
+                    <button className="px-2 md:px-4 py-1 md:py-2 bg-gray-600/20 text-gray-500 font-bold rounded-lg border-2 border-gray-600/30 retro-mono text-xs pointer-events-none">
+                      SIGN IN
+                    </button>
+                    <button className="px-2 md:px-4 py-1 md:py-2 bg-gray-600/20 text-gray-500 font-bold rounded-lg border-2 border-gray-600/30 retro-mono text-xs pointer-events-none">
+                      SIGN UP
+                    </button>
+                  </>
+                ) : (
+                  <div className="w-8 h-8 bg-gray-600/20 rounded-full border-2 border-gray-600/30 pointer-events-none"></div>
+                )}
+              </div>
+              {isLoaded && (
+                <div className="absolute inset-0 flex items-center gap-2">
+                  <SignedOut>
+                    <SignInButton mode="redirect">
+                      <button className="px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
+                        SIGN IN
+                      </button>
+                    </SignInButton>
+                    <SignUpButton mode="redirect">
+                      <button className="px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg hover:bg-pink-500 transition-all duration-200 border-2 border-purple-500 hover:border-pink-500 hover:shadow-[0_0_15px_rgba(255,16,240,0.5)] retro-mono text-xs">
+                        SIGN UP
+                      </button>
+                    </SignUpButton>
+                  </SignedOut>
+                  <SignedIn>
+                    <UserButton />
+                  </SignedIn>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="absolute top-full left-4 mt-4 w-[60%] bg-gray-800/95 backdrop-blur-sm border border-gray-600/50 rounded-lg z-[70] xl:hidden" style={{top: 'calc(4rem + 3.5rem + 1rem)'}}>
+            <div className="flex flex-col">
+              {['Home', 'Dashboard', 'Pricing', 'API', 'About'].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    if (item === 'Dashboard') setShowDashboard(true);
+                    else if (item === 'Home') setShowPaymentSuccess(false);
+                  }}
+                  className="nav-shimmer flex items-center justify-center py-4 px-6 text-lg retro-mono font-bold text-gray-300 hover:text-cyan-400 hover:bg-gray-700/30 transition-colors duration-200 uppercase border-b border-gray-600/30 last:border-b-0 first:rounded-t-lg last:rounded-b-lg"
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Menu Backdrop */}
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-[60] xl:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+        )}
+
         {/* Payment Success Content */}
-        <div className="pt-24 pb-16 px-4">
+        <div className="min-h-screen pt-32 md:pt-40 lg:pt-48 pb-16 px-4">
           <div className="max-w-4xl mx-auto text-center">
-            {/* Success Icon */}
-            <div className="mb-8">
-              <div className="mx-auto w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mb-6">
-                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 font-mono">
-                PAYMENT SUCCESSFUL! 🎉
+            {/* Success Header */}
+            <div className="mb-8 pt-12">
+              <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl mb-6 text-white">
+                PAYMENT SUCCESSFUL! <span style={{color: '#fde047', filter: 'none'}}>🎉</span>
               </h1>
               <p className="text-xl text-gray-300 mb-8 font-mono">
                 Welcome to Premium! You now have unlimited logo generation.
@@ -1037,40 +1186,24 @@ function App() {
             </div>
 
             {/* Premium Benefits */}
-            <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-8 mb-8 max-w-2xl mx-auto">
-              <h2 className="text-2xl font-bold text-cyan-400 mb-6 font-mono">YOUR PREMIUM BENEFITS:</h2>
-              <div className="grid md:grid-cols-2 gap-4 text-left">
-                <div className="flex items-center space-x-3">
-                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span className="text-gray-300 font-mono">Unlimited Logo Generation</span>
+            <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-8 mb-8 max-w-4xl mx-auto">
+              <h2 className="text-2xl font-bold text-cyan-400 mb-8 font-mono text-center">YOUR PREMIUM BENEFITS:</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="flex flex-col items-center text-center">
+                  <div className="text-4xl mb-3">🚀</div>
+                  <span className="text-gray-300 font-mono text-sm">Unlimited Generation</span>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span className="text-gray-300 font-mono">8K High-Resolution Downloads</span>
+                <div className="flex flex-col items-center text-center">
+                  <div className="text-4xl mb-3">✨</div>
+                  <span className="text-gray-300 font-mono text-sm">8K High Resolution</span>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span className="text-gray-300 font-mono">Priority Support</span>
+                <div className="flex flex-col items-center text-center">
+                  <div className="text-4xl mb-3">⚡</div>
+                  <span className="text-gray-300 font-mono text-sm">Priority Support</span>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                    <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                  <span className="text-gray-300 font-mono">Commercial Usage Rights</span>
+                <div className="flex flex-col items-center text-center">
+                  <div className="text-4xl mb-3">💼</div>
+                  <span className="text-gray-300 font-mono text-sm">Commercial Rights</span>
                 </div>
               </div>
             </div>
@@ -1079,18 +1212,24 @@ function App() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => setShowPaymentSuccess(false)}
-                className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200 font-mono text-lg"
+                className="relative px-8 py-4 rounded-2xl font-extrabold text-xl transition-all duration-300 transform overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg hover:shadow-xl"
               >
-                START CREATING LOGOS
+                <div className="relative z-10 flex items-center justify-center">
+                  <span className="mr-3 text-2xl">🎨</span>
+                  <span className="text-white font-extrabold">START CREATING LOGOS</span>
+                </div>
               </button>
               <button
                 onClick={() => {
                   setShowPaymentSuccess(false)
                   setShowDashboard(true)
                 }}
-                className="px-8 py-4 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-all duration-200 font-mono text-lg border border-gray-600"
+                className="relative px-8 py-4 rounded-2xl font-extrabold text-xl transition-all duration-300 transform overflow-hidden bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-500 hover:to-gray-600 border border-gray-600 hover:scale-105 shadow-lg hover:shadow-xl"
               >
-                VIEW DASHBOARD
+                <div className="relative z-10 flex items-center justify-center">
+                  <span className="mr-3 text-2xl">📊</span>
+                  <span className="text-white font-extrabold">VIEW DASHBOARD</span>
+                </div>
               </button>
             </div>
 
@@ -1101,40 +1240,259 @@ function App() {
             </div>
           </div>
         </div>
+
+        {/* Support Chat Button */}
+        <button
+          onClick={() => setActiveModal('contact')}
+          className={`fixed right-6 z-40 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full w-8 h-8 md:w-16 md:h-16 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-110 group ${
+            showChatButton ? 'bottom-6 translate-y-0' : 'bottom-0 translate-y-20'
+          }`}
+          title="Contact Us"
+        >
+          <span className="text-sm md:text-2xl group-hover:scale-110 transition-transform">💬</span>
+        </button>
       </div>
     )
   }
 
-  // Show dashboard for paid users
-  if (showDashboard && isPaid) {
+  // Show dashboard - accessible to all users but requires authentication
+  if (showDashboard) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
-        {/* Navigation Header */}
-        <div className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 transition-transform duration-300`}>
-          <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <button
-                onClick={() => setShowDashboard(false)}
-                className="text-2xl font-bold text-cyan-400 hover:text-cyan-300 transition-colors font-mono"
-              >
-                AI LOGO MAKER
-              </button>
-              <div className="flex items-center space-x-4">
-                <span className="text-green-400 font-mono text-sm">✨ PREMIUM</span>
-                <SignedIn>
-                  <UserButton />
-                </SignedIn>
+        {/* Scrolling Title Bar */}
+        <button
+          onClick={() => setShowDashboard(false)}
+          className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 h-16 md:h-24 lg:h-32 transition-transform duration-300 cursor-pointer ${
+            isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
+          }`}
+        >
+          <div className="relative overflow-hidden h-full">
+            <div className="flex animate-scroll whitespace-nowrap h-full stable-font">
+              {/* First set of titles */}
+              <div className="flex items-start space-x-0 mr-0 h-full">
+                {[...Array(50)].map((_, i) => (
+                  <h1 key={`first-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.41rem] md:text-[7.15rem] lg:text-[8.89rem]" style={{marginRight: '-27.5px', lineHeight: '4rem'}}>
+                    FREE AI LOGO MAKER
+                  </h1>
+                ))}
+              </div>
+              {/* Second set for seamless loop */}
+              <div className="flex items-start space-x-0 mr-0 h-full">
+                {[...Array(50)].map((_, i) => (
+                  <h1 key={`second-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.41rem] md:text-[7.15rem] lg:text-[8.89rem]" style={{marginRight: '-27.5px', lineHeight: '4rem'}}>
+                    FREE AI LOGO MAKER
+                  </h1>
+                ))}
               </div>
             </div>
-          </nav>
+          </div>
+        </button>
+
+        {/* Navigation Band */}
+        <div className={`fixed left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-b border-gray-600/50 z-[60] h-12 md:h-14 transition-all duration-300 ${isHeaderVisible ? 'top-16 md:top-24 lg:top-32' : 'top-0'}`}>
+          <div className="w-full h-full relative">
+            {/* Desktop Navigation */}
+            <div className="hidden xl:absolute xl:inset-0 xl:flex xl:items-center xl:justify-center">
+              <div className="flex items-center h-full">
+                {['Home', 'Dashboard', 'Pricing', 'API', 'About'].map((item, index) => (
+                  <div key={item} className="flex items-center h-full">
+                    <button
+                      onClick={() => {
+                        if (item === 'Home') setShowDashboard(false);
+                      }}
+                      className={`nav-shimmer flex items-center justify-center h-full px-4 md:px-6 text-base md:text-lg lg:text-xl retro-mono font-bold transition-colors duration-200 uppercase ${
+                        item === 'Dashboard' ? 'text-cyan-400' : 'text-gray-300 hover:text-cyan-400'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                    {index < 4 && (
+                      <span className="mx-3 md:mx-4 text-gray-600 text-base md:text-lg font-bold">|</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile & Tablet Hamburger Menu */}
+            <div className="xl:hidden absolute left-4 top-0 h-full flex items-center">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="flex flex-col justify-center items-center w-8 h-8 space-y-1"
+              >
+                <span className={`block w-6 h-0.5 bg-gray-300 transform transition duration-300 ${isMobileMenuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
+                <span className={`block w-6 h-0.5 bg-gray-300 transition duration-300 ${isMobileMenuOpen ? 'opacity-0' : ''}`}></span>
+                <span className={`block w-6 h-0.5 bg-gray-300 transform transition duration-300 ${isMobileMenuOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
+              </button>
+            </div>
+
+            {/* Authentication Buttons */}
+            <div className="absolute right-4 top-0 h-full flex items-center gap-2">
+              {isPaid && (
+                <span className="text-green-400 font-mono text-sm mr-2">✨ PREMIUM</span>
+              )}
+              <div className="flex items-center gap-2">
+                {!isSignedIn ? (
+                  <>
+                    <button className="px-2 md:px-4 py-1 md:py-2 bg-gray-600/20 text-gray-500 font-bold rounded-lg border-2 border-gray-600/30 retro-mono text-xs pointer-events-none">
+                      SIGN IN
+                    </button>
+                    <button className="px-2 md:px-4 py-1 md:py-2 bg-gray-600/20 text-gray-500 font-bold rounded-lg border-2 border-gray-600/30 retro-mono text-xs pointer-events-none">
+                      SIGN UP
+                    </button>
+                  </>
+                ) : (
+                  <div className="w-8 h-8 bg-gray-600/20 rounded-full border-2 border-gray-600/30 pointer-events-none"></div>
+                )}
+              </div>
+              {isLoaded && (
+                <div className="absolute inset-0 flex items-center gap-2">
+                  {isPaid && (
+                    <span className="text-green-400 font-mono text-sm mr-2">✨ PREMIUM</span>
+                  )}
+                  <SignedOut>
+                    <SignInButton mode="redirect">
+                      <button className="px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
+                        SIGN IN
+                      </button>
+                    </SignInButton>
+                    <SignUpButton mode="redirect">
+                      <button className="px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg hover:bg-pink-500 transition-all duration-200 border-2 border-purple-500 hover:border-pink-500 hover:shadow-[0_0_15px_rgba(255,16,240,0.5)] retro-mono text-xs">
+                        SIGN UP
+                      </button>
+                    </SignUpButton>
+                  </SignedOut>
+                  <SignedIn>
+                    <UserButton />
+                  </SignedIn>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="absolute top-full left-4 mt-4 w-[60%] bg-gray-800/95 backdrop-blur-sm border border-gray-600/50 rounded-lg z-[70] xl:hidden" style={{top: 'calc(4rem + 3.5rem + 1rem)'}}>
+            <div className="flex flex-col">
+              {['Home', 'Dashboard', 'Pricing', 'API', 'About'].map((item) => (
+                <button
+                  key={item}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    if (item === 'Home') setShowDashboard(false);
+                  }}
+                  className={`nav-shimmer flex items-center justify-center py-4 px-6 text-lg retro-mono font-bold transition-colors duration-200 uppercase border-b border-gray-600/30 last:border-b-0 first:rounded-t-lg last:rounded-b-lg ${
+                    item === 'Dashboard' ? 'text-cyan-400 bg-gray-700/30' : 'text-gray-300 hover:text-cyan-400 hover:bg-gray-700/30'
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Menu Backdrop */}
+        {isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 z-[60] xl:hidden"
+            onClick={() => setIsMobileMenuOpen(false)}
+          ></div>
+        )}
+
+        {/* Support Chat Button */}
+        <button
+          onClick={() => setActiveModal('contact')}
+          className={`fixed right-6 z-40 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full w-8 h-8 md:w-16 md:h-16 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-500 hover:scale-110 group ${
+            showChatButton ? 'bottom-6 translate-y-0' : 'bottom-0 translate-y-20'
+          }`}
+          title="Contact Us"
+        >
+          <span className="text-sm md:text-2xl group-hover:scale-110 transition-transform">💬</span>
+        </button>
+
         {/* Dashboard Content */}
-        <div className="pt-24 pb-16 px-4">
+        <div className="pt-32 md:pt-40 lg:pt-48 pb-16 px-4">
           <div className="max-w-6xl mx-auto">
+            {!isSignedIn ? (
+              /* Authentication Required Screen */
+              <div className="text-center">
+                <div className="mb-8">
+                  <div className="mx-auto w-24 h-24 bg-cyan-500 rounded-full flex items-center justify-center mb-6">
+                    <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 font-mono">
+                    SIGN IN REQUIRED
+                  </h1>
+                  <p className="text-xl text-gray-300 mb-8 font-mono">
+                    Create an account or sign in to access your dashboard
+                  </p>
+                </div>
+
+                <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-8 mb-8 max-w-2xl mx-auto">
+                  <h2 className="text-2xl font-bold text-cyan-400 mb-6 font-mono">DASHBOARD FEATURES:</h2>
+                  <div className="grid md:grid-cols-2 gap-4 text-left">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span className="text-gray-300 font-mono">Usage Statistics</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span className="text-gray-300 font-mono">Logo Collection</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span className="text-gray-300 font-mono">Account Management</span>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span className="text-gray-300 font-mono">Premium Benefits</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  {isLoaded && (
+                    <>
+                      <SignInButton mode="redirect">
+                        <button className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200 font-mono text-lg">
+                          SIGN IN
+                        </button>
+                      </SignInButton>
+                      <SignUpButton mode="redirect">
+                        <button className="px-8 py-4 bg-gray-700 text-white font-bold rounded-lg hover:bg-gray-600 transition-all duration-200 font-mono text-lg border border-gray-600">
+                          CREATE ACCOUNT
+                        </button>
+                      </SignUpButton>
+                    </>
+                  )}
+                </div>
+              </div>
+            ) : (
+              /* Authenticated Dashboard Content */
+              <>
             {/* Dashboard Header */}
-            <div className="text-center mb-12">
-              <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 font-mono">
+            <div className="text-center mb-12 pt-12">
+              <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-6 text-white">
                 YOUR DASHBOARD
               </h1>
               <p className="text-xl text-gray-300 font-mono">
@@ -1199,7 +1557,7 @@ function App() {
               {/* Create New Logo */}
               <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-8">
                 <h3 className="text-2xl font-bold text-cyan-400 font-mono mb-4">CREATE NEW LOGO</h3>
-                <p className="text-gray-300 font-mono mb-6">Generate unlimited professional logos with AI</p>
+                <p className="text-gray-300 font-mono mb-6">Generate unlimited rounds of professional logos with AI power</p>
                 <button
                   onClick={() => setShowDashboard(false)}
                   className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200 font-mono text-lg"
@@ -1252,6 +1610,86 @@ function App() {
                 </div>
               </div>
             </div>
+
+            {/* Saved Logos Section */}
+            {savedLogos.length > 0 && (
+              <div className="mt-12 bg-gray-800/30 rounded-2xl border border-gray-600/30 p-8">
+                <div className="text-center mb-8">
+                  <h3 className="text-2xl font-bold text-white font-mono mb-4">YOUR SAVED COLLECTION</h3>
+                  <p className="text-gray-300 font-mono">
+                    {savedLogos.length} logo{savedLogos.length > 1 ? 's' : ''} saved to your collection
+                  </p>
+                </div>
+
+                {/* Logo Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+                  {savedLogos.map((logo) => (
+                    <div
+                      key={logo.id}
+                      className="relative cursor-pointer transition-all duration-300 transform hover:scale-105 group"
+                    >
+                      <div className="bg-gray-700/50 rounded-xl border border-gray-600/50 hover:border-cyan-400/50 transition-colors duration-200 overflow-hidden">
+                        <img
+                          src={logo.url}
+                          alt={`Saved Logo ${logo.id}`}
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                      </div>
+
+                      {/* Remove button */}
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            showConfirmation(
+                              'Remove Logo',
+                              'Are you sure you want to remove this logo from your collection? This action cannot be undone.',
+                              () => removeSavedLogo(logo.id)
+                            )
+                          }}
+                          className="bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg text-xs"
+                          title="Remove from collection"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <div className="text-center">
+                  <button
+                    onClick={() => {
+                      setShowDashboard(false)
+                      // Scroll to saved logos section on main page
+                      setTimeout(() => {
+                        const element = document.querySelector('[data-saved-logos]')
+                        if (element) {
+                          element.scrollIntoView({ behavior: 'smooth' })
+                        }
+                      }, 100)
+                    }}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold rounded-lg hover:from-purple-600 hover:to-pink-700 transition-all duration-200 font-mono mr-4"
+                  >
+                    VIEW FULL GALLERY
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm('Are you sure you want to clear your entire logo collection?')) {
+                        setSavedLogos([])
+                        localStorage.removeItem('savedLogos')
+                      }
+                    }}
+                    className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors font-mono"
+                  >
+                    CLEAR ALL
+                  </button>
+                </div>
+              </div>
+            )}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -1299,9 +1737,12 @@ function App() {
           {/* Desktop Navigation - hidden on mobile and tablets */}
           <div className="hidden xl:absolute xl:inset-0 xl:flex xl:items-center xl:justify-center">
             <div className="flex items-center h-full">
-              {['Home', 'Collection', 'Pricing', 'API', 'About'].map((item, index) => (
+              {['Home', 'Dashboard', 'Pricing', 'API', 'About'].map((item, index) => (
                 <div key={item} className="flex items-center h-full">
-                  <button className="nav-shimmer flex items-center justify-center h-full px-4 md:px-6 text-base md:text-lg lg:text-xl retro-mono font-bold text-gray-300 hover:text-cyan-400 transition-colors duration-200 uppercase">
+                  <button
+                    onClick={() => item === 'Dashboard' ? setShowDashboard(true) : undefined}
+                    className="nav-shimmer flex items-center justify-center h-full px-4 md:px-6 text-base md:text-lg lg:text-xl retro-mono font-bold text-gray-300 hover:text-cyan-400 transition-colors duration-200 uppercase"
+                  >
                     {item}
                   </button>
                   {index < 4 && (
@@ -1371,10 +1812,13 @@ function App() {
         {isMobileMenuOpen && (
           <div className="absolute top-full left-4 mt-4 w-[60%] bg-gray-800/95 backdrop-blur-sm border border-gray-600/50 rounded-lg z-[70] xl:hidden">
             <div className="flex flex-col">
-              {['Home', 'Collection', 'Pricing', 'API', 'About'].map((item) => (
+              {['Home', 'Dashboard', 'Pricing', 'API', 'About'].map((item) => (
                 <button
                   key={item}
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    if (item === 'Dashboard') setShowDashboard(true);
+                  }}
                   className="nav-shimmer flex items-center justify-center py-4 px-6 text-lg retro-mono font-bold text-gray-300 hover:text-cyan-400 hover:bg-gray-700/30 transition-colors duration-200 uppercase border-b border-gray-600/30 last:border-b-0 first:rounded-t-lg last:rounded-b-lg"
                 >
                   {item}
@@ -1908,7 +2352,11 @@ function App() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          removeSavedLogo(logo.id)
+                          showConfirmation(
+                            'Remove Logo',
+                            'Are you sure you want to remove this logo from your collection? This action cannot be undone.',
+                            () => removeSavedLogo(logo.id)
+                          )
                         }}
                         className="bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg text-sm"
                         title="Remove from collection"
@@ -1924,10 +2372,14 @@ function App() {
               <div className="text-center">
                 <button
                   onClick={() => {
-                    if (confirm('Are you sure you want to clear your entire logo collection?')) {
-                      setSavedLogos([])
-                      localStorage.removeItem('savedLogos')
-                    }
+                    showConfirmation(
+                      'Clear All Logos',
+                      'This will permanently delete ALL your saved logos from your collection. This action cannot be undone. Are you absolutely sure you want to continue?',
+                      () => {
+                        setSavedLogos([])
+                        localStorage.removeItem('savedLogos')
+                      }
+                    )
                   }}
                   className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-colors"
                 >
@@ -2289,6 +2741,40 @@ function App() {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[90] flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-xl shadow-2xl max-w-md w-full border-2 border-cyan-400">
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="text-4xl mb-4">⚠️</div>
+                <h3 className="text-xl font-bold text-cyan-400 mb-2 font-mono uppercase">
+                  {confirmModal.title}
+                </h3>
+                <p className="text-gray-300 font-mono text-sm leading-relaxed">
+                  {confirmModal.message}
+                </p>
+              </div>
+
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={confirmModal.onCancel}
+                  className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-mono text-sm font-bold transition-colors border border-gray-600"
+                >
+                  CANCEL
+                </button>
+                <button
+                  onClick={confirmModal.onConfirm}
+                  className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white rounded-lg font-mono text-sm font-bold transition-colors border border-red-500 shadow-lg"
+                >
+                  DELETE
+                </button>
+              </div>
             </div>
           </div>
         </div>
