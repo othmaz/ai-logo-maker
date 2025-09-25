@@ -1,10 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import { SpeedInsights } from '@vercel/speed-insights/react'
 import { Analytics } from '@vercel/analytics/react'
 import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
-import App from './App.tsx'
+import AppRouter from './AppRouter'
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 if (!CLERK_PUBLISHABLE_KEY) {
@@ -299,9 +300,11 @@ createRoot(document.getElementById('root')!).render(
       signInFallbackRedirectUrl="/"
       signUpFallbackRedirectUrl="/"
     >
-      <App />
-      <SpeedInsights />
-      <Analytics />
+      <BrowserRouter>
+        <AppRouter />
+        <SpeedInsights />
+        <Analytics />
+      </BrowserRouter>
     </ClerkProvider>
   </StrictMode>,
 )

@@ -452,3 +452,27 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Pulse Border Animation for Work in Progress pages */
+@keyframes pulse-border {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+    filter: brightness(1.2);
+  }
+  100% {
+    opacity: 0.6;
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.animate-pulse-border {
+  animation: pulse-border 2s ease-in-out infinite;
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -226,6 +227,7 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
 }
 
 function App() {
+  const navigate = useNavigate()
   const { isSignedIn, user, isLoaded } = useUser()
 
   const [formData, setFormData] = useState<FormData>({
@@ -429,8 +431,8 @@ function App() {
 
           console.log('✅ User marked as paid successfully')
 
-          // Show payment success page
-          setShowPaymentSuccess(true)
+          // Navigate to payment success page
+          navigate('/payment/success')
 
           // Clear the URL parameters
           window.history.replaceState({}, document.title, window.location.pathname)
@@ -522,9 +524,10 @@ function App() {
       console.log('🔧 DEBUG: debugUsageOverride state value:', debugUsageOverride);
       console.log('🔧 DEBUG: user?.publicMetadata?.generationsUsed:', user?.publicMetadata?.generationsUsed);
       const userGenerations = debugUsageOverride !== null ? debugUsageOverride : parseInt(user?.publicMetadata?.generationsUsed as string || '0')
-      const remaining = Math.max(0, 3 - userGenerations)
-      setUsage({ remaining, total: 3, used: userGenerations })
-      console.log('👤 Signed-in free user usage: userGenerations =', userGenerations, ', remaining =', remaining);
+      const totalGenerationsForSignedInFree = 5; // 3 initial + 2 bonus
+      const remaining = Math.max(0, totalGenerationsForSignedInFree - userGenerations)
+      setUsage({ remaining, total: totalGenerationsForSignedInFree, used: userGenerations })
+      console.log('👤 Signed-in free user usage: userGenerations =', userGenerations, ', remaining =', remaining, ', total =', totalGenerationsForSignedInFree);
       if (debugUsageOverride !== null) {
         console.log('🔧 DEBUG: Using override usage value:', debugUsageOverride);
       }
@@ -1040,7 +1043,7 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
         {/* Scrolling Title Bar */}
         <button
-          onClick={() => setShowPaymentSuccess(false)}
+          onClick={() => navigate('/')}
           className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 h-16 md:h-24 lg:h-32 transition-transform duration-300 cursor-pointer ${
             isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
           }`}
@@ -1077,8 +1080,8 @@ function App() {
                   <div key={item} className="flex items-center h-full">
                     <button
                       onClick={() => {
-                        if (item === 'Dashboard') setShowDashboard(true);
-                        else if (item === 'Home') setShowPaymentSuccess(false);
+                        if (item === 'Dashboard') navigate('/dashboard');
+                        else if (item === 'Home') navigate('/');
                       }}
                       className="nav-shimmer flex items-center justify-center h-full px-4 md:px-6 text-base md:text-lg lg:text-xl retro-mono font-bold text-gray-300 hover:text-cyan-400 transition-colors duration-200 uppercase"
                     >
@@ -1152,8 +1155,8 @@ function App() {
                   key={item}
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    if (item === 'Dashboard') setShowDashboard(true);
-                    else if (item === 'Home') setShowPaymentSuccess(false);
+                    if (item === 'Dashboard') navigate('/dashboard');
+                    else if (item === 'Home') navigate('/');
                   }}
                   className="nav-shimmer flex items-center justify-center py-4 px-6 text-lg retro-mono font-bold text-gray-300 hover:text-cyan-400 hover:bg-gray-700/30 transition-colors duration-200 uppercase border-b border-gray-600/30 last:border-b-0 first:rounded-t-lg last:rounded-b-lg"
                 >
@@ -1211,7 +1214,7 @@ function App() {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
-                onClick={() => setShowPaymentSuccess(false)}
+              onClick={() => navigate('/')}
                 className="relative px-8 py-4 rounded-2xl font-extrabold text-xl transition-all duration-300 transform overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 hover:scale-105 shadow-lg hover:shadow-xl"
               >
                 <div className="relative z-10 flex items-center justify-center">
@@ -1221,8 +1224,8 @@ function App() {
               </button>
               <button
                 onClick={() => {
-                  setShowPaymentSuccess(false)
-                  setShowDashboard(true)
+                  navigate('/')
+                  navigate('/dashboard')
                 }}
                 className="relative px-8 py-4 rounded-2xl font-extrabold text-xl transition-all duration-300 transform overflow-hidden bg-gradient-to-r from-gray-600 to-gray-700 text-white hover:from-gray-500 hover:to-gray-600 border border-gray-600 hover:scale-105 shadow-lg hover:shadow-xl"
               >
@@ -1261,7 +1264,7 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
         {/* Scrolling Title Bar */}
         <button
-          onClick={() => setShowDashboard(false)}
+          onClick={() => navigate('/')}
           className={`fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 z-50 h-16 md:h-24 lg:h-32 transition-transform duration-300 cursor-pointer ${
             isHeaderVisible ? 'translate-y-0' : '-translate-y-full'
           }`}
@@ -1298,7 +1301,7 @@ function App() {
                   <div key={item} className="flex items-center h-full">
                     <button
                       onClick={() => {
-                        if (item === 'Home') setShowDashboard(false);
+                        if (item === 'Home') navigate('/');
                       }}
                       className={`nav-shimmer flex items-center justify-center h-full px-4 md:px-6 text-base md:text-lg lg:text-xl retro-mono font-bold transition-colors duration-200 uppercase ${
                         item === 'Dashboard' ? 'text-cyan-400' : 'text-gray-300 hover:text-cyan-400'
@@ -1380,7 +1383,7 @@ function App() {
                   key={item}
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    if (item === 'Home') setShowDashboard(false);
+                    if (item === 'Home') navigate('/');
                   }}
                   className={`nav-shimmer flex items-center justify-center py-4 px-6 text-lg retro-mono font-bold transition-colors duration-200 uppercase border-b border-gray-600/30 last:border-b-0 first:rounded-t-lg last:rounded-b-lg ${
                     item === 'Dashboard' ? 'text-cyan-400 bg-gray-700/30' : 'text-gray-300 hover:text-cyan-400 hover:bg-gray-700/30'
@@ -1559,7 +1562,7 @@ function App() {
                 <h3 className="text-2xl font-bold text-cyan-400 font-mono mb-4">CREATE NEW LOGO</h3>
                 <p className="text-gray-300 font-mono mb-6">Generate unlimited rounds of professional logos with AI power</p>
                 <button
-                  onClick={() => setShowDashboard(false)}
+                  onClick={() => navigate('/')}
                   className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200 font-mono text-lg"
                 >
                   START CREATING
@@ -1572,7 +1575,7 @@ function App() {
                 <p className="text-gray-300 font-mono mb-6">Access your saved logos and download in high quality</p>
                 <button
                   onClick={() => {
-                    setShowDashboard(false)
+                    navigate('/')
                     // Scroll to saved logos section
                     setTimeout(() => {
                       const element = document.querySelector('[data-saved-logos]')
@@ -1661,7 +1664,7 @@ function App() {
                 <div className="text-center">
                   <button
                     onClick={() => {
-                      setShowDashboard(false)
+                      navigate('/')
                       // Scroll to saved logos section on main page
                       setTimeout(() => {
                         const element = document.querySelector('[data-saved-logos]')
@@ -1740,7 +1743,7 @@ function App() {
               {['Home', 'Dashboard', 'Pricing', 'API', 'About'].map((item, index) => (
                 <div key={item} className="flex items-center h-full">
                   <button
-                    onClick={() => item === 'Dashboard' ? setShowDashboard(true) : undefined}
+                    onClick={() => item === 'Dashboard' ? navigate('/dashboard') : undefined}
                     className="nav-shimmer flex items-center justify-center h-full px-4 md:px-6 text-base md:text-lg lg:text-xl retro-mono font-bold text-gray-300 hover:text-cyan-400 transition-colors duration-200 uppercase"
                   >
                     {item}
@@ -1817,7 +1820,7 @@ function App() {
                   key={item}
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    if (item === 'Dashboard') setShowDashboard(true);
+                    if (item === 'Dashboard') navigate('/dashboard');
                   }}
                   className="nav-shimmer flex items-center justify-center py-4 px-6 text-lg retro-mono font-bold text-gray-300 hover:text-cyan-400 hover:bg-gray-700/30 transition-colors duration-200 uppercase border-b border-gray-600/30 last:border-b-0 first:rounded-t-lg last:rounded-b-lg"
                 >
@@ -2455,17 +2458,31 @@ function App() {
       {/* Modals */}
       {activeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[80] flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-2xl font-bold text-gray-800">
+          <div className={`rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden ${
+            activeModal === 'upgrade'
+              ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-black'
+              : 'bg-white'
+          }`}>
+            <div className={`flex items-center justify-between p-6 ${
+              activeModal === 'upgrade' ? 'border-b border-cyan-400/30' : 'border-b'
+            }`}>
+              <h2 className={`text-2xl font-bold ${
+                activeModal === 'upgrade'
+                  ? 'retro-title text-white'
+                  : 'text-gray-800'
+              }`}>
                 {activeModal === 'tos' && 'Terms of Service'}
                 {activeModal === 'privacy' && 'Privacy Policy'}
                 {activeModal === 'contact' && 'Contact Us'}
-                {activeModal === 'upgrade' && 'Upgrade to Premium'}
+                {activeModal === 'upgrade' && 'UPGRADE TO PREMIUM'}
               </h2>
               <button
                 onClick={() => setActiveModal(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                className={`text-2xl font-bold ${
+                  activeModal === 'upgrade'
+                    ? 'text-cyan-400 hover:text-cyan-300'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
               >
                 ×
               </button>
@@ -2666,63 +2683,92 @@ function App() {
               )}
 
               {activeModal === 'upgrade' && (
-                <div className="space-y-6 text-center">
+                <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white p-8 -m-6 rounded-xl">
                   {clientSecret ? (
                     <Elements options={{ clientSecret }} stripe={stripePromise}>
                       <CheckoutForm />
                     </Elements>
                   ) : (
-                  <>
-                    <div className="mb-8">
-                      <div className="text-6xl mb-4">🚀</div>
-                      <h3 className="text-2xl font-bold text-gray-800 mb-4">
-                        You've reached your free limit!
+                    <div className="text-center">
+                      {/* Retro Header */}
+                      <h3 className="retro-title text-2xl lg:text-3xl mb-4 text-white">
+                        {!isSignedIn ? "FREE LIMIT REACHED" : "UPGRADE TO"}
+                        <br />
+                        <span className="text-glow animated-text-gradient text-xl lg:text-2xl">PREMIUM ACCESS</span>
                       </h3>
-                      <p className="text-gray-600 text-lg">
-                        {!isSignedIn
-                          ? "You've used all 3 free logo generations. Sign up to get unlimited access!"
-                          : "Upgrade to Premium for unlimited logo generation and 8K upscaling!"}
-                      </p>
-                    </div>
 
-                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-8 rounded-xl">
-                      <h4 className="text-xl font-semibold text-gray-800 mb-4">Premium Benefits</h4>
-                      <ul className="text-left space-y-3 mb-6">
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-3">✓</span>
-                          <span>Unlimited logo generation</span>
-                        </li>
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-3">✓</span>
-                          <span>8K upscaling for premium quality</span>
-                        </li>
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-3">✓</span>
-                          <span>Priority customer support</span>
-                        </li>
-                        <li className="flex items-center">
-                          <span className="text-green-500 mr-3">✓</span>
-                          <span>Commercial usage rights</span>
-                        </li>
-                      </ul>
 
-                      <div className="text-3xl font-bold text-gray-800 mb-6">
-                        Only €10 <span className="text-lg font-normal text-gray-600">one-time payment</span>
+
+                      {/* Retro Loading Animation */}
+                      <div className="flex justify-center items-center space-x-2 mt-4 mb-8">
+                        <div className="w-3 h-3 bg-cyan-400 rounded-full animate-bounce"></div>
+                        <div className="w-3 h-3 bg-purple-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                        <div className="w-3 h-3 bg-pink-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
                       </div>
 
+                      {/* Terminal Style Comparison */}
+                      <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-6 mb-8 max-w-4xl mx-auto">
+                        <div className="grid md:grid-cols-2 gap-6 text-left">
+                          <div className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/50">
+                            <h4 className="retro-mono text-xl font-bold text-gray-400 mb-4 text-center">FREE TIER</h4>
+                            <div className="space-y-3">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-red-400 retro-mono text-lg">✗</span>
+                                <span className="text-gray-400 retro-mono text-base">3 GENERATIONS ONLY</span>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-red-400 retro-mono text-lg">✗</span>
+                                <span className="text-gray-400 retro-mono text-base">1K RESOLUTION</span>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-red-400 retro-mono text-lg">✗</span>
+                                <span className="text-gray-400 retro-mono text-base">BASIC SUPPORT</span>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-red-400 retro-mono text-lg">✗</span>
+                                <span className="text-gray-400 retro-mono text-base">NO COMMERCIAL USE</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-xl p-4 border-2 border-cyan-400/50">
+                            <h4 className="retro-mono text-xl font-bold text-cyan-400 mb-4 text-center">PREMIUM - €9.99</h4>
+                            <div className="space-y-3">
+                              <div className="flex items-center space-x-3">
+                                <span className="text-cyan-400 retro-mono text-lg">🚀</span>
+                                <span className="text-cyan-400 retro-mono text-base">UNLIMITED GENERATION</span>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-cyan-400 retro-mono text-lg">✨</span>
+                                <span className="text-cyan-400 retro-mono text-base">8K PNG + SVG FILE</span>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-cyan-400 retro-mono text-lg">⚡️</span>
+                                <span className="text-cyan-400 retro-mono text-base">PRIORITY SUPPORT</span>
+                              </div>
+                              <div className="flex items-center space-x-3">
+                                <span className="text-cyan-400 retro-mono text-lg">💼</span>
+                                <span className="text-cyan-400 retro-mono text-base">COMMERCIAL RIGHTS</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Auth/Upgrade Buttons */}
                       <div className="space-y-4">
                         {!isSignedIn ? (
-                          <div className="space-y-3">
+                          <div className="space-y-4">
                             <SignUpButton mode="redirect">
-                              <button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200">
-                                Sign Up & Get Premium
+                              <button className="w-full px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50">
+                                SIGN UP & GET PREMIUM
                               </button>
                             </SignUpButton>
-                            <p className="text-sm text-gray-500">
-                              Already have an account?
+                            <p className="retro-body text-cyan-400 text-sm">
+                              &gt; ALREADY HAVE ACCOUNT?
                               <SignInButton mode="redirect">
-                                <button className="text-blue-600 hover:text-blue-700 ml-1 underline">
-                                  Sign In
+                                <button className="text-cyan-400 hover:text-white ml-2 underline retro-mono text-sm">
+                                  SIGN IN
                                 </button>
                               </SignInButton>
                             </p>
@@ -2730,14 +2776,19 @@ function App() {
                         ) : (
                           <button
                             onClick={handlePaymentUpgrade}
-                            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200"
+                            className="w-full px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50"
                           >
-                            Upgrade to Premium - €9.99
+                            INITIATE UPGRADE - €10
                           </button>
                         )}
                       </div>
+
+                      {/* Terminal Footer */}
+                      <p className="retro-body text-cyan-400 text-sm mt-4">
+                        &gt; ONE-TIME PAYMENT • INSTANT ACCESS • NO SUBSCRIPTION
+                      </p>
+
                     </div>
-                  </>
                   )}
                 </div>
               )}
