@@ -533,45 +533,48 @@ function App() {
   }
 
   // Save logo to database
-  const saveLogo = async (logo: Logo) => {
+  const saveLogo = (logo: Logo) => {
     // Check if logo is already saved
     if (isLogoSaved(logo.url)) {
       showToast('Logo is already in your collection!', 'info')
       return
     }
 
-    try {
-      const result = await saveLogoToDB({
-        url: logo.url,
-        prompt: logo.prompt,
-        is_premium: false,
-        file_format: 'png'
-      })
+    // Show immediate success toast - optimistic UX
+    showToast('Logo saved to your collection!', 'success')
 
-      if (result.success) {
-        showToast('Logo saved to your collection!', 'success')
-      } else {
-        showToast('Failed to save logo: ' + result.error, 'error')
+    // Perform database save in background (non-blocking)
+    saveLogoToDB({
+      url: logo.url,
+      prompt: logo.prompt,
+      is_premium: false,
+      file_format: 'png'
+    }).then(result => {
+      // Only show error if save fails (success already shown)
+      if (!result.success) {
+        showToast('Save failed: ' + result.error, 'error')
       }
-    } catch (error) {
+    }).catch(error => {
       console.error('Save logo error:', error)
-      showToast('Failed to save logo', 'error')
-    }
+      showToast('Save failed - please try again', 'error')
+    })
   }
 
   // Remove logo from database
-  const removeSavedLogo = async (logoId: string) => {
-    try {
-      const result = await removeLogoFromDB(logoId)
-      if (result.success) {
-        showToast('Logo removed from collection', 'success')
-      } else {
-        showToast('Failed to remove logo: ' + result.error, 'error')
+  const removeSavedLogo = (logoId: string) => {
+    // Show immediate success toast - optimistic UX
+    showToast('Logo removed from collection', 'success')
+
+    // Perform database removal in background (non-blocking)
+    removeLogoFromDB(logoId).then((result: any) => {
+      // Only show error if removal fails (success already shown)
+      if (!result.success) {
+        showToast('Remove failed: ' + result.error, 'error')
       }
-    } catch (error) {
+    }).catch((error: any) => {
       console.error('Remove logo error:', error)
-      showToast('Failed to remove logo', 'error')
-    }
+      showToast('Remove failed - please try again', 'error')
+    })
   }
 
   // Show confirmation modal
