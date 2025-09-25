@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import { useModal } from '../contexts/ModalContext'
+import { useDbContext } from '../contexts/DatabaseContext'
 
 type SavedLogo = { id: string; url: string }
 
@@ -9,30 +10,33 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate()
   const { isSignedIn, isLoaded, user } = useUser()
   const { showConfirmation } = useModal()
-  const [savedLogos, setSavedLogos] = useState<SavedLogo[]>([])
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('savedLogos')
-      if (raw) setSavedLogos(JSON.parse(raw))
-    } catch {}
-  }, [])
+  // Use database context instead of localStorage
+  const {
+    savedLogos,
+    userProfile,
+    isInitialized,
+    removeLogoFromDB,
+    clearAllLogosFromDB,
+    isLoading
+  } = useDbContext()
 
   const clearAll = () => {
-    if (confirm('Are you sure you want to clear your entire logo collection?')) {
-      setSavedLogos([])
-      localStorage.removeItem('savedLogos')
-    }
+    showConfirmation(
+      'Clear All Logos',
+      'This will permanently delete ALL your saved logos from your collection. This action cannot be undone. Are you absolutely sure you want to continue?',
+      async () => {
+        await clearAllLogosFromDB()
+      }
+    )
   }
 
   const removeSavedLogo = (id: string) => {
     showConfirmation(
       'Remove Logo',
       'Are you sure you want to remove this logo from your collection? This action cannot be undone.',
-      () => {
-        const next = savedLogos.filter(l => l.id !== id)
-        setSavedLogos(next)
-        localStorage.setItem('savedLogos', JSON.stringify(next))
+      async () => {
+        await removeLogoFromDB(id)
       }
     )
   }
@@ -94,9 +98,9 @@ const DashboardPage: React.FC = () => {
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-green-400 font-mono">PREMIUM {user?.publicMetadata?.isPaid ? 'ACTIVE' : 'INACTIVE'}</h3>
+                  <h3 className="text-xl font-bold text-green-400 font-mono">PREMIUM {userProfile?.subscription_status === 'premium' ? 'ACTIVE' : 'INACTIVE'}</h3>
                 </div>
-                <p className="text-gray-300 font-mono">{user?.publicMetadata?.isPaid ? 'Unlimited logo generation' : 'Upgrade for unlimited generation'}</p>
+                <p className="text-gray-300 font-mono">{userProfile?.subscription_status === 'premium' ? 'Unlimited logo generation' : 'Upgrade for unlimited generation'}</p>
               </div>
 
               <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-6">
@@ -108,8 +112,8 @@ const DashboardPage: React.FC = () => {
                   </div>
                   <h3 className="text-xl font-bold text-cyan-400 font-mono">LOGOS CREATED</h3>
                 </div>
-                <p className="text-3xl font-bold text-white font-mono">{(user?.publicMetadata?.generationsUsed as number) || 0}</p>
-                <p className="text-gray-400 font-mono text-sm">Since upgrade</p>
+                <p className="text-3xl font-bold text-white font-mono">{userProfile?.generations_used || 0}</p>
+                <p className="text-gray-400 font-mono text-sm">Total generated</p>
               </div>
 
               <div className="bg-gray-800/50 rounded-2xl border border-purple-400/30 p-6">
@@ -134,7 +138,7 @@ const DashboardPage: React.FC = () => {
               </div>
               <div className="bg-gray-800/50 rounded-2xl border border-purple-400/30 p-8">
                 <h3 className="text-2xl font-bold text-purple-400 font-mono mb-4">SAVED COLLECTION</h3>
-                <p className="text-gray-300 font-mono mb-6">Access your saved logos and download in high quality</p>
+                <p className="text-gray-300 font-mono mb-6">Access your saved logos and download them in 8K and SVG formats</p>
                 <button
                   onClick={() => {
                     const el = document.getElementById('dashboard-saved-logos')
@@ -149,7 +153,18 @@ const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {savedLogos.length > 0 && (
+            {/* Loading State */}
+            {isSignedIn && !isInitialized && (
+              <div className="mt-12 text-center">
+                <div className="inline-flex items-center space-x-2 text-cyan-400">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
+                  <span className="font-mono">Loading your dashboard...</span>
+                </div>
+              </div>
+            )}
+
+            {/* Saved Logos Section */}
+            {isSignedIn && isInitialized && savedLogos.length > 0 && (
               <div id="dashboard-saved-logos" className="mt-12 bg-gray-800/30 rounded-2xl border border-gray-600/30 p-8">
                 <div className="text-center mb-8">
                   <h3 className="text-2xl font-bold text-white font-mono mb-4">YOUR SAVED COLLECTION</h3>
@@ -159,7 +174,7 @@ const DashboardPage: React.FC = () => {
                   {savedLogos.map(logo => (
                     <div key={logo.id} className="relative cursor-pointer transition-all duration-300 transform hover:scale-105 group">
                       <div className="bg-gray-700/50 rounded-xl border border-gray-600/50 hover:border-cyan-400/50 transition-colors duration-200 overflow-hidden">
-                        <img src={logo.url} alt={`Saved Logo ${logo.id}`} className="w-full h-32 object-cover rounded-lg" />
+                        <img src={logo.logo_url || logo.url} alt={`Saved Logo ${logo.id}`} className="w-full h-32 object-cover rounded-lg" />
                       </div>
                       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
                         <button onClick={(e) => { e.stopPropagation(); removeSavedLogo(logo.id) }} className="bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg text-xs" title="Remove from collection">×</button>

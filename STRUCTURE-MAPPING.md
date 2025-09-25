@@ -1,8 +1,8 @@
 # 🗺️ AI LOGO MAKER - STRUCTURE MAPPING
 
 **Purpose**: Quick reference guide for efficient code navigation and modification.
-**Last Updated**: 2025-09-25
-**Architecture**: Route-based multi-page application with React Router DOM
+**Last Updated**: 2025-09-26
+**Architecture**: Route-based multi-page application with React Router DOM + Vercel Postgres Database
 
 ---
 
@@ -13,8 +13,17 @@
 Main Entry: client/src/main.tsx
 ├── Router: AppRouter.tsx (49 lines) - Main routing component
 ├── Context: ModalContext.tsx (49 lines) - Shared modal state
+├── Database: DatabaseContext.jsx (216 lines) - Database state management
+├── Database Hook: useDatabase.js (229 lines) - Database API operations
 ├── Legacy: App.tsx (2,778 lines) - Original app used by HomePage
 └── Components: Shared UI components across all pages
+
+Database Layer:
+├── Server: server.js (607 lines) - API endpoints + database integration
+├── Schema: schema.sql (58 lines) - Database tables and indexes
+├── Utils: db.js (17 lines) - Connection utilities
+├── Init: initDB.js (30 lines) - Schema initialization
+└── Test: test-db.js (67 lines) - Database testing script
 ```
 
 ### **📍 ROUTING STRUCTURE:**
@@ -32,19 +41,31 @@ Route Mapping:
 ### **🗂️ NEW FILE STRUCTURE:**
 ```
 client/src/
-├── AppRouter.tsx           # Main router with ModalProvider
+├── AppRouter.tsx           # Main router with ModalProvider + DatabaseProvider
 ├── contexts/
-│   └── ModalContext.tsx    # Shared modal state management
+│   ├── ModalContext.tsx    # Shared modal state management
+│   └── DatabaseContext.jsx # Database context (user data, logos, analytics)
+├── hooks/
+│   └── useDatabase.js      # Custom hook for database API operations
 ├── components/
 │   ├── Footer.tsx          # Reusable footer with legal links
 │   ├── Modals.tsx          # All modal content components
 │   └── SupportChatButton.tsx # Updated with modal integration
 └── pages/
     ├── HomePage.tsx        # Landing page (wraps legacy App)
-    ├── DashboardPage.tsx   # User dashboard
+    ├── DashboardPage.tsx   # User dashboard with database integration
     ├── PricingPage.tsx     # Work in Progress with retro animations
     ├── ApiPage.tsx         # Work in Progress with retro animations
     └── AboutPage.tsx       # Work in Progress with retro animations
+
+server/
+├── server.js               # Main server (607 lines) with database API endpoints
+├── lib/
+│   ├── db.js              # Database connection utilities (Vercel Postgres)
+│   ├── initDB.js          # Schema initialization and setup
+│   └── schema.sql         # Complete database schema (4 tables + indexes)
+└── scripts/
+    └── test-db.js         # Database testing and validation script
 ```
 
 ---
@@ -59,6 +80,130 @@ client/src/
   - About: `from-yellow-400 via-orange-500 to-red-500`
 - **Loading Elements**: Bouncing dots with staggered delays
 - **Terminal Style**: HTML entities (`&gt;`) for proper JSX rendering
+
+---
+
+## 🗄️ **DATABASE INTEGRATION STRUCTURE MAP**
+
+### **📂 Database File Architecture:**
+
+#### **🏗️ CLIENT-SIDE DATABASE FILES:**
+
+**📍 CLIENT/SRC/CONTEXTS/DATABASECONTEXT.JSX (216 lines):**
+```
+Lines 1-13:     Imports and context setup
+Lines 15-24:    State definitions (savedLogos, userProfile, initialization)
+Lines 26-69:    User initialization and localStorage migration
+Lines 71-99:    Data refresh functions (logos, profile)
+Lines 101-149:  Enhanced logo management (save, remove, clear)
+Lines 151-168:  Generation tracking for freemium model
+Lines 170-178:  State reset on sign out
+Lines 180-216:  Context provider with comprehensive API
+```
+
+**📍 CLIENT/SRC/HOOKS/USEDATABASE.JS (229 lines):**
+```
+Lines 1-30:     Setup and API utility functions
+Lines 32-67:    User Management API calls (sync, profile, subscription)
+Lines 69-107:   Logo Management API calls (get, save, remove, clear)
+Lines 109-141:  Usage Tracking API calls (track, stats, increment)
+Lines 143-161:  Analytics API calls (track, dashboard)
+Lines 163-199:  localStorage Migration system
+Lines 201-229:  Hook return object with all functions
+```
+
+#### **🏗️ SERVER-SIDE DATABASE FILES:**
+
+**📍 SERVER/LIB/SCHEMA.SQL (58 lines):**
+```
+Lines 1-14:     users table (Clerk integration + usage tracking)
+Lines 16-26:    saved_logos table (logo persistence with metadata)
+Lines 28-38:    generation_history table (business analytics)
+Lines 40-48:    usage_analytics table (user behavior tracking)
+Lines 50-58:    Performance indexes for all tables
+```
+
+**📍 SERVER/LIB/DB.JS (17 lines):**
+```
+Lines 1-2:      Import Vercel Postgres client
+Lines 3-12:     Database connection function with health check
+Lines 14:       Export connection utilities
+```
+
+**📍 SERVER/LIB/INITDB.JS (30 lines):**
+```
+Lines 1-4:      Imports (Vercel Postgres, fs, path)
+Lines 5-28:     Schema initialization function
+Lines 30:       Export initialization function
+```
+
+**📍 SERVER/SCRIPTS/TEST-DB.JS (67 lines):**
+```
+Lines 1-11:     Environment setup and imports
+Lines 12-65:    Comprehensive database testing suite
+Lines 66-67:    Error handling and execution
+```
+
+### **🔌 Database API Endpoints Structure:**
+
+#### **User Management Endpoints:**
+```javascript
+POST /api/users/sync          // Auto-sync with Clerk (lines ~420-450 in server.js)
+GET  /api/users/profile       // Get user stats (lines ~451-480 in server.js)
+PUT  /api/users/subscription  // Update premium status (lines ~481-510 in server.js)
+POST /api/users/migrate       // localStorage migration (lines ~511-550 in server.js)
+```
+
+#### **Logo Management Endpoints:**
+```javascript
+GET  /api/logos/saved         // Get user logos (lines ~551-570 in server.js)
+POST /api/logos/save          // Save logo (lines ~571-590 in server.js)
+DELETE /api/logos/:id         // Delete logo (lines ~591-600 in server.js)
+DELETE /api/logos/clear       // Clear all logos (lines ~601-607 in server.js)
+```
+
+#### **Usage & Analytics Endpoints:**
+```javascript
+POST /api/generations/track   // Track generation (server.js)
+GET  /api/generations/usage   // Get usage stats (server.js)
+POST /api/generations/increment // Update usage counter (server.js)
+POST /api/analytics/track     // Track user actions (server.js)
+GET  /api/analytics/dashboard // Dashboard analytics (server.js)
+```
+
+### **📊 Database Schema Overview:**
+
+**4 Main Tables with Relationships:**
+```sql
+users (Clerk integration)
+├── id, clerk_user_id, email, created_at
+├── subscription_status (free/premium)
+└── generations_used, generations_limit (freemium logic)
+
+saved_logos (Logo persistence)
+├── id, user_id → users(id), clerk_user_id
+├── logo_url, logo_prompt, created_at
+└── is_premium, file_format (metadata)
+
+generation_history (Business analytics)
+├── id, user_id → users(id), clerk_user_id
+├── session_id (anonymous users), prompt
+└── logos_generated, created_at, is_premium
+
+usage_analytics (User behavior)
+├── id, user_id → users(id), clerk_user_id
+├── action (generate/save/download/delete)
+└── created_at, metadata (JSONB)
+```
+
+### **🔄 Migration System:**
+
+**localStorage → Database Migration:**
+1. **Trigger**: User signs in with existing localStorage data
+2. **Detection**: DatabaseContext checks for unmigrated data
+3. **Migration**: useDatabase.js handles API call to migrate endpoint
+4. **Cleanup**: localStorage cleared after successful migration
+5. **Verification**: User retains all previous logos and usage counts
 
 ---
 
@@ -284,51 +429,109 @@ Grep "functionName\(" -n
 
 ### **🏗️ ARCHITECTURE OVERVIEW:**
 ```
-File: server/server.js (417 lines)
+File: server/server.js (607 lines - EXPANDED with database integration)
 
-📍 IMPORTS & SETUP (Lines 1-31):
-├── Line 1-8: Dependencies (express, cors, dotenv, GoogleGenAI, Replicate, Stripe)
-├── Line 13: Replicate client initialization
-├── Line 24: Stripe client initialization
-├── Line 26-27: Express app & port setup
-└── Line 29-31: Middleware (CORS, JSON parsing, URL encoding)
+📍 IMPORTS & SETUP (Lines 1-35):
+├── Line 1-10: Dependencies (express, cors, dotenv, GoogleGenAI, Replicate, Stripe)
+├── Line 11-12: Database imports (Vercel Postgres, initDB, db utilities)
+├── Line 15: Replicate client initialization
+├── Line 20: Database connection and initialization
+├── Line 25: Stripe client initialization
+├── Line 27-28: Express app & port setup
+└── Line 30-35: Middleware (CORS, JSON parsing, URL encoding)
 
-📍 FILE SYSTEM SETUP (Lines 33-49):
-├── Line 34: Images directory configuration (Vercel vs local)
-├── Line 45: Directory creation with error handling
-└── Line 47: Static file serving for generated images
+📍 FILE SYSTEM SETUP (Lines 37-53):
+├── Line 38: Images directory configuration (Vercel vs local)
+├── Line 49: Directory creation with error handling
+└── Line 51: Static file serving for generated images
 
-📍 CORE FUNCTIONS (Lines 51-201):
-├── Line 51: callGeminiAPI(prompt, referenceImages) - Main AI function
-└── Line 173: generateEnhancedPlaceholder(prompt, errorType) - Fallback system
+📍 CORE AI FUNCTIONS (Lines 55-205):
+├── Line 55: callGeminiAPI(prompt, referenceImages) - Main AI function
+└── Line 177: generateEnhancedPlaceholder(prompt, errorType) - Fallback system
 
-📍 API ENDPOINTS (Lines 203-414):
-├── Line 203: POST /api/generate-multiple - Logo generation
-├── Line 297: POST /api/upscale - Real-ESRGAN image upscaling
-└── Line 377: POST /api/create-payment-intent - Stripe payment
+📍 DATABASE API ENDPOINTS (Lines 210-480):
+├── Lines 210-250: User Management (/api/users/*)
+├── Lines 255-320: Logo Management (/api/logos/*)
+├── Lines 325-400: Usage Tracking (/api/generations/*)
+├── Lines 405-450: Analytics (/api/analytics/*)
+└── Lines 455-480: Migration & Sync utilities
+
+📍 LEGACY AI ENDPOINTS (Lines 485-607):
+├── Line 485: POST /api/generate-multiple - Logo generation
+├── Line 550: POST /api/upscale - Real-ESRGAN image upscaling
+└── Line 580: POST /api/create-payment-intent - Stripe payment
 ```
 
 ### **🎯 KEY API ENDPOINTS:**
 
-#### **Logo Generation (`/api/generate-multiple`):**
+#### **🗄️ Database User Management:**
 ```javascript
-Line 203: Main generation endpoint
+POST /api/users/sync (~Line 210)
+Input: { clerkUserId, email }
+Process: Create/update user in database
+Output: { success, user, message }
+
+GET /api/users/profile (~Line 230)
+Input: Query ?clerkUserId=xxx
+Process: Get user profile with usage stats
+Output: { user, generationsUsed, generationsLimit, subscriptionStatus }
+
+PUT /api/users/subscription (~Line 250)
+Input: { clerkUserId, subscriptionStatus }
+Process: Update subscription status (free/premium)
+Output: { success, user, message }
+```
+
+#### **🗄️ Database Logo Management:**
+```javascript
+GET /api/logos/saved (~Line 255)
+Input: Query ?clerkUserId=xxx
+Process: Get all saved logos for user
+Output: { success, logos[] }
+
+POST /api/logos/save (~Line 275)
+Input: { clerkUserId, logoId, logoUrl, logoPrompt, isPremium }
+Process: Save logo to database with metadata
+Output: { success, logo, message }
+
+DELETE /api/logos/:id (~Line 300)
+Input: logoId param + clerkUserId query
+Process: Remove specific logo from database
+Output: { success, message }
+```
+
+#### **🗄️ Database Analytics & Tracking:**
+```javascript
+POST /api/generations/track (~Line 325)
+Input: { clerkUserId, prompt, logosGenerated, isPremium }
+Process: Track generation in history table
+Output: { success, history, message }
+
+POST /api/analytics/track (~Line 405)
+Input: { clerkUserId, action, metadata }
+Process: Log user action for analytics
+Output: { success, analytic, message }
+```
+
+#### **🤖 AI Logo Generation (`/api/generate-multiple`):**
+```javascript
+Line 485: Main generation endpoint
 Input: { prompts[], referenceImages[] }
 Process: Gemini AI → Image generation → File saving
 Output: { success, logos[], message }
 ```
 
-#### **Image Upscaling (`/api/upscale`):**
+#### **⬆️ Image Upscaling (`/api/upscale`):**
 ```javascript
-Line 297: Premium upscaling endpoint
+Line 550: Premium upscaling endpoint
 Input: { imageUrl, scale }
 Process: Replicate Real-ESRGAN → 4x upscaling
 Output: { success, upscaledUrl }
 ```
 
-#### **Payment Processing (`/api/create-payment-intent`):**
+#### **💳 Payment Processing (`/api/create-payment-intent`):**
 ```javascript
-Line 377: Stripe payment endpoint
+Line 580: Stripe payment endpoint
 Input: { amount, currency, automatic_payment_methods }
 Process: Stripe PaymentIntent creation
 Output: { client_secret }
@@ -336,16 +539,28 @@ Output: { client_secret }
 
 ### **🔧 CRITICAL FUNCTIONS:**
 
-**callGeminiAPI() - Lines 51-172:**
+**🗄️ Database Functions (Lines 20-209):**
+- Database initialization and schema setup on server start
+- Connection health checks and error handling
+- User synchronization with Clerk authentication system
+- Logo persistence with metadata and analytics tracking
+
+**🤖 AI Functions (Lines 55-205):**
+**callGeminiAPI() - Lines 55-177:**
 - Handles both text-only and image+text prompts
 - File system operations for image saving
 - Comprehensive error handling with fallbacks
 - Data URL generation for frontend
 
-**generateEnhancedPlaceholder() - Lines 173-201:**
+**generateEnhancedPlaceholder() - Lines 177-205:**
 - Fallback system when AI is unavailable
 - Creates placeholder SVGs with business name
 - Maintains functionality during API outages
+
+**🔄 Migration Functions (Lines 455-480):**
+- localStorage to database migration system
+- Preserves user data during authentication flow
+- Automatic cleanup after successful migration
 
 ---
 
@@ -474,10 +689,12 @@ File: client/src/CheckoutForm.tsx (Estimated ~200 lines)
 ### **"I need to modify..."**
 
 **Server Logic:**
-- **AI Generation**: server.js lines 51-172 (callGeminiAPI)
-- **API Endpoints**: server.js lines 203+ (Express routes)
-- **Payment Processing**: server.js lines 377+ (Stripe integration)
-- **Image Upscaling**: server.js lines 297+ (Replicate integration)
+- **Database Setup**: server/lib/db.js, initDB.js, schema.sql
+- **Database API**: server.js lines 210-480 (User/Logo/Analytics endpoints)
+- **Database Testing**: server/scripts/test-db.js (full testing suite)
+- **AI Generation**: server.js lines 55-205 (callGeminiAPI)
+- **Legacy API Endpoints**: server.js lines 485+ (Generate, Upscale, Payment)
+- **Migration System**: server.js lines 455-480 (localStorage migration)
 
 **Styling & Animations:**
 - **80s Retro Effects**: animations.css lines 24-83
@@ -485,16 +702,27 @@ File: client/src/CheckoutForm.tsx (Estimated ~200 lines)
 - **Title Bar Font**: index.css lines 225+ (.font-phosphate)
 - **Loading Animations**: animations.css lines 89+ (keyframes)
 
+**Database Integration:**
+- **Database Context**: client/src/contexts/DatabaseContext.jsx (216 lines)
+- **Database Hook**: client/src/hooks/useDatabase.js (229 lines)
+- **User Data Management**: DatabaseContext lines 26-99 (initialization & refresh)
+- **Logo Management**: DatabaseContext lines 101-149 (save/remove/clear)
+- **Migration Logic**: useDatabase.js lines 163-199 (localStorage migration)
+
 **Payment System:**
 - **Stripe Integration**: CheckoutForm.tsx (entire component)
-- **Payment API**: server.js lines 377+
+- **Payment API**: server.js lines 580+
 - **Client Secret**: App.tsx lines 265 (clientSecret state)
 
 ### **"I'm looking for..."**
+- **Database Schema**: server/lib/schema.sql (4 tables + indexes)
+- **Database Connection**: server/lib/db.js (Vercel Postgres setup)
+- **User Analytics**: DatabaseContext tracking functions
+- **Migration System**: useDatabase.js localStorage migration
 - **Font Definitions**: index.css lines 1-50
 - **Retro Styling**: animations.css lines 24-83
-- **API Error Handling**: server.js lines 51+ (try/catch blocks)
-- **Image Processing**: server.js lines 51+ (callGeminiAPI function)
+- **API Error Handling**: server.js database endpoints (comprehensive try/catch)
+- **Image Processing**: server.js lines 55+ (callGeminiAPI function)
 - **Loading States**: animations.css lines 89+ (gradient animations)
 
 ---

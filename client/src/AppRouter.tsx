@@ -2,6 +2,7 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 
 import { ModalProvider, useModal } from './contexts/ModalContext'
+import { DatabaseProvider } from './contexts/DatabaseContext'
 import TitleBar from './components/TitleBar'
 import NavBar from './components/NavBar'
 import SupportChatButton from './components/SupportChatButton'
@@ -46,11 +47,13 @@ const AppRouterContent: React.FC = () => {
   )
 }
 
-// Main component wrapped with ModalProvider
+// Main component wrapped with providers
 const AppRouter: React.FC = () => {
   return (
     <ModalProvider>
-      <AppRouterContent />
+      <DatabaseProvider>
+        <AppRouterContent />
+      </DatabaseProvider>
     </ModalProvider>
   )
 }

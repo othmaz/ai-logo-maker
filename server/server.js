@@ -6,6 +6,8 @@ const fs = require('fs')
 const path = require('path')
 const Replicate = require('replicate')
 const Stripe = require('stripe')
+const { connectToDatabase, sql } = require('./lib/db')
+const { migrateFromLocalStorage } = require('./lib/migrate')
 
 dotenv.config({ path: path.join(__dirname, '../.env') })
 
@@ -16,12 +18,12 @@ const replicate = new Replicate({
 
 // Initialize Stripe client with error handling
 if (!process.env.STRIPE_SECRET_KEY) {
-  console.error('❌ STRIPE_SECRET_KEY environment variable is missing!')
-  console.error('📋 Available environment variables:', Object.keys(process.env).filter(key => key.includes('STRIPE')))
-  process.exit(1)
+  console.warn('⚠️ STRIPE_SECRET_KEY environment variable is missing!')
+  console.warn('💳 Payment features will be disabled, but other APIs will work')
+  console.warn('📋 Available environment variables:', Object.keys(process.env).filter(key => key.includes('STRIPE')))
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -29,6 +31,13 @@ const port = process.env.PORT || 3001
 app.use(cors())
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
+
+// Verify DB connectivity on boot (non-blocking)
+connectToDatabase().then(ok => {
+  if (!ok) {
+    console.warn('⚠️ Database not reachable at startup. API endpoints will attempt reconnects.')
+  }
+})
 
 // Create directory for generated images (use /tmp in serverless environments)
 const imagesDir = process.env.VERCEL ? '/tmp/generated-logos' : './generated-logos'
@@ -380,6 +389,10 @@ app.post('/api/create-payment-intent', async (req, res) => {
   console.log('🔑 STRIPE_SECRET_KEY length:', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.length : 'undefined');
   console.log('🔑 STRIPE_SECRET_KEY starts with:', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.substring(0, 10) : 'undefined');
 
+  if (!stripe) {
+    return res.status(503).json({ error: 'Payment service unavailable - Stripe not configured' });
+  }
+
   try {
     console.log('💳 Creating payment intent...');
     const paymentIntent = await stripe.paymentIntents.create({
@@ -414,4 +427,185 @@ app.post('/api/create-payment-intent', async (req, res) => {
 
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)
+})
+
+// ============================
+// User Management APIs
+// ============================
+
+app.post('/api/users/sync', async (req, res) => {
+  try {
+    const { clerkUserId, email } = req.body
+    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const { rows } = await sql`
+      INSERT INTO users (clerk_user_id, email)
+      VALUES (${clerkUserId}, ${email || null})
+      ON CONFLICT (clerk_user_id) DO UPDATE SET email = COALESCE(EXCLUDED.email, users.email)
+      RETURNING id, clerk_user_id, email, subscription_status, generations_used, generations_limit
+    `
+    res.json({ user: rows[0] })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.get('/api/users/profile', async (req, res) => {
+  try {
+    const { clerkUserId } = req.query
+    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const { rows } = await sql`
+      SELECT id, clerk_user_id, email, subscription_status, generations_used, generations_limit
+      FROM users
+      WHERE clerk_user_id = ${clerkUserId}
+      LIMIT 1
+    `
+    res.json({ profile: rows[0] || null })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.put('/api/users/subscription', async (req, res) => {
+  try {
+    const { clerkUserId, status } = req.body
+    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    await sql`UPDATE users SET subscription_status = ${status || 'free'} WHERE clerk_user_id = ${clerkUserId}`
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Migration API
+app.post('/api/users/migrate', async (req, res) => {
+  try {
+    const { clerkUserId, email, localStorageData } = req.body
+    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+
+    const result = await migrateFromLocalStorage(clerkUserId, localStorageData, email)
+    res.json(result)
+  } catch (error) {
+    console.error('Migration error:', error)
+    res.status(500).json({ error: error.message, success: false })
+  }
+})
+
+// ============================
+// Logo Management APIs
+// ============================
+
+app.get('/api/logos/saved', async (req, res) => {
+  try {
+    const { clerkUserId } = req.query
+    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const { rows } = await sql`
+      SELECT id, logo_url as url, logo_prompt as prompt, created_at, is_premium, file_format
+      FROM saved_logos
+      WHERE clerk_user_id = ${clerkUserId}
+      ORDER BY created_at DESC
+    `
+    res.json({ logos: rows })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.post('/api/logos/save', async (req, res) => {
+  try {
+    const { clerkUserId, logo } = req.body
+    if (!clerkUserId || !logo?.url) return res.status(400).json({ error: 'clerkUserId and logo.url required' })
+    const { rows } = await sql`SELECT id FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1`
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' })
+    await sql`
+      INSERT INTO saved_logos (user_id, clerk_user_id, logo_url, logo_prompt, is_premium, file_format)
+      VALUES (${rows[0].id}, ${clerkUserId}, ${logo.url}, ${logo.prompt || null}, ${!!logo.is_premium}, ${logo.file_format || 'png'})
+    `
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.delete('/api/logos/:id', async (req, res) => {
+  try {
+    const { clerkUserId } = req.query
+    const { id } = req.params
+    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    await sql`DELETE FROM saved_logos WHERE id = ${id} AND clerk_user_id = ${clerkUserId}`
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.delete('/api/logos/clear', async (req, res) => {
+  try {
+    const { clerkUserId } = req.query
+    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    await sql`DELETE FROM saved_logos WHERE clerk_user_id = ${clerkUserId}`
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================
+// Generation Tracking APIs
+// ============================
+
+app.post('/api/generations/track', async (req, res) => {
+  try {
+    const { clerkUserId, prompt } = req.body
+    if (!clerkUserId || !prompt) return res.status(400).json({ error: 'clerkUserId and prompt required' })
+    await sql`INSERT INTO generation_history (clerk_user_id, prompt) VALUES (${clerkUserId}, ${prompt})`
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.get('/api/generations/usage', async (req, res) => {
+  try {
+    const { clerkUserId } = req.query
+    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const { rows } = await sql`SELECT generations_used, generations_limit, subscription_status FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1`
+    res.json(rows[0] || { generations_used: 0 })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.post('/api/generations/increment', async (req, res) => {
+  try {
+    const { clerkUserId, by = 1 } = req.body
+    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    await sql`UPDATE users SET generations_used = generations_used + ${by} WHERE clerk_user_id = ${clerkUserId}`
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================
+// Analytics APIs
+// ============================
+
+app.post('/api/analytics/track', async (req, res) => {
+  try {
+    const { event, clerkUserId, meta } = req.body
+    if (!event) return res.status(400).json({ error: 'event is required' })
+    await sql`INSERT INTO usage_analytics (action, clerk_user_id, metadata) VALUES (${event}, ${clerkUserId || null}, ${meta ? JSON.stringify(meta) : null})`
+    res.json({ success: true })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+app.get('/api/analytics/dashboard', async (req, res) => {
+  try {
+    const { rows } = await sql`SELECT action, COUNT(*) as count FROM usage_analytics GROUP BY action ORDER BY count DESC`
+    res.json({ events: rows })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
 })
