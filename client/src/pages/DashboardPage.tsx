@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
+import { useModal } from '../contexts/ModalContext'
 
 type SavedLogo = { id: string; url: string }
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate()
   const { isSignedIn, isLoaded, user } = useUser()
+  const { showConfirmation } = useModal()
   const [savedLogos, setSavedLogos] = useState<SavedLogo[]>([])
 
   useEffect(() => {
@@ -24,9 +26,15 @@ const DashboardPage: React.FC = () => {
   }
 
   const removeSavedLogo = (id: string) => {
-    const next = savedLogos.filter(l => l.id !== id)
-    setSavedLogos(next)
-    localStorage.setItem('savedLogos', JSON.stringify(next))
+    showConfirmation(
+      'Remove Logo',
+      'Are you sure you want to remove this logo from your collection? This action cannot be undone.',
+      () => {
+        const next = savedLogos.filter(l => l.id !== id)
+        setSavedLogos(next)
+        localStorage.setItem('savedLogos', JSON.stringify(next))
+      }
+    )
   }
 
   return (
