@@ -145,9 +145,7 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
           console.log(`💾 Logo saved as ${filename}`)
 
           // Return the URL to access the image
-          const baseUrl = process.env.RAILWAY_PUBLIC_DOMAIN
-            ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-            : `http://localhost:${port}`
+          const baseUrl = `http://localhost:${port}`
           return `${baseUrl}/images/${filename}`
         } catch (saveError) {
           console.warn('⚠️ Could not save image file, using data URL')

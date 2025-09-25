@@ -11,19 +11,6 @@ git branch -M main
 git push -u origin main
 ```
 
-## For Railway Deployment:
-
-1. **Go to [railway.app](https://railway.app)**
-2. **Connect your GitHub repository**
-3. **Set environment variables:**
-   - `GEMINI_API_KEY` = your Google Gemini API key
-   - `RAILWAY_PUBLIC_DOMAIN` = auto-set by Railway
-
-4. **Deploy settings:**
-   - Root Directory: `/` (root of the repository)
-   - Build Command: `npm run build`
-   - Start Command: `npm start`
-
 ## For Vercel Deployment:
 
 1. **Go to [vercel.com](https://vercel.com)**

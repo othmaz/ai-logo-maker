@@ -22,8 +22,6 @@ const CRITICAL_FILES = [
 // Additional important files to backup
 const IMPORTANT_FILES = [
   '.env.example',
-  'railway.toml',
-  'build.sh',
   'vercel-build.sh',
   'tsconfig.json'
 ];
