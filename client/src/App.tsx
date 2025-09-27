@@ -9,14 +9,13 @@ import {
   SignedOut,
   SignInButton,
   SignUpButton,
-  SignIn,
-  SignUp,
   UserButton,
   useUser
 } from '@clerk/clerk-react'
 import './animations.css'
 import CheckoutForm from './CheckoutForm';
 import { useDbContext } from './contexts/DatabaseContext';
+// import type { DatabaseContextType } from './contexts/DatabaseContext.d';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
@@ -230,7 +229,7 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
 function App() {
   const navigate = useNavigate()
   const { isSignedIn, user, isLoaded } = useUser()
-  const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB } = useDbContext()
+  const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadingLogos, userProfile, updateUserSubscription, refreshUserProfile } = useDbContext()
 
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
@@ -266,11 +265,14 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [showChatButton, setShowChatButton] = useState(false)
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showDashboard, setShowDashboard] = useState(false);
 
-  // Check if user has paid (based on Clerk user metadata or subscription)
-  const isPaid = isSignedIn && user?.publicMetadata?.isPaid === true
+  // Check if user has paid (based on database subscription status)
+  const isPaid = isSignedIn && userProfile?.subscription_status === 'premium'
 
   // Scroll to top function for title bar home button
   const scrollToHome = () => {
@@ -292,6 +294,73 @@ function App() {
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
+
+  // Form persistence functions
+  const saveFormDataToLocalStorage = (saveUpgradeIntent = false) => {
+    try {
+      const dataToSave = {
+        formData,
+        logos,
+        currentRound,
+        generationHistory: _generationHistory,
+        selectedLogos,
+        userFeedback,
+        logoCounter,
+        usage,
+        shouldShowUpgradeModal: saveUpgradeIntent,
+        timestamp: Date.now()
+      }
+      localStorage.setItem('logoMakerFormData', JSON.stringify(dataToSave))
+      console.log('🔄 Form data saved to localStorage before auth', saveUpgradeIntent ? 'with upgrade intent' : '')
+    } catch (error) {
+      console.error('Failed to save form data:', error)
+    }
+  }
+
+  const restoreFormDataFromLocalStorage = () => {
+    try {
+      const saved = localStorage.getItem('logoMakerFormData')
+      if (saved) {
+        const data = JSON.parse(saved)
+        // Only restore if data is less than 1 hour old
+        if (Date.now() - data.timestamp < 3600000) {
+          setFormData(data.formData || formData)
+          setLogos(data.logos || [])
+          setCurrentRound(data.currentRound || 0)
+          setGenerationHistory(data.generationHistory || [])
+          setSelectedLogos(data.selectedLogos || [])
+          setUserFeedback(data.userFeedback || '')
+          setLogoCounter(data.logoCounter || 1)
+          setUsage(data.usage || { remaining: 3, total: 3, used: 0 })
+
+          // Show upgrade modal if user was trying to upgrade before auth
+          if (data.shouldShowUpgradeModal) {
+            setTimeout(() => {
+              setActiveModal('upgrade')
+              console.log('✅ Upgrade modal reopened after auth')
+            }, 1000) // Small delay to let everything load
+          }
+
+          console.log('✅ Form data restored from localStorage after auth')
+
+          // Clear the saved data after successful restore
+          localStorage.removeItem('logoMakerFormData')
+        } else {
+          // Clear expired data
+          localStorage.removeItem('logoMakerFormData')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore form data:', error)
+    }
+  }
+
+  // Restore form data after authentication
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      restoreFormDataFromLocalStorage()
+    }
+  }, [isLoaded, isSignedIn])
 
   // Upscale logo using Replicate (for post-payment use)
   const upscaleLogo = async (logoUrl: string, scale: number = 4): Promise<string> => {
@@ -337,15 +406,35 @@ function App() {
   // Handle payment upgrade process
   const handlePaymentUpgrade = async () => {
     try {
+      if (!isSignedIn || !user) {
+        showToast('Please sign in to upgrade to premium', 'error')
+        return
+      }
+
       showToast('Redirecting to payment...', 'info')
 
-      // Create PaymentIntent as soon as the page loads
-      const response = await fetch('/api/create-payment-intent', {
+      // Create PaymentIntent with user metadata for webhook processing
+      const response = await fetch('/api/create-payment-intent-with-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          userEmail: user.primaryEmailAddress?.emailAddress || user.emailAddresses[0]?.emailAddress
+        }),
       });
-      const { clientSecret } = await response.json();
+
+      if (!response.ok) {
+        throw new Error('Failed to create payment intent')
+      }
+
+      const { clientSecret, paymentIntentId } = await response.json();
+
+      // Store payment intent ID for verification later
+      setPaymentIntentId(paymentIntentId);
       setClientSecret(clientSecret);
+
+      console.log('💳 Payment intent created with user metadata:', paymentIntentId);
+
     } catch (error) {
       console.error('Payment error:', error)
       showToast('Payment failed. Please try again.', 'error')
@@ -393,7 +482,7 @@ function App() {
   useEffect(() => {
     checkUsageLimit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSignedIn, user, isPaid])
+  }, [isSignedIn, user, isPaid, userProfile])
 
   // Handle payment success
   useEffect(() => {
@@ -404,42 +493,104 @@ function App() {
 
       if (paymentIntent && paymentIntentClientSecret && isSignedIn && user) {
         try {
-          console.log('🎉 Payment success detected, updating user metadata...')
+          console.log('🎉 Payment success detected, verifying payment...')
 
-          // Update user metadata to mark as paid
-          // WORKAROUND: Clerk's User.update expects unsafeMetadata for updates if publicMetadata isn't directly typed as writable.
-          // We're nesting publicMetadata inside unsafeMetadata for the update call.
-          await user.update({
-            unsafeMetadata: {
-              publicMetadata: {
-                ...(user.publicMetadata as any), // Cast to any to allow spread of potentially untyped publicMetadata
-                isPaid: true,
-                paymentDate: new Date().toISOString(),
-                paymentIntent: paymentIntent
-              }
-            }
-          })
+          // First, verify payment status with Stripe (server-side verification)
+          const verificationResponse = await fetch(`/api/verify-payment/${paymentIntent}`)
+          if (!verificationResponse.ok) {
+            throw new Error('Failed to verify payment')
+          }
 
-          console.log('✅ User marked as paid successfully')
+          const paymentData = await verificationResponse.json()
+          console.log('💳 Payment verification:', paymentData)
 
-          // Navigate to payment success page
-          navigate('/payment/success')
+          if (paymentData.status !== 'succeeded') {
+            console.error('❌ Payment not confirmed by Stripe:', paymentData.status)
+            showToast('Payment verification failed. Please contact support if you were charged.', 'error')
+            return
+          }
+
+          console.log('✅ Payment verified with Stripe, updating subscription...')
+
+          // Update database subscription status (webhooks should have already done this, but fallback)
+          const dbResult = await updateUserSubscription('premium')
+          if (dbResult.success) {
+            console.log('✅ Database subscription status updated to premium')
+          } else {
+            console.error('❌ Failed to update database subscription:', dbResult.error)
+            showToast('Payment verified but failed to activate premium features. Please contact support.', 'error')
+            return
+          }
+
+          // Show success message and close modal instead of navigating away
+          showToast('🎉 Payment successful! Premium features activated!', 'success')
+          setActiveModal(null) // Close the upgrade modal
 
           // Clear the URL parameters
           window.history.replaceState({}, document.title, window.location.pathname)
 
-          // Refresh usage limits
+          // Refresh usage limits and user profile
           checkUsageLimit()
+          refreshUserProfile()
+
+          showToast('Welcome to Premium! 🎉', 'success')
 
         } catch (error) {
-          console.error('❌ Error updating user metadata:', error)
-          showToast('Payment processed but there was an error updating your account. Please contact support.', 'error')
+          console.error('❌ Error during payment verification:', error)
+          showToast('Payment verification failed. Please contact support if you were charged.', 'error')
         }
       }
     }
 
     handlePaymentSuccess()
   }, [isSignedIn, user])
+
+  // Payment recovery mechanism - check for interrupted flows
+  useEffect(() => {
+    const checkPaymentRecovery = async () => {
+      if (!isSignedIn || !user || isPaid) return
+
+      // Check if there's a stored payment intent ID that might have been interrupted
+      if (paymentIntentId && !clientSecret) {
+        try {
+          console.log('🔄 Checking payment recovery for:', paymentIntentId)
+
+          const verificationResponse = await fetch(`/api/verify-payment/${paymentIntentId}`)
+          if (verificationResponse.ok) {
+            const paymentData = await verificationResponse.json()
+
+            if (paymentData.status === 'succeeded') {
+              console.log('✅ Found successful payment during recovery check')
+              // This payment succeeded but user missed the success flow
+              await updateUserSubscription('premium')
+              showToast('Payment found and premium activated! 🎉', 'success')
+              await refreshUserProfile()
+            } else if (paymentData.status === 'requires_payment_method') {
+              console.log('⚠️ Found incomplete payment, clearing stored ID')
+              setPaymentIntentId(null)
+              showToast('Previous payment was incomplete. Please try again.', 'warning')
+            }
+          }
+        } catch (error) {
+          console.error('❌ Payment recovery check failed:', error)
+          // Don't show error to user - this is background recovery
+        }
+      }
+    }
+
+    // Only run recovery check once user and profile are loaded
+    if (isLoaded && userProfile) {
+      checkPaymentRecovery()
+    }
+  }, [isSignedIn, user, isPaid, paymentIntentId, clientSecret, isLoaded, userProfile])
+
+  // Clear payment state when user signs out
+  useEffect(() => {
+    if (!isSignedIn) {
+      setClientSecret(null)
+      setPaymentIntentId(null)
+    }
+  }, [isSignedIn])
 
   // Setup debug utilities
   useEffect(() => {
@@ -513,12 +664,16 @@ function App() {
     } else {
       // Signed in but not paid users get 3 free generations
       console.log('🔧 DEBUG: debugUsageOverride state value:', debugUsageOverride);
-      console.log('🔧 DEBUG: user?.publicMetadata?.generationsUsed:', user?.publicMetadata?.generationsUsed);
-      const userGenerations = debugUsageOverride !== null ? debugUsageOverride : parseInt(user?.publicMetadata?.generationsUsed as string || '0')
+
+      // Use database generations_used (single source of truth)
+      const dbGenerations = userProfile?.generations_used || 0;
+      const userGenerations = debugUsageOverride !== null ? debugUsageOverride : dbGenerations;
+
       const totalGenerationsForSignedInFree = 5; // 3 initial + 2 bonus
       const remaining = Math.max(0, totalGenerationsForSignedInFree - userGenerations)
       setUsage({ remaining, total: totalGenerationsForSignedInFree, used: userGenerations })
       console.log('👤 Signed-in free user usage: userGenerations =', userGenerations, ', remaining =', remaining, ', total =', totalGenerationsForSignedInFree);
+      console.log('📊 Database generations:', dbGenerations);
       if (debugUsageOverride !== null) {
         console.log('🔧 DEBUG: Using override usage value:', debugUsageOverride);
       }
@@ -549,12 +704,12 @@ function App() {
       prompt: logo.prompt,
       is_premium: false,
       file_format: 'png'
-    }).then(result => {
+    }).then((result: any) => {
       // Only show error if save fails (success already shown)
       if (!result.success) {
         showToast('Save failed: ' + result.error, 'error')
       }
-    }).catch(error => {
+    }).catch((error: any) => {
       console.error('Save logo error:', error)
       showToast('Save failed - please try again', 'error')
     })
@@ -847,37 +1002,8 @@ function App() {
             console.log('⚠️  CRITICAL: This was the last free generation for anonymous user!');
           }
         } else {
-          // Update Clerk user metadata to properly track generations used
-          try {
-            const currentGenerations = parseInt(user?.publicMetadata?.generationsUsed as string || '0');
-            const newGenerations = currentGenerations + 1;
-
-            console.log('🔄 Updating user metadata: currentGenerations =', currentGenerations, '→ newGenerations =', newGenerations);
-
-            // Update Clerk user metadata
-            // WORKAROUND: Clerk's User.update expects unsafeMetadata for updates if publicMetadata isn't directly typed as writable.
-            // We're nesting publicMetadata inside unsafeMetadata for the update call.
-            await user.update({
-              unsafeMetadata: {
-                publicMetadata: {
-                  ...(user.publicMetadata as any), // Cast to any to allow spread of potentially untyped publicMetadata
-                  generationsUsed: newGenerations
-                }
-              }
-            });
-
-            const newRemaining = Math.max(0, 3 - newGenerations);
-            setUsage(prev => ({ ...prev, used: newGenerations, remaining: newRemaining }));
-            console.log('✅ Signed-in user metadata updated: userGenerations =', newGenerations, ', remaining =', newRemaining);
-
-            // Check if this puts us over the limit for next time
-            if (newRemaining <= 0) {
-              console.log('⚠️  CRITICAL: This was the last free generation for signed-in user!');
-            }
-          } catch (error) {
-            console.error('❌ Failed to update user metadata:', error);
-            showToast('Error tracking usage. Please refresh and try again.', 'error');
-          }
+          // Database now handles all usage tracking via trackLogoGeneration
+          console.log('🔄 Database tracking generations automatically via trackLogoGeneration');
         }
       }
       } else {
@@ -965,6 +1091,7 @@ function App() {
     }))
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const downloadLogo = async (logo: Logo) => {
     const link = document.createElement('a')
     link.download = `${formData.businessName}-logo-premium.png`
@@ -1532,10 +1659,7 @@ function App() {
                 </div>
                 <p className="text-gray-300 font-mono">Unlimited logo generation</p>
                 <p className="text-gray-400 font-mono text-sm mt-2">
-                  Purchased: {user?.publicMetadata?.paymentDate ?
-                    new Date(user.publicMetadata.paymentDate as string).toLocaleDateString() :
-                    'Recently'
-                  }
+                  Premium subscription active
                 </p>
               </div>
 
@@ -1550,9 +1674,9 @@ function App() {
                   <h3 className="text-xl font-bold text-cyan-400 font-mono">LOGOS CREATED</h3>
                 </div>
                 <p className="text-3xl font-bold text-white font-mono">
-                  {(user?.publicMetadata?.generationsUsed as number) || 0}
+                  {userProfile?.generations_used || 0}
                 </p>
-                <p className="text-gray-400 font-mono text-sm">Since upgrade</p>
+                <p className="text-gray-400 font-mono text-sm">Total generated</p>
               </div>
 
               {/* Saved Logos */}
@@ -1651,6 +1775,7 @@ function App() {
                           src={logo.url}
                           alt={`Saved Logo ${logo.id}`}
                           className="w-full h-32 object-cover rounded-lg"
+                          loading="lazy"
                         />
                       </div>
 
@@ -1723,6 +1848,7 @@ function App() {
     )
   }
 
+  // Default return - main app interface
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
 
@@ -2267,7 +2393,7 @@ function App() {
                     value={userFeedback}
                     onChange={(e) => setUserFeedback(e.target.value)}
                     placeholder="Example: I like the modern look but the text is too thin. The colors are great but maybe try a different font style..."
-                    className="w-full h-24 p-4 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full h-24 p-4 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   />
                   {userFeedback.trim() && selectedLogos.length <= 2 && (
                     <p className="text-sm text-green-600 mt-2 flex items-center">
@@ -2367,10 +2493,11 @@ function App() {
                     className="relative cursor-pointer transition-all duration-300 transform hover:scale-105 group"
                   >
                     <div className="bg-gradient-to-br from-gray-50 to-white rounded-2xl border-2 border-dashed border-gray-200 hover:border-purple-300 transition-colors duration-200 overflow-hidden">
-                      <img 
-                        src={logo.url} 
-                        alt={`Saved Logo ${logo.id}`} 
-                        className="w-full h-40 object-cover rounded-lg" 
+                      <img
+                        src={logo.url}
+                        alt={`Saved Logo ${logo.id}`}
+                        className="w-full h-40 object-cover rounded-lg"
+                        loading="lazy"
                       />
                     </div>
                     
@@ -2743,45 +2870,45 @@ function App() {
                       <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-6 mb-8 max-w-4xl mx-auto">
                         <div className="grid md:grid-cols-2 gap-6 text-left">
                           <div className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/50">
-                            <h4 className="retro-mono text-xl font-bold text-gray-400 mb-4 text-center">FREE TIER</h4>
+                            <h4 className="text-xl font-bold text-gray-400 mb-4 text-center">FREE TIER</h4>
                             <div className="space-y-3">
                               <div className="flex items-center space-x-3">
-                                <span className="text-red-400 retro-mono text-lg">✗</span>
-                                <span className="text-gray-400 retro-mono text-base">3 GENERATIONS ONLY</span>
+                                <span className="text-red-400 text-lg">✗</span>
+                                <span className="text-gray-400 text-base">3 GENERATIONS ONLY</span>
                               </div>
                               <div className="flex items-center space-x-3">
-                                <span className="text-red-400 retro-mono text-lg">✗</span>
-                                <span className="text-gray-400 retro-mono text-base">1K RESOLUTION</span>
+                                <span className="text-red-400 text-lg">✗</span>
+                                <span className="text-gray-400 text-base">1K RESOLUTION</span>
                               </div>
                               <div className="flex items-center space-x-3">
-                                <span className="text-red-400 retro-mono text-lg">✗</span>
-                                <span className="text-gray-400 retro-mono text-base">BASIC SUPPORT</span>
+                                <span className="text-red-400 text-lg">✗</span>
+                                <span className="text-gray-400 text-base">BASIC SUPPORT</span>
                               </div>
                               <div className="flex items-center space-x-3">
-                                <span className="text-red-400 retro-mono text-lg">✗</span>
-                                <span className="text-gray-400 retro-mono text-base">NO COMMERCIAL USE</span>
+                                <span className="text-red-400 text-lg">✗</span>
+                                <span className="text-gray-400 text-base">NO COMMERCIAL USE</span>
                               </div>
                             </div>
                           </div>
 
                           <div className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-xl p-4 border-2 border-cyan-400/50">
-                            <h4 className="retro-mono text-xl font-bold text-cyan-400 mb-4 text-center">PREMIUM - €9.99</h4>
+                            <h4 className="text-xl font-bold text-cyan-400 mb-4 text-center">PREMIUM - €9.99</h4>
                             <div className="space-y-3">
                               <div className="flex items-center space-x-3">
-                                <span className="text-cyan-400 retro-mono text-lg">🚀</span>
-                                <span className="text-cyan-400 retro-mono text-base">UNLIMITED GENERATION</span>
+                                <span className="text-cyan-400 text-lg">🚀</span>
+                                <span className="text-cyan-400 text-base">UNLIMITED GENERATION</span>
                               </div>
                               <div className="flex items-center space-x-3">
-                                <span className="text-cyan-400 retro-mono text-lg">✨</span>
-                                <span className="text-cyan-400 retro-mono text-base">8K PNG + SVG FILE</span>
+                                <span className="text-cyan-400 text-lg">✨</span>
+                                <span className="text-cyan-400 text-base">8K PNG + SVG FILE</span>
                               </div>
                               <div className="flex items-center space-x-3">
-                                <span className="text-cyan-400 retro-mono text-lg">⚡️</span>
-                                <span className="text-cyan-400 retro-mono text-base">PRIORITY SUPPORT</span>
+                                <span className="text-cyan-400 text-lg">⚡️</span>
+                                <span className="text-cyan-400 text-base">PRIORITY SUPPORT</span>
                               </div>
                               <div className="flex items-center space-x-3">
-                                <span className="text-cyan-400 retro-mono text-lg">💼</span>
-                                <span className="text-cyan-400 retro-mono text-base">COMMERCIAL RIGHTS</span>
+                                <span className="text-cyan-400 text-lg">💼</span>
+                                <span className="text-cyan-400 text-base">COMMERCIAL RIGHTS</span>
                               </div>
                             </div>
                           </div>
@@ -2792,15 +2919,21 @@ function App() {
                       <div className="space-y-4">
                         {!isSignedIn ? (
                           <div className="space-y-4">
-                            <SignUpButton mode="redirect">
-                              <button className="w-full px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50">
+                            <SignUpButton mode="modal">
+                              <button
+                                onClick={() => saveFormDataToLocalStorage(true)}
+                                className="w-full px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50"
+                              >
                                 SIGN UP & GET PREMIUM
                               </button>
                             </SignUpButton>
                             <p className="retro-body text-cyan-400 text-sm">
                               &gt; ALREADY HAVE ACCOUNT?
-                              <SignInButton mode="redirect">
-                                <button className="text-cyan-400 hover:text-white ml-2 underline retro-mono text-sm">
+                              <SignInButton mode="modal">
+                                <button
+                                  onClick={() => saveFormDataToLocalStorage(true)}
+                                  className="text-cyan-400 hover:text-white ml-2 underline retro-mono text-sm"
+                                >
                                   SIGN IN
                                 </button>
                               </SignInButton>
@@ -2808,7 +2941,10 @@ function App() {
                           </div>
                         ) : (
                           <button
-                            onClick={handlePaymentUpgrade}
+                            onClick={() => {
+                              saveFormDataToLocalStorage()
+                              handlePaymentUpgrade()
+                            }}
                             className="w-full px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50"
                           >
                             INITIATE UPGRADE - €10

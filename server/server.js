@@ -423,6 +423,200 @@ app.post('/api/create-payment-intent', async (req, res) => {
   }
 });
 
+// Stripe webhook endpoint for secure payment verification
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripe) {
+    console.error('❌ Stripe not configured for webhook processing');
+    return res.status(503).send('Stripe not configured');
+  }
+
+  if (!endpointSecret) {
+    console.error('❌ STRIPE_WEBHOOK_SECRET not configured');
+    return res.status(500).send('Webhook secret not configured');
+  }
+
+  let event;
+
+  try {
+    // Verify webhook signature
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    console.log('✅ Webhook signature verified:', event.type);
+  } catch (err) {
+    console.error('❌ Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the event
+  try {
+    switch (event.type) {
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        console.log('💳 Payment succeeded:', paymentIntent.id);
+
+        // Extract user information from metadata (if available)
+        const userId = paymentIntent.metadata?.userId;
+        const userEmail = paymentIntent.metadata?.userEmail;
+
+        if (userId) {
+          console.log('👤 Processing payment for user:', userId);
+
+          // Update user subscription in database
+          try {
+            await connectToDatabase();
+            await sql`
+              UPDATE users
+              SET subscription_status = 'premium',
+                  payment_date = NOW(),
+                  stripe_payment_id = ${paymentIntent.id}
+              WHERE clerk_user_id = ${userId}
+            `;
+
+            console.log('✅ User subscription updated successfully');
+
+            // Track payment analytics
+            await sql`
+              INSERT INTO usage_analytics (user_id, event_type, event_data)
+              VALUES (
+                ${userId},
+                'payment_success',
+                ${JSON.stringify({
+                  payment_id: paymentIntent.id,
+                  amount: paymentIntent.amount,
+                  currency: paymentIntent.currency
+                })}
+              )
+            `;
+
+            console.log('📊 Payment analytics tracked');
+
+          } catch (dbError) {
+            console.error('❌ Database error during payment processing:', dbError);
+            // Don't fail the webhook - Stripe considers this payment successful
+          }
+        } else {
+          console.warn('⚠️ Payment succeeded but no userId in metadata:', paymentIntent.id);
+        }
+        break;
+
+      case 'payment_intent.payment_failed':
+        const failedPayment = event.data.object;
+        console.log('❌ Payment failed:', failedPayment.id);
+
+        // Track failed payment analytics
+        const failedUserId = failedPayment.metadata?.userId;
+        if (failedUserId) {
+          try {
+            await connectToDatabase();
+            await sql`
+              INSERT INTO usage_analytics (user_id, event_type, event_data)
+              VALUES (
+                ${failedUserId},
+                'payment_failed',
+                ${JSON.stringify({
+                  payment_id: failedPayment.id,
+                  error: failedPayment.last_payment_error?.message
+                })}
+              )
+            `;
+          } catch (dbError) {
+            console.error('❌ Failed to track payment failure:', dbError);
+          }
+        }
+        break;
+
+      default:
+        console.log('ℹ️ Unhandled webhook event type:', event.type);
+    }
+
+    // Return a 200 response to acknowledge receipt of the event
+    res.json({ received: true });
+
+  } catch (error) {
+    console.error('❌ Error processing webhook:', error);
+    res.status(500).send('Webhook processing failed');
+  }
+});
+
+// Enhanced payment intent creation with user metadata
+app.post('/api/create-payment-intent-with-user', async (req, res) => {
+  console.log('🔍 create-payment-intent-with-user endpoint called');
+
+  if (!stripe) {
+    return res.status(503).json({ error: 'Payment service unavailable - Stripe not configured' });
+  }
+
+  try {
+    const { userId, userEmail } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    console.log('💳 Creating payment intent for user:', userId);
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: 999, // €9.99 in cents
+      currency: 'eur',
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      metadata: {
+        userId: userId,
+        userEmail: userEmail || 'unknown'
+      }
+    });
+
+    console.log('✅ Payment intent created with user metadata');
+
+    res.send({
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id
+    });
+
+  } catch (error) {
+    console.error('❌ Enhanced payment intent error:', error);
+    res.status(400).send({
+      error: {
+        message: error.message,
+        type: error.type,
+        code: error.code
+      },
+    });
+  }
+});
+
+// Payment verification endpoint (fallback for client-side verification)
+app.get('/api/verify-payment/:paymentIntentId', async (req, res) => {
+  console.log('🔍 verify-payment endpoint called');
+
+  if (!stripe) {
+    return res.status(503).json({ error: 'Payment service unavailable' });
+  }
+
+  try {
+    const { paymentIntentId } = req.params;
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    console.log('💳 Payment intent status:', paymentIntent.status);
+
+    res.json({
+      status: paymentIntent.status,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      metadata: paymentIntent.metadata
+    });
+
+  } catch (error) {
+    console.error('❌ Payment verification error:', error);
+    res.status(400).json({
+      error: error.message
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)
 })
