@@ -333,11 +333,11 @@ function App() {
           setLogoCounter(data.logoCounter || 1)
           setUsage(data.usage || { remaining: 3, total: 3, used: 0 })
 
-          // Show upgrade modal if user was trying to upgrade before auth
+          // Skip upgrade modal and go directly to payment if user was trying to upgrade before auth
           if (data.shouldShowUpgradeModal) {
             setTimeout(() => {
-              setActiveModal('upgrade')
-              console.log('✅ Upgrade modal reopened after auth')
+              console.log('✅ Skipping upgrade modal, going directly to payment after auth')
+              handlePaymentUpgrade()
             }, 1000) // Small delay to let everything load
           }
 
@@ -427,13 +427,14 @@ function App() {
         throw new Error('Failed to create payment intent')
       }
 
-      const { clientSecret, paymentIntentId } = await response.json();
+      const { clientSecret, paymentIntentId, formattedAmount } = await response.json();
 
       // Store payment intent ID for verification later
       setPaymentIntentId(paymentIntentId);
       setClientSecret(clientSecret);
 
       console.log('💳 Payment intent created with user metadata:', paymentIntentId);
+      console.log('💰 Payment amount:', formattedAmount);
 
     } catch (error) {
       console.error('Payment error:', error)
@@ -513,12 +514,20 @@ function App() {
           console.log('✅ Payment verified with Stripe, updating subscription...')
 
           // Update database subscription status (webhooks should have already done this, but fallback)
-          const dbResult = await updateUserSubscription('premium')
-          if (dbResult.success) {
-            console.log('✅ Database subscription status updated to premium')
-          } else {
-            console.error('❌ Failed to update database subscription:', dbResult.error)
-            showToast('Payment verified but failed to activate premium features. Please contact support.', 'error')
+          try {
+            console.log('🔄 Calling updateUserSubscription function...')
+            const dbResult = await updateUserSubscription('premium')
+            console.log('📊 Database update result:', dbResult)
+            if (dbResult && dbResult.success) {
+              console.log('✅ Database subscription status updated to premium')
+            } else {
+              console.error('❌ Failed to update database subscription:', dbResult ? dbResult.error : 'No result returned')
+              showToast('Payment verified but failed to activate premium features. Please contact support.', 'error')
+              return
+            }
+          } catch (error) {
+            console.error('❌ Error during payment verification:', error)
+            showToast('Payment confirmed but failed to activate premium. Please contact support.', 'error')
             return
           }
 
@@ -2652,14 +2661,14 @@ function App() {
                 <div className="space-y-6 text-gray-700">
                   <div>
                     <h3 className="text-xl font-semibold mb-3">1. Service Description</h3>
-                    <p>AI Logo Maker provides artificial intelligence-powered logo generation services. Users can create up to 3 logos for free, after which a €10 payment is required for unlimited access.</p>
+                    <p>AI Logo Maker provides artificial intelligence-powered logo generation services. Users can create up to 3 logos for free, after which a €9.99 payment is required for unlimited access.</p>
                   </div>
 
                   <div>
                     <h3 className="text-xl font-semibold mb-3">2. Payment Terms</h3>
                     <ul className="list-disc pl-6 space-y-2">
                       <li>First 3 logo generations are completely free</li>
-                      <li>Additional access requires a one-time payment of €10</li>
+                      <li>Additional access requires a one-time payment of €9.99</li>
                       <li>Payment provides unlimited logo generation for your account</li>
                       <li>All payments are processed securely through Stripe</li>
                     </ul>
@@ -2687,7 +2696,7 @@ function App() {
 
                   <div>
                     <h3 className="text-xl font-semibold mb-3">7. Limitation of Liability</h3>
-                    <p>Our liability is limited to the amount paid for the service (€10 maximum). We are not responsible for business losses, trademark disputes, or other consequential damages arising from logo usage.</p>
+                    <p>Our liability is limited to the amount paid for the service (€9.99 maximum). We are not responsible for business losses, trademark disputes, or other consequential damages arising from logo usage.</p>
                   </div>
 
                   <div>
@@ -2947,7 +2956,7 @@ function App() {
                             }}
                             className="w-full px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50"
                           >
-                            INITIATE UPGRADE - €10
+                            UPGRADE NOW - €9.99
                           </button>
                         )}
                       </div>

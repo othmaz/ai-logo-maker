@@ -70,13 +70,13 @@ const Modals: React.FC = () => {
                     <p>AI Logo Maker provides AI-powered logo generation services with both free and premium tiers:</p>
                     <ul className="list-disc ml-6 mt-2">
                       <li><strong>Free Service:</strong> Up to 3 logo generations at standard resolution</li>
-                      <li><strong>Premium Service:</strong> Unlimited logo generations with 8K high-resolution downloads for a one-time fee of €10</li>
+                      <li><strong>Premium Service:</strong> Unlimited logo generations with 8K high-resolution downloads for a one-time fee of €9.99</li>
                     </ul>
                   </div>
 
                   <div>
                     <h3 className="text-xl font-semibold mb-3">3. Payment Terms</h3>
-                    <p>Premium upgrade requires a one-time payment of €10. Payment processing is handled securely through Stripe. Upon successful payment, you gain immediate access to unlimited generations and high-resolution downloads.</p>
+                    <p>Premium upgrade requires a one-time payment of €9.99. Payment processing is handled securely through Stripe. Upon successful payment, you gain immediate access to unlimited generations and high-resolution downloads.</p>
                   </div>
 
                   <div>
@@ -280,7 +280,7 @@ const Modals: React.FC = () => {
                           </div>
 
                           <div className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-xl p-4 border-2 border-cyan-400/50">
-                            <h4 className="retro-mono text-lg font-bold text-cyan-400 mb-4 text-center">PREMIUM - €10</h4>
+                            <h4 className="retro-mono text-lg font-bold text-cyan-400 mb-4 text-center">PREMIUM - €9.99</h4>
                             <div className="space-y-2">
                               <div className="flex items-center space-x-3">
                                 <span className="text-cyan-400 retro-mono">🚀</span>
@@ -308,7 +308,7 @@ const Modals: React.FC = () => {
                         onClick={() => {/* Payment logic would go here */}}
                         className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50 mb-4"
                       >
-                        INITIATE UPGRADE - €10
+                        UPGRADE NOW - €9.99
                       </button>
 
                       {/* Terminal Footer */}

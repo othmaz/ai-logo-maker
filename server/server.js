@@ -573,7 +573,10 @@ app.post('/api/create-payment-intent-with-user', async (req, res) => {
 
     res.send({
       clientSecret: paymentIntent.client_secret,
-      paymentIntentId: paymentIntent.id
+      paymentIntentId: paymentIntent.id,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      formattedAmount: '€9.99'
     });
 
   } catch (error) {
