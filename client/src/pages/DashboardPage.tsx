@@ -18,7 +18,8 @@ const DashboardPage: React.FC = () => {
     isInitialized,
     removeLogoFromDB,
     clearAllLogosFromDB,
-    isLoading
+    isLoading,
+    isLoadingLogos
   } = useDbContext()
 
   const clearAll = () => {
@@ -164,27 +165,50 @@ const DashboardPage: React.FC = () => {
             )}
 
             {/* Saved Logos Section */}
-            {isSignedIn && isInitialized && savedLogos.length > 0 && (
+            {isSignedIn && isInitialized && (
               <div id="dashboard-saved-logos" className="mt-12 bg-gray-800/30 rounded-2xl border border-gray-600/30 p-8">
                 <div className="text-center mb-8">
                   <h3 className="text-2xl font-bold text-white font-mono mb-4">YOUR SAVED COLLECTION</h3>
-                  <p className="text-gray-300 font-mono">{savedLogos.length} logo{savedLogos.length > 1 ? 's' : ''} saved to your collection</p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-                  {savedLogos.map(logo => (
-                    <div key={logo.id} className="relative cursor-pointer transition-all duration-300 transform hover:scale-105 group">
-                      <div className="bg-gray-700/50 rounded-xl border border-gray-600/50 hover:border-cyan-400/50 transition-colors duration-200 overflow-hidden">
-                        <img src={logo.logo_url || logo.url} alt={`Saved Logo ${logo.id}`} className="w-full h-32 object-cover rounded-lg" />
-                      </div>
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                        <button onClick={(e) => { e.stopPropagation(); removeSavedLogo(logo.id) }} className="bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg text-xs" title="Remove from collection">×</button>
-                      </div>
+                  {isLoadingLogos ? (
+                    <div className="inline-flex items-center space-x-2 text-cyan-400">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-cyan-400"></div>
+                      <span className="font-mono">Loading your logos...</span>
                     </div>
-                  ))}
+                  ) : (
+                    <p className="text-gray-300 font-mono">{savedLogos.length} logo{savedLogos.length > 1 ? 's' : ''} saved to your collection</p>
+                  )}
                 </div>
-                <div className="text-center">
-                  <button onClick={clearAll} className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors font-mono">CLEAR ALL</button>
-                </div>
+
+                {isLoadingLogos ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="bg-gray-700/30 rounded-xl h-32 animate-pulse"></div>
+                    ))}
+                  </div>
+                ) : savedLogos.length > 0 ? (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+                      {savedLogos.map(logo => (
+                        <div key={logo.id} className="relative cursor-pointer transition-all duration-300 transform hover:scale-105 group">
+                          <div className="bg-gray-700/50 rounded-xl border border-gray-600/50 hover:border-cyan-400/50 transition-colors duration-200 overflow-hidden">
+                            <img src={logo.logo_url || logo.url} alt={`Saved Logo ${logo.id}`} className="w-full h-32 object-cover rounded-lg" loading="lazy" />
+                          </div>
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                            <button onClick={(e) => { e.stopPropagation(); removeSavedLogo(logo.id) }} className="bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg text-xs" title="Remove from collection">×</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-center">
+                      <button onClick={clearAll} className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors font-mono">CLEAR ALL</button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400 font-mono mb-4">No saved logos yet</p>
+                    <button onClick={() => navigate('/')} className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-bold rounded-lg transition-colors font-mono">CREATE YOUR FIRST LOGO</button>
+                  </div>
+                )}
               </div>
             )}
           </>

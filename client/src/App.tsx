@@ -312,6 +312,7 @@ function App() {
       }
       localStorage.setItem('logoMakerFormData', JSON.stringify(dataToSave))
       console.log('🔄 Form data saved to localStorage before auth', saveUpgradeIntent ? 'with upgrade intent' : '')
+      console.log('💾 Saved data preview:', { shouldShowUpgradeModal: dataToSave.shouldShowUpgradeModal, timestamp: dataToSave.timestamp })
     } catch (error) {
       console.error('Failed to save form data:', error)
     }
@@ -320,8 +321,10 @@ function App() {
   const restoreFormDataFromLocalStorage = () => {
     try {
       const saved = localStorage.getItem('logoMakerFormData')
+      console.log('🔍 Checking localStorage for saved data:', saved ? 'Found' : 'Not found')
       if (saved) {
         const data = JSON.parse(saved)
+        console.log('📊 Parsed localStorage data:', data)
         // Only restore if data is less than 1 hour old
         if (Date.now() - data.timestamp < 3600000) {
           setFormData(data.formData || formData)
@@ -335,10 +338,18 @@ function App() {
 
           // Skip upgrade modal and go directly to payment if user was trying to upgrade before auth
           if (data.shouldShowUpgradeModal) {
+            console.log('🎯 shouldShowUpgradeModal detected, preparing to call handlePaymentUpgrade')
             setTimeout(() => {
               console.log('✅ Skipping upgrade modal, going directly to payment after auth')
-              handlePaymentUpgrade()
+              console.log('🔄 Calling handlePaymentUpgrade...')
+              if (typeof handlePaymentUpgrade === 'function') {
+                handlePaymentUpgrade()
+              } else {
+                console.error('❌ handlePaymentUpgrade function not available')
+              }
             }, 1000) // Small delay to let everything load
+          } else {
+            console.log('❌ No shouldShowUpgradeModal found in localStorage data')
           }
 
           console.log('✅ Form data restored from localStorage after auth')
@@ -358,6 +369,7 @@ function App() {
   // Restore form data after authentication
   useEffect(() => {
     if (isLoaded && isSignedIn) {
+      console.log('🔧 Authentication complete, triggering data restoration')
       restoreFormDataFromLocalStorage()
     }
   }, [isLoaded, isSignedIn])
@@ -432,6 +444,9 @@ function App() {
       // Store payment intent ID for verification later
       setPaymentIntentId(paymentIntentId);
       setClientSecret(clientSecret);
+
+      // Show the upgrade modal with Stripe payment form
+      setActiveModal('upgrade');
 
       console.log('💳 Payment intent created with user metadata:', paymentIntentId);
       console.log('💰 Payment amount:', formattedAmount);

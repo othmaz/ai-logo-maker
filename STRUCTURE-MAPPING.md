@@ -2,7 +2,7 @@
 
 **Purpose**: Quick reference guide for efficient code navigation and modification.
 **Last Updated**: 2025-09-26
-**Architecture**: Route-based multi-page application with React Router DOM + Vercel Postgres Database
+**Architecture**: Route-based multi-page application with React Router DOM + Vercel Postgres Database + Unified Payment System
 
 ---
 
@@ -13,8 +13,8 @@
 Main Entry: client/src/main.tsx
 ├── Router: AppRouter.tsx (49 lines) - Main routing component
 ├── Context: ModalContext.tsx (49 lines) - Shared modal state
-├── Database: DatabaseContext.jsx (216 lines) - Database state management
-├── Database Hook: useDatabase.js (229 lines) - Database API operations
+├── Database: DatabaseContext.jsx (250 lines) - Database + payment state management
+├── Database Hook: useDatabase.js (240 lines) - Database API operations with caching
 ├── Legacy: App.tsx (2,778 lines) - Original app used by HomePage
 └── Components: Shared UI components across all pages
 
@@ -204,6 +204,28 @@ usage_analytics (User behavior)
 3. **Migration**: useDatabase.js handles API call to migrate endpoint
 4. **Cleanup**: localStorage cleared after successful migration
 5. **Verification**: User retains all previous logos and usage counts
+
+### **💳 Payment & Subscription System:**
+
+**🔧 Unified Payment State Management:**
+- **Single Source of Truth**: Database `subscription_status` field
+- **Payment Detection**: URL parameter-based (payment_intent + payment_intent_client_secret)
+- **State Sync**: Automatic database update on payment success
+- **Frontend Integration**: DatabaseContext provides `isPremiumUser()` helper
+
+**🔄 Payment Flow:**
+1. **Usage Limit Reached** → Upgrade modal triggered
+2. **Stripe Payment** → `/api/create-payment-intent` (€9.99)
+3. **Payment Success** → URL redirect with payment parameters
+4. **Database Update** → `updateUserSubscription('premium')`
+5. **State Refresh** → Frontend automatically syncs via DatabaseContext
+
+**⚠️ Payment Integration Status:**
+- ✅ **Basic Payment Processing**: Stripe integration working
+- ✅ **Database Integration**: Subscription status persisted
+- ✅ **Frontend State Sync**: Automatic premium feature activation
+- ❌ **Stripe Webhooks**: Missing server-side payment verification
+- ❌ **Payment Recovery**: No handling for interrupted payment flows
 
 ---
 

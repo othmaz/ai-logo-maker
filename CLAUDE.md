@@ -58,7 +58,7 @@ npm run validate-deployment              # Confirm it works
 
 ### Database Architecture Overview
 
-The application uses **Vercel Postgres** for persistent data storage with a comprehensive schema designed for the freemium business model.
+The application uses **Vercel Postgres** for persistent data storage with a comprehensive schema designed for the freemium business model. **All payment and subscription logic is database-driven** with no Clerk metadata dependencies.
 
 #### **🏗️ Database Schema:**
 ```sql
@@ -187,6 +187,97 @@ node server/scripts/test-db.js
 - Database connection health checks in test script
 - Comprehensive error logging for all database operations
 - Usage statistics tracking for capacity planning
+
+### **💳 UNIFIED PAYMENT & SUBSCRIPTION SYSTEM**
+
+**🎯 Single Source of Truth Architecture:**
+The payment system has been completely integrated with the database, eliminating dual state management issues.
+
+#### **Payment State Management:**
+```typescript
+// BEFORE: Dual storage (prone to inconsistency)
+user.publicMetadata.isPaid = true        // Clerk metadata
+subscription_status = 'free'             // Database (never updated)
+
+// AFTER: Database-only (reliable, consistent)
+subscription_status = 'premium'          // ✅ Single source of truth
+```
+
+#### **Frontend Integration:**
+```typescript
+// DatabaseContext provides unified payment state
+const { userProfile, updateUserSubscription, isPremiumUser } = useDbContext()
+
+// Payment status checking (database-driven)
+const isPaid = userProfile?.subscription_status === 'premium'
+
+// Premium user helper
+const premiumUser = isPremiumUser() // Returns boolean based on DB
+```
+
+#### **Payment Flow Integration:**
+```typescript
+// Payment success handler (App.tsx)
+const handlePaymentSuccess = async () => {
+  // 1. Detect payment success via URL parameters
+  const paymentIntent = urlParams.get('payment_intent')
+
+  // 2. Update database subscription (single API call)
+  await updateUserSubscription('premium')
+
+  // 3. Frontend state automatically syncs via DatabaseContext
+  // 4. Premium features immediately available
+}
+```
+
+#### **DatabaseContext Enhanced Features:**
+```typescript
+// Payment & subscription management functions
+updateUserSubscription(status)          // Update DB subscription status
+isPremiumUser()                         // Check if user is premium
+refreshUserProfile()                    // Sync latest subscription state
+
+// Usage tracking with subscription awareness
+trackLogoGeneration(prompt, count, isPremium)
+getUsageStats()                         // Get user usage with subscription data
+```
+
+#### **Database Schema Integration:**
+```sql
+-- Users table handles subscription status
+users.subscription_status VARCHAR(50) DEFAULT 'free'
+-- Values: 'free' | 'premium'
+
+-- All operations check subscription status
+-- Premium users get unlimited generations
+-- Free users get tracked usage limits
+```
+
+#### **Caching & Performance:**
+```typescript
+// DatabaseContext caching system
+- Logo data cached for 30 seconds
+- Cache invalidation on subscription changes
+- Optimistic UI updates for instant premium activation
+- Parallel loading during user initialization
+```
+
+#### **Migration from Clerk Metadata:**
+**All Clerk metadata usage has been removed:**
+- ❌ `user.publicMetadata.isPaid` (eliminated)
+- ❌ `user.publicMetadata.generationsUsed` (eliminated)
+- ❌ `user.publicMetadata.paymentDate` (eliminated)
+- ✅ Database subscription_status (single source)
+- ✅ Database generations_used (reliable tracking)
+
+#### **Payment System Status:**
+- ✅ **Stripe Integration**: €9.99 payment processing
+- ✅ **Database Integration**: Subscription status persisted
+- ✅ **Frontend Sync**: Automatic premium feature activation
+- ✅ **Usage Tracking**: Database-driven generation limits
+- ✅ **State Consistency**: Single source of truth
+- ⚠️ **Missing**: Stripe webhooks for payment verification
+- ⚠️ **Missing**: Payment recovery for interrupted flows
 
 ---
 
@@ -472,9 +563,10 @@ npm run lint
 - SEO-optimized for search discoverability and social media sharing
 
 ### Freemium Business Model
-- **Free Tier**: 3 logo generations at 1024x1024 resolution
-- **Premium Tier**: €10 payment for unlimited generations + automatic 8K upscaling
-- **Register-at-Checkout**: Users only create accounts when making payment
+- **Free Tier**: 3 logo generations (anonymous) / 5 generations (signed-in) at 1024x1024 resolution
+- **Premium Tier**: €9.99 payment for unlimited generations + automatic 8K upscaling
+- **Database-Driven**: All usage limits and subscription status tracked in database
+- **Unified State**: Single source of truth for payment status eliminates inconsistencies
 - **Smart Download System**: Free users get standard resolution, paid users get upscaled versions
 - **Legal Compliance**: Comprehensive Terms of Service and Privacy Policy for EU/GDPR compliance
 

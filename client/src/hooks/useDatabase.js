@@ -6,6 +6,10 @@ export function useDatabase() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Cache for logos to avoid redundant API calls
+  const [logoCache, setLogoCache] = useState(null);
+  const [logoCacheTime, setLogoCacheTime] = useState(0);
+
   // Helper to make API calls
   const apiCall = useCallback(async (endpoint, options = {}) => {
     try {
@@ -61,23 +65,36 @@ export function useDatabase() {
       method: 'PUT',
       body: JSON.stringify({
         clerkUserId: user.id,
-        subscriptionStatus
+        status: subscriptionStatus
       })
     });
   }, [user, apiCall]);
 
   // Logo Management
-  const getSavedLogos = useCallback(async () => {
+  const getSavedLogos = useCallback(async (forceRefresh = false) => {
     if (!user) return [];
 
+    // Return cached data if it's fresh (less than 30 seconds old) and not forcing refresh
+    const now = Date.now();
+    const cacheAge = now - logoCacheTime;
+    if (!forceRefresh && logoCache && cacheAge < 30000) {
+      return logoCache;
+    }
+
     const result = await apiCall(`logos/saved?clerkUserId=${user.id}`);
-    return result.logos || [];
-  }, [user, apiCall]);
+    const logos = result.logos || [];
+
+    // Update cache
+    setLogoCache(logos);
+    setLogoCacheTime(now);
+
+    return logos;
+  }, [user, apiCall, logoCache, logoCacheTime]);
 
   const saveLogo = useCallback(async (logoData) => {
     if (!user) return null;
 
-    return await apiCall('logos/save', {
+    const result = await apiCall('logos/save', {
       method: 'POST',
       body: JSON.stringify({
         clerkUserId: user.id,
@@ -89,22 +106,40 @@ export function useDatabase() {
         }
       })
     });
+
+    // Invalidate cache when saving a new logo
+    setLogoCache(null);
+    setLogoCacheTime(0);
+
+    return result;
   }, [user, apiCall]);
 
   const removeLogo = useCallback(async (logoId) => {
     if (!user) return null;
 
-    return await apiCall(`logos/${logoId}?clerkUserId=${user.id}`, {
+    const result = await apiCall(`logos/${logoId}?clerkUserId=${user.id}`, {
       method: 'DELETE'
     });
+
+    // Invalidate cache when removing a logo
+    setLogoCache(null);
+    setLogoCacheTime(0);
+
+    return result;
   }, [user, apiCall]);
 
   const clearAllLogos = useCallback(async () => {
     if (!user) return null;
 
-    return await apiCall(`logos/clear?clerkUserId=${user.id}`, {
+    const result = await apiCall(`logos/clear?clerkUserId=${user.id}`, {
       method: 'DELETE'
     });
+
+    // Invalidate cache when clearing all logos
+    setLogoCache(null);
+    setLogoCacheTime(0);
+
+    return result;
   }, [user, apiCall]);
 
   // Generation Tracking

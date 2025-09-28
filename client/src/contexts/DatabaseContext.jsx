@@ -21,6 +21,7 @@ export const DatabaseProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isMigrated, setIsMigrated] = useState(false);
+  const [isLoadingLogos, setIsLoadingLogos] = useState(false);
 
   // Initialize user data when they sign in
   useEffect(() => {
@@ -54,8 +55,8 @@ export const DatabaseProvider = ({ children }) => {
           }
         }
 
-        // 4. Load saved logos from database
-        await refreshSavedLogos();
+        // 4. Load saved logos from database in parallel with initialization
+        refreshSavedLogos(); // Don't await - load in background
 
         setIsInitialized(true);
         console.log('✅ User database initialized');
@@ -72,14 +73,18 @@ export const DatabaseProvider = ({ children }) => {
   const refreshSavedLogos = async () => {
     if (!isSignedIn) {
       setSavedLogos([]);
+      setIsLoadingLogos(false);
       return;
     }
 
+    setIsLoadingLogos(true);
     try {
       const logos = await db.getSavedLogos();
       setSavedLogos(logos);
     } catch (error) {
       console.error('Failed to refresh saved logos:', error);
+    } finally {
+      setIsLoadingLogos(false);
     }
   };
 
@@ -96,6 +101,23 @@ export const DatabaseProvider = ({ children }) => {
     } catch (error) {
       console.error('Failed to refresh user profile:', error);
     }
+  };
+
+  // Payment and subscription management
+  const updateUserSubscription = async (status = 'premium') => {
+    try {
+      await db.updateSubscription(status);
+      await refreshUserProfile(); // Refresh to get updated subscription status
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to update subscription:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Helper to check if user is premium
+  const isPremiumUser = () => {
+    return isSignedIn && userProfile?.subscription_status === 'premium';
   };
 
   // Enhanced logo management functions
@@ -203,6 +225,7 @@ export const DatabaseProvider = ({ children }) => {
     isInitialized,
     isMigrated,
     isLoading: db.isLoading,
+    isLoadingLogos,
     error: db.error,
 
     // Logo Management
@@ -213,7 +236,9 @@ export const DatabaseProvider = ({ children }) => {
 
     // User Management
     refreshUserProfile,
+    updateUserSubscription,
     updateSubscription: db.updateSubscription,
+    isPremiumUser,
 
     // Generation Tracking
     trackLogoGeneration,
