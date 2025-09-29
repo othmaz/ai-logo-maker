@@ -75,13 +75,13 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
           <SignedIn>
             {/* Premium Status Indicator - Only for signed-in users */}
             {isPaid ? (
-              <div className="golden-scintillate px-2 md:px-4 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs">
+              <div className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs mr-2">
                 ✨ PREMIUM
               </div>
             ) : (
               <button
                 onClick={onUpgradeClick}
-                className="golden-scintillate px-2 md:px-4 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs"
+                className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs mr-2"
               >
                 UPGRADE TO PREMIUM
               </button>

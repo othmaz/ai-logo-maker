@@ -491,7 +491,7 @@
       0 0 25px rgba(255, 215, 0, 0.8),
       0 0 35px rgba(255, 165, 0, 0.6),
       inset 0 0 15px rgba(255, 215, 0, 0.4);
-    transform: scale(1.05);
+    transform: scale(1.02);
   }
 }
 
@@ -530,4 +530,52 @@
   100% {
     transform: translateX(100%) translateY(100%) rotate(45deg);
   }
+}
+
+/* Remove background from Clerk UserButton and prevent golden styling inheritance */
+.cl-userButtonTrigger,
+.cl-userButtonTrigger:hover,
+.cl-userButtonTrigger:focus,
+.cl-userButtonTrigger:active {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
+  animation: none !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Remove any potential wrapper backgrounds and golden styling */
+.cl-userButtonBox,
+.cl-userButtonOuterBox,
+.cl-userButtonPopoverCard,
+.cl-userButton {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  animation: none !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* Ensure UserButton is never affected by golden-scintillate */
+.cl-userButtonTrigger.golden-scintillate,
+.cl-userButton.golden-scintillate,
+.cl-userButtonBox.golden-scintillate {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  animation: none !important;
+  filter: none !important;
+}
+
+/* Hover animation for golden buttons - similar to like button dark filter */
+.golden-scintillate:hover {
+  filter: brightness(0.85) !important;
+  transition: filter 0.2s ease !important;
 }

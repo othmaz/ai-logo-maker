@@ -38,8 +38,8 @@ const CheckoutForm = ({ amount = '€9.99' }: CheckoutFormProps) => {
     <form onSubmit={handleSubmit}>
       {/* Price Display */}
       <div className="text-center mb-6">
-        <div className="text-3xl font-bold text-cyan-400 retro-mono mb-2">
-          {amount}
+        <div className="text-2xl font-bold text-cyan-400 retro-mono mb-2">
+          ONE TIME PAYMENT, UNLIMITED DOWNLOADS
         </div>
         <div className="text-white retro-body text-sm">
           &gt; PREMIUM UPGRADE - UNLIMITED GENERATIONS
