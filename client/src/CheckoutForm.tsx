@@ -1,7 +1,11 @@
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useState } from 'react';
 
-const CheckoutForm = () => {
+interface CheckoutFormProps {
+  amount?: string;
+}
+
+const CheckoutForm = ({ amount = '€9.99' }: CheckoutFormProps) => {
   const stripe = useStripe();
   const elements = useElements();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -32,10 +36,20 @@ const CheckoutForm = () => {
 
   return (
     <form onSubmit={handleSubmit}>
+      {/* Price Display */}
+      <div className="text-center mb-6">
+        <div className="text-3xl font-bold text-cyan-400 retro-mono mb-2">
+          {amount}
+        </div>
+        <div className="text-white retro-body text-sm">
+          &gt; PREMIUM UPGRADE - UNLIMITED GENERATIONS
+        </div>
+      </div>
+
       <PaymentElement />
-      <button disabled={isProcessing || !stripe || !elements} id="submit" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 mt-6">
+      <button disabled={isProcessing || !stripe || !elements} id="submit" className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-8 rounded-lg font-semibold text-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 mt-6 retro-mono">
         <span id="button-text">
-          {isProcessing ? "Processing..." : "Pay now"}
+          {isProcessing ? "PROCESSING..." : `PAY ${amount}`}
         </span>
       </button>
       {errorMessage && <div id="payment-message" className="text-red-500 mt-4">{errorMessage}</div>}

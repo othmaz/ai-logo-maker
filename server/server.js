@@ -6,6 +6,8 @@ const fs = require('fs')
 const path = require('path')
 const Replicate = require('replicate')
 const Stripe = require('stripe')
+const sharp = require('sharp')
+const potrace = require('potrace')
 const { connectToDatabase, sql } = require('./lib/db')
 const { migrateFromLocalStorage } = require('./lib/migrate')
 
@@ -632,14 +634,19 @@ app.post('/api/users/sync', async (req, res) => {
   try {
     const { clerkUserId, email } = req.body
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+
+    await connectToDatabase()
     const { rows } = await sql`
       INSERT INTO users (clerk_user_id, email)
       VALUES (${clerkUserId}, ${email || null})
       ON CONFLICT (clerk_user_id) DO UPDATE SET email = COALESCE(EXCLUDED.email, users.email)
       RETURNING id, clerk_user_id, email, subscription_status, generations_used, generations_limit
     `
+
+    console.log(`✅ User synced: ${clerkUserId}, subscription: ${rows[0]?.subscription_status}`)
     res.json({ user: rows[0] })
   } catch (error) {
+    console.error('❌ Failed to sync user:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -648,14 +655,19 @@ app.get('/api/users/profile', async (req, res) => {
   try {
     const { clerkUserId } = req.query
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+
+    await connectToDatabase()
     const { rows } = await sql`
       SELECT id, clerk_user_id, email, subscription_status, generations_used, generations_limit
       FROM users
       WHERE clerk_user_id = ${clerkUserId}
       LIMIT 1
     `
+
+    console.log(`✅ Profile fetched for user ${clerkUserId}, subscription: ${rows[0]?.subscription_status || 'none'}`)
     res.json({ profile: rows[0] || null })
   } catch (error) {
+    console.error('❌ Failed to fetch profile:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -664,9 +676,15 @@ app.put('/api/users/subscription', async (req, res) => {
   try {
     const { clerkUserId, status } = req.body
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
-    await sql`UPDATE users SET subscription_status = ${status || 'free'} WHERE clerk_user_id = ${clerkUserId}`
-    res.json({ success: true })
+
+    await connectToDatabase()
+    const result = await sql`UPDATE users SET subscription_status = ${status || 'free'} WHERE clerk_user_id = ${clerkUserId}`
+
+    console.log(`✅ Updated subscription for user ${clerkUserId} to ${status}. Rows affected: ${result.count}`)
+
+    res.json({ success: true, rowsAffected: result.count })
   } catch (error) {
+    console.error('❌ Failed to update subscription:', error)
     res.status(500).json({ error: error.message })
   }
 })
@@ -693,6 +711,8 @@ app.get('/api/logos/saved', async (req, res) => {
   try {
     const { clerkUserId } = req.query
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+
+    await connectToDatabase()
     const { rows } = await sql`
       SELECT id, logo_url as url, logo_prompt as prompt, created_at, is_premium, file_format
       FROM saved_logos
@@ -709,6 +729,8 @@ app.post('/api/logos/save', async (req, res) => {
   try {
     const { clerkUserId, logo } = req.body
     if (!clerkUserId || !logo?.url) return res.status(400).json({ error: 'clerkUserId and logo.url required' })
+
+    await connectToDatabase()
     const { rows } = await sql`SELECT id FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1`
     if (!rows[0]) return res.status(404).json({ error: 'User not found' })
     await sql`
@@ -726,6 +748,8 @@ app.delete('/api/logos/:id', async (req, res) => {
     const { clerkUserId } = req.query
     const { id } = req.params
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+
+    await connectToDatabase()
     await sql`DELETE FROM saved_logos WHERE id = ${id} AND clerk_user_id = ${clerkUserId}`
     res.json({ success: true })
   } catch (error) {
@@ -737,6 +761,8 @@ app.delete('/api/logos/clear', async (req, res) => {
   try {
     const { clerkUserId } = req.query
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+
+    await connectToDatabase()
     await sql`DELETE FROM saved_logos WHERE clerk_user_id = ${clerkUserId}`
     res.json({ success: true })
   } catch (error) {
@@ -752,6 +778,8 @@ app.post('/api/generations/track', async (req, res) => {
   try {
     const { clerkUserId, prompt } = req.body
     if (!clerkUserId || !prompt) return res.status(400).json({ error: 'clerkUserId and prompt required' })
+
+    await connectToDatabase()
     await sql`INSERT INTO generation_history (clerk_user_id, prompt) VALUES (${clerkUserId}, ${prompt})`
     res.json({ success: true })
   } catch (error) {
@@ -763,6 +791,8 @@ app.get('/api/generations/usage', async (req, res) => {
   try {
     const { clerkUserId } = req.query
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+
+    await connectToDatabase()
     const { rows } = await sql`SELECT generations_used, generations_limit, subscription_status FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1`
     res.json(rows[0] || { generations_used: 0 })
   } catch (error) {
@@ -774,6 +804,8 @@ app.post('/api/generations/increment', async (req, res) => {
   try {
     const { clerkUserId, by = 1 } = req.body
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+
+    await connectToDatabase()
     await sql`UPDATE users SET generations_used = generations_used + ${by} WHERE clerk_user_id = ${clerkUserId}`
     res.json({ success: true })
   } catch (error) {
@@ -789,6 +821,8 @@ app.post('/api/analytics/track', async (req, res) => {
   try {
     const { event, clerkUserId, meta } = req.body
     if (!event) return res.status(400).json({ error: 'event is required' })
+
+    await connectToDatabase()
     await sql`INSERT INTO usage_analytics (action, clerk_user_id, metadata) VALUES (${event}, ${clerkUserId || null}, ${meta ? JSON.stringify(meta) : null})`
     res.json({ success: true })
   } catch (error) {
@@ -798,9 +832,299 @@ app.post('/api/analytics/track', async (req, res) => {
 
 app.get('/api/analytics/dashboard', async (req, res) => {
   try {
+    await connectToDatabase()
     const { rows } = await sql`SELECT action, COUNT(*) as count FROM usage_analytics GROUP BY action ORDER BY count DESC`
     res.json({ events: rows })
   } catch (error) {
     res.status(500).json({ error: error.message })
+  }
+})
+
+// ============================
+// Premium File Generation APIs
+// ============================
+
+// Helper function to verify premium user status
+const verifyPremiumUser = async (clerkUserId) => {
+  await connectToDatabase()
+  const { rows } = await sql`
+    SELECT subscription_status FROM users
+    WHERE clerk_user_id = ${clerkUserId} LIMIT 1
+  `
+  return rows[0]?.subscription_status === 'premium'
+}
+
+// Helper function to fetch image buffer from URL
+const fetchImageBuffer = async (imageUrl) => {
+  const response = await fetch(imageUrl)
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.statusText}`)
+  }
+  return Buffer.from(await response.arrayBuffer())
+}
+
+// 8K Upscale Endpoint
+app.post('/api/logos/:id/upscale', async (req, res) => {
+  console.log('🔍 8K upscale endpoint called')
+
+  try {
+    const { id } = req.params
+    const { clerkUserId } = req.body
+
+    if (!clerkUserId) {
+      return res.status(400).json({ error: 'clerkUserId is required' })
+    }
+
+    // Verify premium status
+    const isPremium = await verifyPremiumUser(clerkUserId)
+    if (!isPremium) {
+      return res.status(403).json({ error: 'Premium subscription required for 8K upscaling' })
+    }
+
+    // Get logo from database
+    await connectToDatabase()
+    const { rows } = await sql`
+      SELECT logo_url FROM saved_logos
+      WHERE id = ${id} AND clerk_user_id = ${clerkUserId} LIMIT 1
+    `
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Logo not found' })
+    }
+
+    const logoUrl = rows[0].logo_url
+    console.log('🔍 Upscaling logo:', logoUrl)
+
+    if (!replicate) {
+      return res.status(503).json({ error: 'Replicate service not configured' })
+    }
+
+    // Call Replicate Real-ESRGAN for 8K upscaling
+    const output = await replicate.run(
+      "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
+      {
+        input: {
+          image: logoUrl,
+          scale: 8, // 8x upscaling for 8K resolution
+          face_enhance: false
+        }
+      }
+    )
+
+    console.log('✅ 8K upscaling completed')
+
+    // Track analytics
+    await sql`
+      INSERT INTO usage_analytics (action, clerk_user_id, metadata)
+      VALUES ('logo_upscaled_8k', ${clerkUserId}, ${JSON.stringify({ logo_id: id, original_url: logoUrl, upscaled_url: output })})
+    `
+
+    res.json({
+      success: true,
+      originalUrl: logoUrl,
+      upscaledUrl: output,
+      scale: 8,
+      resolution: '8K'
+    })
+
+  } catch (error) {
+    console.error('❌ 8K upscale error:', error)
+    res.status(500).json({
+      error: 'Failed to upscale logo: ' + error.message
+    })
+  }
+})
+
+// SVG Conversion Endpoint
+app.post('/api/logos/:id/vectorize', async (req, res) => {
+  console.log('🔍 SVG vectorization endpoint called')
+
+  try {
+    const { id } = req.params
+    const { clerkUserId } = req.body
+
+    if (!clerkUserId) {
+      return res.status(400).json({ error: 'clerkUserId is required' })
+    }
+
+    // Verify premium status
+    const isPremium = await verifyPremiumUser(clerkUserId)
+    if (!isPremium) {
+      return res.status(403).json({ error: 'Premium subscription required for SVG conversion' })
+    }
+
+    // Get logo from database
+    await connectToDatabase()
+    const { rows } = await sql`
+      SELECT logo_url FROM saved_logos
+      WHERE id = ${id} AND clerk_user_id = ${clerkUserId} LIMIT 1
+    `
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Logo not found' })
+    }
+
+    const imageUrl = rows[0].logo_url
+    console.log('🔍 Vectorizing logo:', imageUrl)
+
+    // Fetch and process image
+    const imageBuffer = await fetchImageBuffer(imageUrl)
+
+    // Convert to high-contrast PNG for better vectorization
+    const processedBuffer = await sharp(imageBuffer)
+      .png()
+      .sharpen()
+      .normalise()
+      .toBuffer()
+
+    // Convert to SVG using potrace
+    const svgString = await new Promise((resolve, reject) => {
+      potrace.trace(processedBuffer, {
+        background: '#FFFFFF',
+        color: 'auto',
+        threshold: 128,
+        optTolerance: 0.4,
+        turdSize: 100,
+        turnPolicy: potrace.Potrace.TURNPOLICY_MINORITY
+      }, (err, svg) => {
+        if (err) reject(err)
+        else resolve(svg)
+      })
+    })
+
+    console.log('✅ SVG vectorization completed')
+
+    // Track analytics
+    await sql`
+      INSERT INTO usage_analytics (action, clerk_user_id, metadata)
+      VALUES ('logo_vectorized', ${clerkUserId}, ${JSON.stringify({ logo_id: id, source_url: imageUrl })})
+    `
+
+    res.json({
+      success: true,
+      svgData: svgString,
+      sourceUrl: imageUrl,
+      format: 'SVG'
+    })
+
+  } catch (error) {
+    console.error('❌ SVG vectorization error:', error)
+    res.status(500).json({
+      error: 'Failed to vectorize logo: ' + error.message
+    })
+  }
+})
+
+// Additional Formats Endpoint (Favicon & Profile Picture)
+app.post('/api/logos/:id/formats', async (req, res) => {
+  console.log('🔍 Additional formats endpoint called')
+
+  try {
+    const { id } = req.params
+    const { clerkUserId, formats } = req.body
+
+    if (!clerkUserId) {
+      return res.status(400).json({ error: 'clerkUserId is required' })
+    }
+
+    if (!formats || !Array.isArray(formats)) {
+      return res.status(400).json({ error: 'formats array is required' })
+    }
+
+    // Verify premium status
+    const isPremium = await verifyPremiumUser(clerkUserId)
+    if (!isPremium) {
+      return res.status(403).json({ error: 'Premium subscription required for additional formats' })
+    }
+
+    // Get logo from database
+    await connectToDatabase()
+    const { rows } = await sql`
+      SELECT logo_url FROM saved_logos
+      WHERE id = ${id} AND clerk_user_id = ${clerkUserId} LIMIT 1
+    `
+
+    if (!rows[0]) {
+      return res.status(404).json({ error: 'Logo not found' })
+    }
+
+    const imageUrl = rows[0].logo_url
+    console.log('🔍 Processing formats for logo:', imageUrl)
+
+    const imageBuffer = await fetchImageBuffer(imageUrl)
+    const results = {}
+
+    // Process each requested format
+    for (const format of formats) {
+      try {
+        switch (format) {
+          case 'favicon':
+            // Create favicon (32x32 PNG)
+            const favicon32 = await sharp(imageBuffer)
+              .resize(32, 32, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+              .png()
+              .toBuffer()
+
+            results.favicon = {
+              data: favicon32.toString('base64'),
+              mimeType: 'image/png',
+              filename: 'favicon-32x32.png',
+              size: '32x32'
+            }
+            break
+
+          case 'profile':
+            // Create circular profile picture
+            const size = 512
+
+            // Create circular mask
+            const mask = Buffer.from(
+              `<svg width="${size}" height="${size}">
+                <circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="white"/>
+              </svg>`
+            )
+
+            const profileBuffer = await sharp(imageBuffer)
+              .resize(size, size, { fit: 'cover' })
+              .composite([{ input: mask, blend: 'dest-in' }])
+              .png()
+              .toBuffer()
+
+            results.profile = {
+              data: profileBuffer.toString('base64'),
+              mimeType: 'image/png',
+              filename: 'profile-picture.png',
+              size: `${size}x${size}`
+            }
+            break
+
+          default:
+            console.warn(`Unknown format requested: ${format}`)
+        }
+      } catch (formatError) {
+        console.error(`Error processing format ${format}:`, formatError)
+        results[format] = { error: formatError.message }
+      }
+    }
+
+    console.log('✅ Format processing completed')
+
+    // Track analytics
+    await sql`
+      INSERT INTO usage_analytics (action, clerk_user_id, metadata)
+      VALUES ('logo_formats_generated', ${clerkUserId}, ${JSON.stringify({ logo_id: id, formats: formats, source_url: imageUrl })})
+    `
+
+    res.json({
+      success: true,
+      formats: results,
+      sourceUrl: imageUrl
+    })
+
+  } catch (error) {
+    console.error('❌ Format processing error:', error)
+    res.status(500).json({
+      error: 'Failed to process formats: ' + error.message
+    })
   }
 })

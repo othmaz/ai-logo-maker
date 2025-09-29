@@ -3,6 +3,7 @@ import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk
 import { useNavigate } from 'react-router-dom'
 import { useModal } from '../contexts/ModalContext'
 import { useDbContext } from '../contexts/DatabaseContext'
+import DownloadModal from '../components/DownloadModal'
 
 type SavedLogo = { id: string; url: string }
 
@@ -19,8 +20,13 @@ const DashboardPage: React.FC = () => {
     removeLogoFromDB,
     clearAllLogosFromDB,
     isLoading,
-    isLoadingLogos
+    isLoadingLogos,
+    isPremiumUser
   } = useDbContext()
+
+  // Download modal state
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false)
+  const [selectedLogoForDownload, setSelectedLogoForDownload] = useState<SavedLogo | null>(null)
 
   const clearAll = () => {
     showConfirmation(
@@ -40,6 +46,16 @@ const DashboardPage: React.FC = () => {
         await removeLogoFromDB(id)
       }
     )
+  }
+
+  const openDownloadModal = (logo: SavedLogo) => {
+    setSelectedLogoForDownload(logo)
+    setDownloadModalOpen(true)
+  }
+
+  const closeDownloadModal = () => {
+    setDownloadModalOpen(false)
+    setSelectedLogoForDownload(null)
   }
 
   return (
@@ -193,8 +209,21 @@ const DashboardPage: React.FC = () => {
                           <div className="bg-gray-700/50 rounded-xl border border-gray-600/50 hover:border-cyan-400/50 transition-colors duration-200 overflow-hidden">
                             <img src={logo.logo_url || logo.url} alt={`Saved Logo ${logo.id}`} className="w-full h-32 object-cover rounded-lg" loading="lazy" />
                           </div>
-                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                            <button onClick={(e) => { e.stopPropagation(); removeSavedLogo(logo.id) }} className="bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg text-xs" title="Remove from collection">×</button>
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 flex space-x-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openDownloadModal(logo) }}
+                              className="golden-scintillate rounded-lg w-8 h-8 flex items-center justify-center shadow-lg text-white text-sm font-bold"
+                              title="Download formats"
+                            >
+                              ↓
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); removeSavedLogo(logo.id) }}
+                              className="bg-red-500 hover:bg-red-600 text-white rounded-lg w-8 h-8 flex items-center justify-center shadow-lg text-sm font-bold"
+                              title="Remove from collection"
+                            >
+                              ×
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -214,6 +243,16 @@ const DashboardPage: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* Download Modal */}
+      {selectedLogoForDownload && (
+        <DownloadModal
+          isOpen={downloadModalOpen}
+          onClose={closeDownloadModal}
+          logo={selectedLogoForDownload}
+          isPremiumUser={isPremiumUser()}
+        />
+      )}
     </div>
   )
 }

@@ -2,7 +2,7 @@ import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 
 import { ModalProvider, useModal } from './contexts/ModalContext'
-import { DatabaseProvider } from './contexts/DatabaseContext'
+import { DatabaseProvider, useDbContext } from './contexts/DatabaseContext'
 import TitleBar from './components/TitleBar'
 import NavBar from './components/NavBar'
 import SupportChatButton from './components/SupportChatButton'
@@ -19,11 +19,16 @@ import AboutPage from './pages/AboutPage'
 // Inner component that uses the modal context
 const AppRouterContent: React.FC = () => {
   const { setActiveModal } = useModal()
+  const { isPremiumUser } = useDbContext()
+
+  const handleUpgradeClick = () => {
+    setActiveModal('upgrade')
+  }
 
   return (
     <div className="min-h-screen bg-gray-900">
       <TitleBar />
-      <NavBar />
+      <NavBar isPaid={isPremiumUser()} onUpgradeClick={handleUpgradeClick} />
       {/* Content sections already offset by fixed bars via components' own top positions */}
       <main>
         <Routes>

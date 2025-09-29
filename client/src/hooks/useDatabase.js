@@ -170,7 +170,7 @@ export function useDatabase() {
       method: 'POST',
       body: JSON.stringify({
         clerkUserId: user.id,
-        count
+        by: count
       })
     });
   }, [user, apiCall]);

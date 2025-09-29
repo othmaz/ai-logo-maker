@@ -229,7 +229,7 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
 function App() {
   const navigate = useNavigate()
   const { isSignedIn, user, isLoaded } = useUser()
-  const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadingLogos, userProfile, updateUserSubscription, refreshUserProfile } = useDbContext()
+  const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadingLogos, userProfile, updateUserSubscription, refreshUserProfile, trackLogoGeneration } = useDbContext()
 
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
@@ -266,6 +266,7 @@ function App() {
   const [showChatButton, setShowChatButton] = useState(false)
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState<string>('€9.99');
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -444,6 +445,7 @@ function App() {
       // Store payment intent ID for verification later
       setPaymentIntentId(paymentIntentId);
       setClientSecret(clientSecret);
+      setPaymentAmount(formattedAmount);
 
       // Show the upgrade modal with Stripe payment form
       setActiveModal('upgrade');
@@ -1026,8 +1028,20 @@ function App() {
             console.log('⚠️  CRITICAL: This was the last free generation for anonymous user!');
           }
         } else {
-          // Database now handles all usage tracking via trackLogoGeneration
-          console.log('🔄 Database tracking generations automatically via trackLogoGeneration');
+          // Track generation in database for signed-in users
+          try {
+            const promptText = prompts.length > 0 ? prompts[0] : formData.businessName || 'Logo generation';
+            console.log('🔄 Tracking database generation for signed-in user:', promptText);
+            await trackLogoGeneration(promptText, 1, isPaid);
+            console.log('✅ Database generation tracking completed');
+
+            // Refresh user profile and usage limits after tracking
+            await refreshUserProfile();
+            await checkUsageLimit();
+            console.log('🔄 Usage state refreshed after database tracking');
+          } catch (trackingError) {
+            console.error('❌ Database tracking failed:', trackingError);
+          }
         }
       }
       } else {
@@ -1167,6 +1181,21 @@ function App() {
     }
   }
 
+  // Handle download button click - prompt sign in or upgrade modal
+  const handleDownloadClick = (logo: Logo) => {
+    if (!isSignedIn) {
+      // Save form data before showing sign in modal
+      saveFormDataToLocalStorage(true)
+      setActiveModal('upgrade')
+    } else if (!isPaid) {
+      // Show upgrade modal for non-premium users
+      setActiveModal('upgrade')
+    } else {
+      // Premium users can download directly (this shouldn't happen with golden button)
+      downloadLogo(logo)
+    }
+  }
+
   // Add scroll function for smooth transitions
   const scrollToLevel = (levelId: string) => {
     const element = document.getElementById(levelId)
@@ -1291,6 +1320,29 @@ function App() {
               </div>
               {isLoaded && (
                 <div className="absolute inset-0 flex items-center gap-2">
+                  {/* Premium Status Indicator - Always visible */}
+                  {isSignedIn ? (
+                    isPaid ? (
+                      <div className="px-2 md:px-4 py-1 md:py-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold rounded-lg border-2 border-yellow-400 shadow-[0_0_15px_rgba(255,215,0,0.5)] retro-mono text-xs">
+                        ✨ PREMIUM
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setActiveModal('upgrade')}
+                        className="px-2 md:px-4 py-1 md:py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 border-2 border-orange-500 hover:border-red-500 hover:shadow-[0_0_15px_rgba(255,69,0,0.5)] retro-mono text-xs"
+                      >
+                        UPGRADE TO PREMIUM
+                      </button>
+                    )
+                  ) : (
+                    <button
+                      onClick={() => setActiveModal('upgrade')}
+                      className="px-2 md:px-4 py-1 md:py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 border-2 border-orange-500 hover:border-red-500 hover:shadow-[0_0_15px_rgba(255,69,0,0.5)] retro-mono text-xs"
+                    >
+                      UPGRADE TO PREMIUM
+                    </button>
+                  )}
+
                   <SignedOut>
                     <SignInButton mode="redirect">
                       <button className="px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
@@ -1516,9 +1568,29 @@ function App() {
               </div>
               {isLoaded && (
                 <div className="absolute inset-0 flex items-center gap-2">
-                  {isPaid && (
-                    <span className="text-green-400 font-mono text-sm mr-2">✨ PREMIUM</span>
+                  {/* Premium Status Indicator - Always visible */}
+                  {isSignedIn ? (
+                    isPaid ? (
+                      <div className="px-2 md:px-4 py-1 md:py-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold rounded-lg border-2 border-yellow-400 shadow-[0_0_15px_rgba(255,215,0,0.5)] retro-mono text-xs">
+                        ✨ PREMIUM
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setActiveModal('upgrade')}
+                        className="px-2 md:px-4 py-1 md:py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 border-2 border-orange-500 hover:border-red-500 hover:shadow-[0_0_15px_rgba(255,69,0,0.5)] retro-mono text-xs"
+                      >
+                        UPGRADE TO PREMIUM
+                      </button>
+                    )
+                  ) : (
+                    <button
+                      onClick={() => setActiveModal('upgrade')}
+                      className="px-2 md:px-4 py-1 md:py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 border-2 border-orange-500 hover:border-red-500 hover:shadow-[0_0_15px_rgba(255,69,0,0.5)] retro-mono text-xs"
+                    >
+                      UPGRADE TO PREMIUM
+                    </button>
                   )}
+
                   <SignedOut>
                     <SignInButton mode="redirect">
                       <button className="px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
@@ -1978,6 +2050,19 @@ function App() {
                   </SignUpButton>
                 </SignedOut>
                 <SignedIn>
+                  {/* Premium Status Indicator */}
+                  {isPaid ? (
+                    <div className="px-2 md:px-4 py-1 md:py-2 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold rounded-lg border-2 border-yellow-400 shadow-[0_0_15px_rgba(255,215,0,0.5)] retro-mono text-xs">
+                      ✨ PREMIUM
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setActiveModal('upgrade')}
+                      className="px-2 md:px-4 py-1 md:py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-lg hover:from-orange-600 hover:to-red-600 transition-all duration-200 border-2 border-orange-500 hover:border-red-500 hover:shadow-[0_0_15px_rgba(255,69,0,0.5)] retro-mono text-xs"
+                    >
+                      UPGRADE TO PREMIUM
+                    </button>
+                  )}
                   <UserButton />
                 </SignedIn>
               </div>
@@ -2383,14 +2468,27 @@ function App() {
                       </div>
                     )}
 
-                    {/* Save button - heart icon on top right */}
-                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    {/* Action buttons - save and download on top right */}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 flex space-x-2">
+                      {/* Download button - golden scintillating */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDownloadClick(logo)
+                        }}
+                        className="golden-scintillate rounded-lg w-8 h-8 flex items-center justify-center shadow-lg text-white text-sm font-bold transition-all duration-200"
+                        title="Download premium formats"
+                      >
+                        ↓
+                      </button>
+
+                      {/* Save button - heart icon */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           saveLogo(logo)
                         }}
-                        className={`rounded-full w-10 h-10 flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-200 ${
+                        className={`rounded-lg w-8 h-8 flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-200 text-sm font-bold ${
                           isLogoSaved(logo.url)
                             ? 'bg-red-100/80 hover:bg-red-200/80 text-red-600'
                             : 'bg-white/80 hover:bg-white text-gray-700 hover:text-red-500'
@@ -2525,8 +2623,18 @@ function App() {
                       />
                     </div>
                     
-                    {/* Remove button only */}
-                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                    {/* Action buttons - download and remove */}
+                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 flex space-x-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDownloadClick(logo)
+                        }}
+                        className="golden-scintillate rounded-lg w-8 h-8 flex items-center justify-center shadow-lg text-white text-sm font-bold"
+                        title="Download premium formats"
+                      >
+                        ↓
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -2536,10 +2644,10 @@ function App() {
                             () => removeSavedLogo(logo.id)
                           )
                         }}
-                        className="bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center shadow-lg text-sm"
+                        className="bg-red-500 hover:bg-red-600 text-white rounded-lg w-8 h-8 flex items-center justify-center shadow-lg text-sm font-bold"
                         title="Remove from collection"
                       >
-                        🗑️
+                        ×
                       </button>
                     </div>
                   </div>
@@ -2870,7 +2978,7 @@ function App() {
                 <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white p-8 -m-6 rounded-xl">
                   {clientSecret ? (
                     <Elements options={{ clientSecret }} stripe={stripePromise}>
-                      <CheckoutForm />
+                      <CheckoutForm amount={paymentAmount} />
                     </Elements>
                   ) : (
                     <div className="text-center">

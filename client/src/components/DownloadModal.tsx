@@ -1,0 +1,296 @@
+import React, { useState } from 'react'
+import { useUser } from '@clerk/clerk-react'
+
+interface DownloadModalProps {
+  isOpen: boolean
+  onClose: () => void
+  logo: {
+    id: string
+    url: string
+    logo_url?: string
+  }
+  isPremiumUser: boolean
+}
+
+interface FormatOption {
+  id: string
+  name: string
+  description: string
+  enabled: boolean
+}
+
+const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser }) => {
+  const { user } = useUser()
+  const [selectedFormats, setSelectedFormats] = useState<string[]>(['png'])
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [downloadProgress, setDownloadProgress] = useState<Record<string, 'pending' | 'processing' | 'completed' | 'error'>>({})
+
+  const formatOptions: FormatOption[] = [
+    {
+      id: 'png',
+      name: 'PNG (8K, High-Resolution)',
+      description: 'Premium upscaled version for print and professional use',
+      enabled: isPremiumUser
+    },
+    {
+      id: 'svg',
+      name: 'SVG (Vector, Scalable)',
+      description: 'Infinite scalability for any size application',
+      enabled: isPremiumUser
+    },
+    {
+      id: 'favicon',
+      name: 'Favicon (.ico for website tab)',
+      description: '32x32 optimized for browser tabs',
+      enabled: isPremiumUser
+    },
+    {
+      id: 'profile',
+      name: 'Profile Picture (Rounded PNG)',
+      description: '512x512 circular format for social media',
+      enabled: isPremiumUser
+    }
+  ]
+
+  const toggleFormat = (formatId: string) => {
+    const format = formatOptions.find(f => f.id === formatId)
+    if (!format?.enabled) return
+
+    setSelectedFormats(prev =>
+      prev.includes(formatId)
+        ? prev.filter(id => id !== formatId)
+        : [...prev, formatId]
+    )
+  }
+
+  const downloadFile = (data: string, filename: string, mimeType: string) => {
+    const byteCharacters = atob(data)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], { type: mimeType })
+
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.style.display = 'none'
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  }
+
+  const downloadSVG = (svgData: string, filename: string) => {
+    const blob = new Blob([svgData], { type: 'image/svg+xml' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.style.display = 'none'
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  }
+
+  const handleDownload = async () => {
+    if (!user || selectedFormats.length === 0) return
+
+    setIsDownloading(true)
+    const newProgress: Record<string, 'pending' | 'processing' | 'completed' | 'error'> = {}
+    selectedFormats.forEach(format => {
+      newProgress[format] = 'pending'
+    })
+    setDownloadProgress(newProgress)
+
+    try {
+      // Download each selected format
+      for (const formatId of selectedFormats) {
+        setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
+
+        try {
+          if (formatId === 'png') {
+            // 8K Upscale
+            const response = await fetch(`/api/logos/${logo.id}/upscale`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ clerkUserId: user.id })
+            })
+
+            const result = await response.json()
+            if (result.success) {
+              // Download the upscaled image
+              const imageResponse = await fetch(result.upscaledUrl)
+              const blob = await imageResponse.blob()
+              const url = window.URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'logo-8K.png'
+              a.click()
+              window.URL.revokeObjectURL(url)
+            }
+          } else if (formatId === 'svg') {
+            // SVG Conversion
+            const response = await fetch(`/api/logos/${logo.id}/vectorize`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ clerkUserId: user.id })
+            })
+
+            const result = await response.json()
+            if (result.success) {
+              downloadSVG(result.svgData, 'logo-vector.svg')
+            }
+          } else if (formatId === 'favicon' || formatId === 'profile') {
+            // Additional formats
+            const response = await fetch(`/api/logos/${logo.id}/formats`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                clerkUserId: user.id,
+                formats: [formatId]
+              })
+            })
+
+            const result = await response.json()
+            if (result.success && result.formats[formatId]) {
+              const format = result.formats[formatId]
+              downloadFile(format.data, format.filename, format.mimeType)
+            }
+          }
+
+          setDownloadProgress(prev => ({ ...prev, [formatId]: 'completed' }))
+        } catch (error) {
+          console.error(`Error downloading ${formatId}:`, error)
+          setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
+        }
+      }
+    } catch (error) {
+      console.error('Download error:', error)
+    } finally {
+      setIsDownloading(false)
+      // Close modal after 2 seconds if all downloads completed
+      setTimeout(() => {
+        const allCompleted = Object.values(downloadProgress).every(status =>
+          status === 'completed' || status === 'error'
+        )
+        if (allCompleted) {
+          onClose()
+        }
+      }, 2000)
+    }
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
+      <div className="bg-gray-800 rounded-2xl border border-gray-600 max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-6">
+            <h2 className="text-2xl font-bold text-white font-mono">DOWNLOAD CENTER</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white text-2xl"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Logo Preview */}
+          <div className="mb-6">
+            <div className="bg-gray-700/50 rounded-lg p-4 text-center">
+              <img
+                src={logo.logo_url || logo.url}
+                alt="Logo Preview"
+                className="max-w-full max-h-32 mx-auto rounded"
+              />
+            </div>
+          </div>
+
+          {/* Premium Status */}
+          {!isPremiumUser && (
+            <div className="mb-6 p-4 bg-orange-500/20 border border-orange-500/50 rounded-lg">
+              <p className="text-orange-400 font-mono text-sm">
+                🚀 Premium subscription required for advanced download formats
+              </p>
+            </div>
+          )}
+
+          {/* Format Selection */}
+          <div className="mb-6">
+            <h3 className="text-lg font-bold text-white font-mono mb-4">SELECT FORMATS:</h3>
+            <div className="space-y-3">
+              {formatOptions.map(format => (
+                <div
+                  key={format.id}
+                  className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                    format.enabled
+                      ? selectedFormats.includes(format.id)
+                        ? 'border-cyan-400 bg-cyan-400/10'
+                        : 'border-gray-600 hover:border-gray-500'
+                      : 'border-gray-700 bg-gray-700/30 cursor-not-allowed opacity-50'
+                  }`}
+                  onClick={() => toggleFormat(format.id)}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className={`w-5 h-5 border-2 rounded mt-0.5 flex items-center justify-center ${
+                      format.enabled && selectedFormats.includes(format.id)
+                        ? 'border-cyan-400 bg-cyan-400'
+                        : 'border-gray-500'
+                    }`}>
+                      {format.enabled && selectedFormats.includes(format.id) && (
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`font-medium ${format.enabled ? 'text-white' : 'text-gray-500'}`}>
+                        {format.name}
+                      </p>
+                      <p className={`text-sm ${format.enabled ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {format.description}
+                      </p>
+                      {downloadProgress[format.id] && (
+                        <div className="mt-2">
+                          {downloadProgress[format.id] === 'processing' && (
+                            <span className="text-yellow-400 text-xs">Processing...</span>
+                          )}
+                          {downloadProgress[format.id] === 'completed' && (
+                            <span className="text-green-400 text-xs">✓ Downloaded</span>
+                          )}
+                          {downloadProgress[format.id] === 'error' && (
+                            <span className="text-red-400 text-xs">✗ Error</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Download Button */}
+          <button
+            onClick={handleDownload}
+            disabled={selectedFormats.length === 0 || isDownloading}
+            className={`w-full py-3 px-6 rounded-lg font-bold font-mono transition-all ${
+              selectedFormats.length === 0 || isDownloading
+                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700'
+            }`}
+          >
+            {isDownloading ? 'DOWNLOADING...' : `DOWNLOAD SELECTED (${selectedFormats.length})`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default DownloadModal
