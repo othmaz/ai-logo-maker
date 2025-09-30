@@ -2125,11 +2125,11 @@ function App() {
               </div>
               <div className="flex items-center group">
                 <div className="w-15 h-15 mr-3 text-green-400 flex items-center justify-center pixel-icon text-2xl group-hover:text-white transition-colors">🎨</div>
-                <span className="retro-mono text-gray-300 group-hover:text-green-400 transition-colors">8K PNG & SVG FILES</span>
+                <span className="retro-mono text-gray-300 group-hover:text-green-400 transition-colors">PRO EXPORT PACK (8K, SVG, NO-BG)</span>
               </div>
               <div className="flex items-center group">
-                <div className="w-15 h-15 mr-3 text-purple-400 flex items-center justify-center pixel-icon text-2xl group-hover:text-white transition-colors">🆓</div>
-                <span className="retro-mono text-gray-300 group-hover:text-purple-400 transition-colors">100% FREE TO USE</span>
+                <div className="w-15 h-15 mr-3 text-purple-400 flex items-center justify-center pixel-icon text-2xl group-hover:text-white transition-colors">💎</div>
+                <span className="retro-mono text-gray-300 group-hover:text-purple-400 transition-colors">3 FREE TRIES • €9.99 UNLIMITED</span>
               </div>
             </div>
 
