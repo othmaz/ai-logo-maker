@@ -70,25 +70,38 @@
   - [ ] Select "Profile Picture" format
   - [ ] Verify 512x512 circular PNG downloads
 
-### 3. Usage Limit Enforcement (CRITICAL)
-- [ ] **Anonymous User Limits**
-  - [ ] Generate 3 logos without signing in
-  - [ ] Verify localStorage tracking increments
-  - [ ] On 4th attempt, verify upgrade modal appears
-  - [ ] Clear localStorage and verify reset to 3 generations
+### 3. Credits System Testing (CRITICAL - NEW)
+- [ ] **Anonymous User Credits**
+  - [ ] Visit site without signing in
+  - [ ] Verify "15 credits remaining" displayed
+  - [ ] Generate first batch of logos (uses 1 credit)
+  - [ ] Verify counter shows "14 credits remaining"
+  - [ ] Use all 15 credits
+  - [ ] Verify upgrade modal appears on 16th attempt
+  - [ ] Verify localStorage key `anonymousCreditsUsed` = 15
 
-- [ ] **Free User Limits**
+- [ ] **Free User Credits**
   - [ ] Sign in as new free user
-  - [ ] Generate 3 logos
-  - [ ] Verify database tracking increments
-  - [ ] On 4th attempt, verify upgrade modal appears
-  - [ ] Verify usage counter shows "0 remaining"
+  - [ ] Verify "15 credits remaining" displayed
+  - [ ] Generate logos and verify database `credits_used` increments
+  - [ ] Use all 15 credits
+  - [ ] Verify "0 credits remaining" shown
+  - [ ] Verify upgrade modal appears on next attempt
+  - [ ] Check database: `credits_limit` should be 15
 
-- [ ] **Premium User Access**
+- [ ] **Premium User Credits**
   - [ ] Sign in as premium user
-  - [ ] Verify "PREMIUM" badge visible in navbar
-  - [ ] Generate 10+ logos without limits
+  - [ ] Verify "Unlimited credits" badge visible
+  - [ ] Generate 20+ batches without limits
   - [ ] Verify no upgrade prompts appear
+  - [ ] Check database: `credits_limit` should be 999999
+
+- [ ] **Credits Display Throughout App**
+  - [ ] Verify credits counter in navbar
+  - [ ] Verify credits shown before "Generate" button
+  - [ ] Verify hero section shows "15 FREE CREDITS"
+  - [ ] Verify About page mentions credits system
+  - [ ] Verify upgrade modal shows credits language
 
 ### 4. Authentication Flow (HIGH PRIORITY)
 - [ ] **Sign Up**
@@ -119,19 +132,56 @@
   - [ ] Click "GENERATE LOGOS"
   - [ ] Verify 5 logos generate successfully
   - [ ] Verify all logos match specifications
+  - [ ] Verify 1 credit deducted
 
-- [ ] **Refinement Flow**
-  - [ ] Select logos and provide feedback
+- [ ] **Batch Refinement Flow (Default)**
+  - [ ] Select 1-2 logos by clicking them
+  - [ ] Verify selection indicator (blue ring + checkmark)
+  - [ ] Provide feedback in textarea
   - [ ] Click "REFINE SELECTED"
-  - [ ] Verify refined logos generate
+  - [ ] Verify 5 refined logos generate
+  - [ ] Verify 1 credit deducted
   - [ ] Test 3 rounds of refinement
-  - [ ] Verify feedback incorporated
+  - [ ] Verify feedback incorporated in results
+
+- [ ] **Single-Logo Refinement Mode (NEW)**
+  - [ ] Generate initial 5 logos
+  - [ ] Hover over any logo
+  - [ ] Verify ✨ "Refine This" button appears
+  - [ ] Click ✨ button on one logo
+  - [ ] Verify mode activation banner appears
+  - [ ] Verify banner shows focused logo thumbnail
+  - [ ] Verify "Iterating on Logo #X" message
+  - [ ] Verify ✨ button highlights in cyan
+  - [ ] Verify auto-scroll to feedback section
+  - [ ] Provide specific feedback
+  - [ ] Click "Refine Selected" button
+  - [ ] Verify 5 new variations of that specific logo generated
+  - [ ] Verify 1 credit deducted
+  - [ ] Repeat refinement 2-3 more times
+  - [ ] Verify focused logo persists through rounds
+  - [ ] Click "Exit Mode" button
+  - [ ] Verify return to batch mode
+  - [ ] Verify banner disappears
+
+- [ ] **Switching Between Modes**
+  - [ ] Start in batch mode
+  - [ ] Click ✨ on logo #1 → enters single-logo mode
+  - [ ] Refine logo #1 once
+  - [ ] Click ✨ on logo #2 → switches focus
+  - [ ] Verify banner updates to show logo #2
+  - [ ] Verify logo #2 button highlighted
+  - [ ] Refine logo #2 once
+  - [ ] Click "Exit Mode" → return to batch
+  - [ ] Verify can select multiple logos again
 
 - [ ] **Error Handling**
   - [ ] Test with empty business name → verify error
   - [ ] Test with very long input → verify handling
   - [ ] Test with special characters → verify sanitization
   - [ ] Simulate API failure → verify error message
+  - [ ] Try to refine in single-logo mode without feedback → verify error
+  - [ ] Try to select more than 2 logos in batch mode → verify warning
 
 ### 6. Cross-Browser Testing (MEDIUM PRIORITY)
 - [ ] **Chrome (Latest)**
