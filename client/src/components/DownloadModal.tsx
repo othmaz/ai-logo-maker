@@ -21,15 +21,27 @@ interface FormatOption {
 
 const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser }) => {
   const { user } = useUser()
-  const [selectedFormats, setSelectedFormats] = useState<string[]>(['png'])
+  const [selectedFormats, setSelectedFormats] = useState<string[]>(['png-hd'])
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<Record<string, 'pending' | 'processing' | 'completed' | 'error'>>({})
 
   const formatOptions: FormatOption[] = [
     {
+      id: 'png-hd',
+      name: 'PNG (Standard, 1024x1024)',
+      description: 'Standard resolution for digital use',
+      enabled: isPremiumUser
+    },
+    {
       id: 'png',
       name: 'PNG (8K, High-Resolution)',
       description: 'Premium upscaled version for print and professional use',
+      enabled: isPremiumUser
+    },
+    {
+      id: 'png-no-bg',
+      name: 'PNG (Background Removed)',
+      description: 'Transparent background for versatile use',
       enabled: isPremiumUser
     },
     {
@@ -112,7 +124,17 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
         setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
 
         try {
-          if (formatId === 'png') {
+          if (formatId === 'png-hd') {
+            // Full HD PNG Download (original resolution)
+            const imageResponse = await fetch(logo.logo_url || logo.url)
+            const blob = await imageResponse.blob()
+            const url = window.URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'logo-fullhd.png'
+            a.click()
+            window.URL.revokeObjectURL(url)
+          } else if (formatId === 'png') {
             // 8K Upscale
             const response = await fetch(`/api/logos/${logo.id}/upscale`, {
               method: 'POST',
@@ -131,6 +153,36 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               a.download = 'logo-8K.png'
               a.click()
               window.URL.revokeObjectURL(url)
+            }
+          } else if (formatId === 'png-no-bg') {
+            // Background removal
+            console.log('🎨 Calling background removal endpoint...')
+            const response = await fetch(`/api/logos/${logo.id}/remove-background`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                clerkUserId: user.id,
+                logoUrl: logo.logo_url || logo.url
+              })
+            })
+
+            console.log('📋 Response status:', response.status)
+            const result = await response.json()
+            console.log('📋 Response result:', result)
+
+            if (result.success) {
+              // Download the background-removed image
+              const imageResponse = await fetch(result.processedUrl)
+              const blob = await imageResponse.blob()
+              const url = window.URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'logo-no-background.png'
+              a.click()
+              window.URL.revokeObjectURL(url)
+            } else {
+              console.error('❌ Background removal failed:', result.error)
+              throw new Error(result.error || 'Background removal failed')
             }
           } else if (formatId === 'svg') {
             // SVG Conversion
@@ -232,7 +284,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
                       ? selectedFormats.includes(format.id)
                         ? 'border-cyan-400 bg-cyan-400/10'
                         : 'border-gray-600 hover:border-gray-500'
-                      : 'border-gray-700 bg-gray-700/30 cursor-not-allowed opacity-50'
+                      : 'border-yellow-500/70 bg-gray-700/30 cursor-not-allowed opacity-50 shadow-[0_0_10px_rgba(234,179,8,0.3)]'
                   }`}
                   onClick={() => toggleFormat(format.id)}
                 >

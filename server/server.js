@@ -1015,6 +1015,143 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
   }
 })
 
+// Background Removal Endpoint
+app.post('/api/logos/:id/remove-background', async (req, res) => {
+  console.log('🎨 Background removal endpoint called')
+  console.log('📋 Request params:', req.params)
+  console.log('📋 Request body:', req.body)
+
+  try {
+    const { id } = req.params
+    const { clerkUserId, logoUrl } = req.body
+
+    if (!clerkUserId) {
+      return res.status(400).json({ error: 'clerkUserId is required' })
+    }
+
+    // Check if user is premium (or debug force premium is enabled)
+    const isPremium = await verifyPremiumUser(clerkUserId)
+    if (!isPremium) {
+      return res.status(403).json({ error: 'Premium subscription required for background removal' })
+    }
+
+    // Use logoUrl from request body, or try to get from database as fallback
+    let imageUrl = logoUrl
+
+    if (!imageUrl) {
+      console.log(`🔍 Looking up logo ${id} in database...`)
+
+      // Get logo from database as fallback
+      const logoResult = await sql`
+        SELECT * FROM saved_logos
+        WHERE id = ${id} AND clerk_user_id = ${clerkUserId}
+      `
+
+      if (logoResult.length === 0) {
+        return res.status(404).json({ error: 'Logo not found and no logoUrl provided' })
+      }
+
+      const logo = logoResult[0]
+      imageUrl = logo.logo_url || logo.url
+    }
+
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'No image URL found for this logo' })
+    }
+
+    console.log(`📥 Fetching image from: ${imageUrl}`)
+
+    // Download the original image
+    const imageResponse = await fetch(imageUrl)
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to fetch image: ${imageResponse.statusText}`)
+    }
+
+    const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+    console.log(`✅ Image downloaded, size: ${imageBuffer.length} bytes`)
+
+    // Use Sharp to remove background
+    console.log('🎨 Processing image with Sharp to remove background...')
+
+    // Create a proper background removal using Sharp
+    const processedImageBuffer = await sharp(imageBuffer)
+      .ensureAlpha() // Add alpha channel for transparency
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+      .then(({ data, info }) => {
+        const { width, height, channels } = info
+        const pixelArray = new Uint8ClampedArray(data)
+
+        // Process pixels to make white/light backgrounds transparent
+        for (let i = 0; i < pixelArray.length; i += channels) {
+          const r = pixelArray[i]
+          const g = pixelArray[i + 1]
+          const b = pixelArray[i + 2]
+
+          // Calculate brightness
+          const brightness = (r + g + b) / 3
+
+          // If pixel is light (close to white background), make it transparent
+          if (brightness > 230) {
+            pixelArray[i + 3] = 0 // Set alpha to 0 (transparent)
+          } else if (brightness > 200) {
+            // Partially transparent for smoother edges
+            pixelArray[i + 3] = Math.floor((230 - brightness) * 8.5)
+          }
+        }
+
+        // Convert back to PNG with transparency
+        return sharp(pixelArray, {
+          raw: { width, height, channels }
+        })
+        .png({ quality: 100, compressionLevel: 6 })
+        .toBuffer()
+      })
+
+    console.log('🎨 ✅ Advanced background removal completed!')
+
+    console.log(`✅ Background removal completed, output size: ${processedImageBuffer.length} bytes`)
+
+    // Generate filename for the processed image
+    const timestamp = Date.now()
+    const filename = `logo-${id}-no-bg-${timestamp}.png`
+    const outputPath = path.join(__dirname, 'generated-logos', filename)
+
+    // Save the processed image
+    await fs.promises.writeFile(outputPath, processedImageBuffer)
+    console.log(`💾 Processed image saved to: ${outputPath}`)
+
+    // Generate URL for the processed image
+    const processedUrl = `/images/${filename}`
+
+    // Track analytics
+    await sql`
+      INSERT INTO usage_analytics (action, clerk_user_id, metadata)
+      VALUES ('background_removed', ${clerkUserId}, ${JSON.stringify({
+        logo_id: id,
+        source_url: imageUrl,
+        output_url: processedUrl
+      })})
+    `
+
+    console.log('✅ Background removal completed successfully')
+
+    res.json({
+      success: true,
+      processedUrl,
+      sourceUrl: imageUrl,
+      filename,
+      format: 'PNG with transparent background'
+    })
+
+  } catch (error) {
+    console.error('❌ Background removal error:', error)
+    res.status(500).json({
+      error: 'Failed to remove background: ' + error.message
+    })
+  }
+})
+
 // Additional Formats Endpoint (Favicon & Profile Picture)
 app.post('/api/logos/:id/formats', async (req, res) => {
   console.log('🔍 Additional formats endpoint called')
