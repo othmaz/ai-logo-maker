@@ -29,8 +29,6 @@ export const DatabaseProvider = ({ children }) => {
       if (!isSignedIn || !user || isInitialized) return;
 
       try {
-        console.log('🔄 Initializing user database...');
-
         // 1. Sync user with database
         await db.syncUser();
 
@@ -38,7 +36,6 @@ export const DatabaseProvider = ({ children }) => {
         const profileResponse = await db.getUserProfile();
         const profile = profileResponse?.profile || profileResponse; // Handle both response formats
         setUserProfile(profile);
-        console.log('✅ User profile loaded:', profile?.email, 'Status:', profile?.subscription_status);
 
         // 3. Check if we need to migrate from localStorage
         const localStorageData = {
@@ -49,11 +46,9 @@ export const DatabaseProvider = ({ children }) => {
         const hasLocalData = localStorageData.savedLogos.length > 0 || localStorageData.generationsUsed > 0;
 
         if (hasLocalData && !isMigrated) {
-          console.log('🔄 Migrating localStorage data...');
           const migrationResult = await db.migrateFromLocalStorage();
           if (migrationResult.success) {
             setIsMigrated(true);
-            console.log('✅ Migration completed');
           }
         }
 
@@ -61,7 +56,6 @@ export const DatabaseProvider = ({ children }) => {
         refreshSavedLogos(); // Don't await - load in background
 
         setIsInitialized(true);
-        console.log('✅ User database initialized');
 
       } catch (error) {
         console.error('❌ User initialization failed:', error);
@@ -69,7 +63,8 @@ export const DatabaseProvider = ({ children }) => {
     };
 
     initializeUser();
-  }, [isSignedIn, user, db, isInitialized, isMigrated]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSignedIn, user?.id, isInitialized]);
 
   // Refresh saved logos from database
   const refreshSavedLogos = async () => {
@@ -101,7 +96,6 @@ export const DatabaseProvider = ({ children }) => {
       const profileResponse = await db.getUserProfile();
       const profile = profileResponse?.profile || profileResponse; // Handle both response formats
       setUserProfile(profile);
-      console.log('✅ User profile refreshed:', profile?.email, 'Status:', profile?.subscription_status);
     } catch (error) {
       console.error('Failed to refresh user profile:', error);
     }
