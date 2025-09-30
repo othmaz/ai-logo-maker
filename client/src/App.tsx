@@ -3029,7 +3029,7 @@ function App() {
                               </div>
                               <div className="flex items-center space-x-3">
                                 <span className="text-cyan-400 text-lg">✨</span>
-                                <span className="text-cyan-400 text-base">8K PNG + SVG FILE</span>
+                                <span className="text-cyan-400 text-base">PRO EXPORT PACK (8K, SVG, No-BG, Favicon)</span>
                               </div>
                               <div className="flex items-center space-x-3">
                                 <span className="text-cyan-400 text-lg">⚡️</span>

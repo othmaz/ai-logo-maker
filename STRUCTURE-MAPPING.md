@@ -1,7 +1,7 @@
 # 🗺️ AI LOGO MAKER - STRUCTURE MAPPING
 
 **Purpose**: Quick reference guide for efficient code navigation and modification.
-**Last Updated**: 2025-01-29
+**Last Updated**: 2025-01-30
 **Architecture**: Route-based multi-page application with React Router DOM + Vercel Postgres Database + Unified Payment System
 
 ---
@@ -551,6 +551,37 @@ Process: Replicate Real-ESRGAN → 4x upscaling
 Output: { success, upscaledUrl }
 ```
 
+#### **🎨 Background Removal (`/api/logos/:id/remove-background`):**
+```javascript
+Line 1025: Sharp-based background removal endpoint
+Input: { clerkUserId, logoUrl }
+Process: Sharp library → Pixel manipulation → Transparency generation
+Output: { success, processedUrl, filename, format }
+
+Technical Details:
+- Premium subscription required (with debug override support)
+- Brightness-based algorithm: >230 = transparent, 200-230 = partial transparency
+- Alpha channel processing for PNG output with transparent backgrounds
+- Edge smoothing for professional logo appearance
+- Analytics tracking for usage monitoring
+```
+
+#### **🔧 Vector Conversion (`/api/logos/:id/vectorize`):**
+```javascript
+Line 980: SVG vectorization endpoint
+Input: { clerkUserId }
+Process: Potrace library → Image tracing → SVG generation
+Output: { success, svgData, format }
+```
+
+#### **📦 Additional Formats (`/api/logos/:id/formats`):**
+```javascript
+Line 1133: Multi-format generation endpoint
+Input: { clerkUserId, formats[] }
+Process: Format-specific processing (favicon, profile picture)
+Output: { success, formats: { [formatId]: { data, filename, mimeType } } }
+```
+
 #### **💳 Payment Processing (`/api/create-payment-intent`):**
 ```javascript
 Line 580: Stripe payment endpoint
@@ -859,7 +890,13 @@ File: client/src/CheckoutForm.tsx (Estimated ~200 lines)
 
 📍 CORE COMPONENTS:
 ├── handleDownloadClick() - App.tsx Lines ~1185-1197
-├── DownloadModal.tsx - Complete premium download center
+├── DownloadModal.tsx - Complete premium download center with:
+│   ├── PNG (Full HD, 1920x1080) - Default selection for digital use
+│   ├── PNG (8K, High-Resolution) - Premium upscaled for print/professional
+│   ├── PNG (Background Removed) - Sharp-based transparent background
+│   ├── SVG (Vector, Scalable) - Infinite scalability for any size
+│   ├── Favicon (.ico) - 32x32 optimized for browser tabs
+│   └── Profile Picture (Rounded PNG) - 512x512 circular for social media
 ├── golden-scintillate CSS class - animations.css Lines ~498-532
 └── Modal z-index fix - z-[100] for navigation overlay
 ```
