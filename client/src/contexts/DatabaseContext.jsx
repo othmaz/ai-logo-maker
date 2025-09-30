@@ -35,8 +35,10 @@ export const DatabaseProvider = ({ children }) => {
         await db.syncUser();
 
         // 2. Get user profile
-        const profile = await db.getUserProfile();
+        const profileResponse = await db.getUserProfile();
+        const profile = profileResponse?.profile || profileResponse; // Handle both response formats
         setUserProfile(profile);
+        console.log('✅ User profile loaded:', profile?.email, 'Status:', profile?.subscription_status);
 
         // 3. Check if we need to migrate from localStorage
         const localStorageData = {
@@ -96,8 +98,10 @@ export const DatabaseProvider = ({ children }) => {
     }
 
     try {
-      const profile = await db.getUserProfile();
+      const profileResponse = await db.getUserProfile();
+      const profile = profileResponse?.profile || profileResponse; // Handle both response formats
       setUserProfile(profile);
+      console.log('✅ User profile refreshed:', profile?.email, 'Status:', profile?.subscription_status);
     } catch (error) {
       console.error('Failed to refresh user profile:', error);
     }

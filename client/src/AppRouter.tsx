@@ -19,16 +19,19 @@ import AboutPage from './pages/AboutPage'
 // Inner component that uses the modal context
 const AppRouterContent: React.FC = () => {
   const { setActiveModal } = useModal()
-  const { isPremiumUser } = useDbContext()
+  const { isPremiumUser, userProfile } = useDbContext()
 
   const handleUpgradeClick = () => {
     setActiveModal('upgrade')
   }
 
+  // Get premium status - this will re-render when userProfile changes
+  const isPaid = isPremiumUser()
+
   return (
     <div className="min-h-screen bg-gray-900">
       <TitleBar />
-      <NavBar isPaid={isPremiumUser()} onUpgradeClick={handleUpgradeClick} />
+      <NavBar isPaid={isPaid} onUpgradeClick={handleUpgradeClick} />
       {/* Content sections already offset by fixed bars via components' own top positions */}
       <main>
         <Routes>
