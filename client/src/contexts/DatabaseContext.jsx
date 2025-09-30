@@ -40,10 +40,10 @@ export const DatabaseProvider = ({ children }) => {
         // 3. Check if we need to migrate from localStorage
         const localStorageData = {
           savedLogos: JSON.parse(localStorage.getItem('savedLogos') || '[]'),
-          generationsUsed: parseInt(localStorage.getItem('generationsUsed') || '0')
+          creditsUsed: parseInt(localStorage.getItem('creditsUsed') || '0')
         };
 
-        const hasLocalData = localStorageData.savedLogos.length > 0 || localStorageData.generationsUsed > 0;
+        const hasLocalData = localStorageData.savedLogos.length > 0 || localStorageData.creditsUsed > 0;
 
         if (hasLocalData && !isMigrated) {
           const migrationResult = await db.migrateFromLocalStorage();

@@ -640,7 +640,7 @@ app.post('/api/users/sync', async (req, res) => {
       INSERT INTO users (clerk_user_id, email)
       VALUES (${clerkUserId}, ${email || null})
       ON CONFLICT (clerk_user_id) DO UPDATE SET email = COALESCE(EXCLUDED.email, users.email)
-      RETURNING id, clerk_user_id, email, subscription_status, generations_used, generations_limit
+      RETURNING id, clerk_user_id, email, subscription_status, credits_used, credits_limit
     `
 
     console.log(`✅ User synced: ${clerkUserId}, subscription: ${rows[0]?.subscription_status}`)
@@ -658,7 +658,7 @@ app.get('/api/users/profile', async (req, res) => {
 
     await connectToDatabase()
     const { rows } = await sql`
-      SELECT id, clerk_user_id, email, subscription_status, generations_used, generations_limit
+      SELECT id, clerk_user_id, email, subscription_status, credits_used, credits_limit
       FROM users
       WHERE clerk_user_id = ${clerkUserId}
       LIMIT 1
@@ -793,8 +793,8 @@ app.get('/api/generations/usage', async (req, res) => {
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
 
     await connectToDatabase()
-    const { rows } = await sql`SELECT generations_used, generations_limit, subscription_status FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1`
-    res.json(rows[0] || { generations_used: 0 })
+    const { rows } = await sql`SELECT credits_used, credits_limit, subscription_status FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1`
+    res.json(rows[0] || { credits_used: 0 })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -806,7 +806,7 @@ app.post('/api/generations/increment', async (req, res) => {
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
 
     await connectToDatabase()
-    await sql`UPDATE users SET generations_used = generations_used + ${by} WHERE clerk_user_id = ${clerkUserId}`
+    await sql`UPDATE users SET credits_used = credits_used + ${by} WHERE clerk_user_id = ${clerkUserId}`
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: error.message })

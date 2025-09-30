@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   subscription_status VARCHAR(50) DEFAULT 'free',
-  generations_used INTEGER DEFAULT 0,
-  generations_limit INTEGER DEFAULT 3
+  credits_used INTEGER DEFAULT 0,
+  credits_limit INTEGER DEFAULT 15
 );
 
 -- Saved logos table

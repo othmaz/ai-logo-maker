@@ -642,7 +642,7 @@ function App() {
     // DEBUG: Function to manually test usage limits (call from browser console)
     (window as any).debugUsageLimits = {
       setAnonymousUsage: (count: number) => {
-        localStorage.setItem('anonymousGenerationsUsed', count.toString());
+        localStorage.setItem('anonymousCreditsUsed', count.toString());
         console.log(`Set anonymous usage to ${count}, call debugUsageLimits.recheckUsage() to update state`);
       },
       setSignedInUsage: (count: number) => {
@@ -655,13 +655,13 @@ function App() {
         checkUsageLimit();
       },
       resetUsage: () => {
-        localStorage.removeItem('anonymousGenerationsUsed');
+        localStorage.removeItem('anonymousCreditsUsed');
         setDebugUsageOverride(null);
         checkUsageLimit();
         console.log('Reset usage to 0');
       },
       showCurrentState: () => {
-        const stored = localStorage.getItem('anonymousGenerationsUsed');
+        const stored = localStorage.getItem('anonymousCreditsUsed');
         console.log('Current localStorage:', stored);
         console.log('Current usage state:', usage);
         console.log('Current isPaid:', isPaid);
@@ -682,8 +682,8 @@ function App() {
         console.log(`   usage.used: ${usage.used}`);
         console.log(`   usage.total: ${usage.total}`);
         console.log(`   remaining: ${usage.remaining}`);
-        console.log(`   anonymous localStorage: ${localStorage.getItem('anonymousGenerationsUsed') || '0'}`);
-        return { isSignedIn, isPaid, usage, anonymousUsage: localStorage.getItem('anonymousGenerationsUsed') };
+        console.log(`   anonymous localStorage: ${localStorage.getItem('anonymousCreditsUsed') || '0'}`);
+        return { isSignedIn, isPaid, usage, anonymousUsage: localStorage.getItem('anonymousCreditsUsed') };
       }
     };
   }, [usage, isPaid, isSignedIn, debugUsageOverride]);
@@ -691,22 +691,22 @@ function App() {
   // Function to check usage limits based on authentication and payment status
   const checkUsageLimit = async () => {
     if (!isSignedIn) {
-      // Anonymous users get 3 free generations
-      const usedGenerations = parseInt(localStorage.getItem('anonymousGenerationsUsed') || '0')
-      const remaining = Math.max(0, 3 - usedGenerations)
-      setUsage({ remaining, total: 3, used: usedGenerations })
+      // Anonymous users get 15 free credits
+      const usedCredits = parseInt(localStorage.getItem('anonymousCreditsUsed') || '0')
+      const remaining = Math.max(0, 3 - usedCredits)
+      setUsage({ remaining, total: 3, used: usedCredits })
     } else if (isPaid) {
       // Paid users have unlimited usage
       setUsage({ remaining: 999, total: 999, used: 0 })
     } else {
-      // Signed in but not paid users get 5 free generations
+      // Signed in but not paid users get 15 free credits
       // Use database generations_used (single source of truth)
-      const dbGenerations = userProfile?.generations_used || 0;
-      const userGenerations = debugUsageOverride !== null ? debugUsageOverride : dbGenerations;
+      const dbCredits = userProfile?.generations_used || 0;
+      const userCredits = debugUsageOverride !== null ? debugUsageOverride : dbCredits;
 
-      const totalGenerationsForSignedInFree = 5; // 3 initial + 2 bonus
-      const remaining = Math.max(0, totalGenerationsForSignedInFree - userGenerations)
-      setUsage({ remaining, total: totalGenerationsForSignedInFree, used: userGenerations })
+      const totalCreditsForFree = 15; // 3 initial + 2 bonus
+      const remaining = Math.max(0, totalCreditsForFree - userCredits)
+      setUsage({ remaining, total: totalCreditsForFree, used: userCredits })
     }
   }
 
@@ -824,8 +824,8 @@ function App() {
 
     // Check localStorage directly for anonymous users
     if (!isSignedIn) {
-      const storedUsed = localStorage.getItem('anonymousGenerationsUsed');
-      console.log('DEBUG: localStorage anonymousGenerationsUsed:', storedUsed);
+      const storedUsed = localStorage.getItem('anonymousCreditsUsed');
+      console.log('DEBUG: localStorage anonymousCreditsUsed:', storedUsed);
     }
 
     if (!isPaid && usage.remaining <= 0) {
@@ -1018,16 +1018,16 @@ function App() {
         console.log('=== UPDATING USAGE TRACKING ===');
         if (!isSignedIn) {
           // Update anonymous user usage in localStorage
-          const currentUsed = parseInt(localStorage.getItem('anonymousGenerationsUsed') || '0')
+          const currentUsed = parseInt(localStorage.getItem('anonymousCreditsUsed') || '0')
           const newUsed = currentUsed + 1
-          localStorage.setItem('anonymousGenerationsUsed', newUsed.toString())
+          localStorage.setItem('anonymousCreditsUsed', newUsed.toString())
           const newRemaining = Math.max(0, 3 - newUsed);
           setUsage(prev => ({ ...prev, used: newUsed, remaining: newRemaining }))
           console.log('🔢 Anonymous user - updated usage: currentUsed =', currentUsed, '→ newUsed =', newUsed, ', remaining =', newRemaining);
 
           // Check if this puts us over the limit for next time
           if (newRemaining <= 0) {
-            console.log('⚠️  CRITICAL: This was the last free generation for anonymous user!');
+            console.log('⚠️  CRITICAL: This was the last free credit for anonymous user!');
           }
         } else {
           // Track generation in database for signed-in users
@@ -1405,7 +1405,7 @@ function App() {
                 PAYMENT SUCCESSFUL! <span style={{color: '#fde047', filter: 'none'}}>🎉</span>
               </h1>
               <p className="text-xl text-gray-300 mb-8 font-mono">
-                Welcome to Premium! You now have unlimited logo generation.
+                Welcome to Premium! You now have unlimited credits.
               </p>
             </div>
 
@@ -1756,7 +1756,7 @@ function App() {
                   </div>
                   <h3 className="text-xl font-bold text-green-400 font-mono">PREMIUM ACTIVE</h3>
                 </div>
-                <p className="text-gray-300 font-mono">Unlimited logo generation</p>
+                <p className="text-gray-300 font-mono">Unlimited credits</p>
                 <p className="text-gray-400 font-mono text-sm mt-2">
                   Premium subscription active
                 </p>
@@ -2129,7 +2129,7 @@ function App() {
               </div>
               <div className="flex items-center group">
                 <div className="w-15 h-15 mr-3 text-purple-400 flex items-center justify-center pixel-icon text-2xl group-hover:text-white transition-colors">💎</div>
-                <span className="retro-mono text-gray-300 group-hover:text-purple-400 transition-colors">3 FREE TRIES • €9.99 UNLIMITED</span>
+                <span className="retro-mono text-gray-300 group-hover:text-purple-400 transition-colors">15 FREE CREDITS • €9.99 UNLIMITED</span>
               </div>
             </div>
 
@@ -2787,15 +2787,15 @@ function App() {
                 <div className="space-y-6 text-gray-700">
                   <div>
                     <h3 className="text-xl font-semibold mb-3">1. Service Description</h3>
-                    <p>AI Logo Maker provides artificial intelligence-powered logo generation services. Users can create up to 3 logos for free, after which a €9.99 payment is required for unlimited access.</p>
+                    <p>AI Logo Maker provides artificial intelligence-powered logo generation services. Users can create up to 15 credits for free, after which a €9.99 payment is required for unlimited access.</p>
                   </div>
 
                   <div>
                     <h3 className="text-xl font-semibold mb-3">2. Payment Terms</h3>
                     <ul className="list-disc pl-6 space-y-2">
-                      <li>First 3 logo generations are completely free</li>
+                      <li>First 15 logo credits are completely free</li>
                       <li>Additional access requires a one-time payment of €9.99</li>
-                      <li>Payment provides unlimited logo generation for your account</li>
+                      <li>Payment provides unlimited credits for your account</li>
                       <li>All payments are processed securely through Stripe</li>
                     </ul>
                   </div>
@@ -2841,7 +2841,7 @@ function App() {
                     <ul className="list-disc pl-6 space-y-2">
                       <li><strong>Business Information:</strong> Business name, industry, description, and design preferences you provide</li>
                       <li><strong>Generated Content:</strong> Logos and images created during your session</li>
-                      <li><strong>Usage Data:</strong> Number of generations used, selected preferences, and session activity</li>
+                      <li><strong>Usage Data:</strong> Number of credits used, selected preferences, and session activity</li>
                       <li><strong>Payment Information:</strong> Processed securely by Stripe (we don't store payment details)</li>
                       <li><strong>Account Data:</strong> Email address and basic account information (only when you register at checkout)</li>
                     </ul>
@@ -2851,7 +2851,7 @@ function App() {
                     <h3 className="text-xl font-semibold mb-3">How We Use Your Information</h3>
                     <ul className="list-disc pl-6 space-y-2">
                       <li>Generate personalized logos based on your business requirements</li>
-                      <li>Track your usage against the 3-generation free limit</li>
+                      <li>Track your usage against the 15-credit free limit</li>
                       <li>Process payments and manage your account</li>
                       <li>Provide customer support and respond to inquiries</li>
                       <li>Improve our AI algorithms and service quality</li>
@@ -3031,7 +3031,7 @@ function App() {
                             <div className="space-y-3">
                               <div className="flex items-center space-x-3">
                                 <span className="text-cyan-400 text-lg">🚀</span>
-                                <span className="text-cyan-400 text-base">UNLIMITED GENERATION</span>
+                                <span className="text-cyan-400 text-base">UNLIMITED CREDITS</span>
                               </div>
                               <div className="flex items-center space-x-3">
                                 <span className="text-cyan-400 text-lg">✨</span>

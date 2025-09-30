@@ -59,7 +59,7 @@ const AboutPage: React.FC = () => {
               <div className="flex items-start space-x-3">
                 <span className="text-cyan-400 text-lg mt-1">✓</span>
                 <p className="retro-body text-gray-300">
-                  <strong className="text-white">Fair Pricing:</strong> 3 free generations, then just €9.99 for unlimited access
+                  <strong className="text-white">Credits System:</strong> 15 free credits, then just €9.99 for unlimited access
                 </p>
               </div>
               <div className="flex items-start space-x-3">
