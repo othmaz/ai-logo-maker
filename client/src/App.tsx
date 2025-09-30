@@ -869,8 +869,15 @@ function App() {
       const basePrompt = buildBasePrompt(formData)
       prompts = createPromptVariations(basePrompt, formData)
     } else {
-      prompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
-      console.log('🔄 REFINEMENT MODE - Selected logos:', selectedLogos.length)
+      // Single-logo mode: only generate 1 logo instead of 5
+      if (refinementMode === 'single') {
+        const fullPrompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
+        prompts = [fullPrompts[0]] // Take only the first prompt for single-logo refinement
+        console.log('✨ SINGLE-LOGO MODE - Generating 1 focused iteration')
+      } else {
+        prompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
+        console.log('🔄 BATCH REFINEMENT MODE - Selected logos:', selectedLogos.length)
+      }
       console.log('💬 User feedback:', userFeedback || 'No feedback provided')
     }
 
@@ -996,8 +1003,15 @@ function App() {
         selectedLogos: []
       }
       setGenerationHistory(prev => [...prev, newRound])
-      setCurrentRound(prev => prev + 1)
-      
+      setCurrentRound(prev => {
+        const nextRound = prev + 1
+        // Show upgrade modal at round 3 for non-paid users
+        if (nextRound === 3 && !isPaid) {
+          setTimeout(() => setActiveModal('upgrade'), 1000)
+        }
+        return nextRound
+      })
+
       // Track successful logo generation with GA4
       try {
         if (typeof window !== 'undefined' && window.gtag) {
