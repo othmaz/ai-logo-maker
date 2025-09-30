@@ -1105,13 +1105,26 @@ function App() {
     setRefinementMode('single')
     setSelectedLogos([logo])
     setUserFeedback('')
+
+    // Add the logo to current logos if not already there (for saved logos)
+    if (!logos.find(l => l.id === logo.id)) {
+      setLogos([logo])
+      setCurrentRound(1)
+    }
+
     showToast('Single-logo refinement mode activated. Provide feedback to iterate on this design.', 'success')
 
-    // Scroll to feedback section
+    // Scroll to feedback section (works from anywhere including dashboard)
     setTimeout(() => {
       const feedbackSection = document.getElementById('feedback-section')
       if (feedbackSection) {
         feedbackSection.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      } else {
+        // If feedback section doesn't exist, scroll to level-1 or level-2
+        const levelElement = document.getElementById(`level-${currentRound + 1}`) || document.getElementById('level-1')
+        if (levelElement) {
+          levelElement.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
       }
     }, 100)
   }
@@ -2709,7 +2722,7 @@ function App() {
                       />
                     </div>
                     
-                    {/* Action buttons - download and remove */}
+                    {/* Action buttons - download, refine, and remove */}
                     <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 flex space-x-2">
                       <button
                         onClick={(e) => {
@@ -2721,6 +2734,23 @@ function App() {
                       >
                         ↓
                       </button>
+
+                      {/* Refine This Logo button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          startSingleLogoRefinement(logo)
+                        }}
+                        className={`rounded-lg w-8 h-8 flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-200 text-sm font-bold ${
+                          focusedLogo?.id === logo.id
+                            ? 'bg-cyan-400 text-white'
+                            : 'bg-cyan-100/80 hover:bg-cyan-200/80 text-cyan-700'
+                        }`}
+                        title="Refine this logo iteratively"
+                      >
+                        ✨
+                      </button>
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
