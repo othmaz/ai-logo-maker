@@ -275,6 +275,8 @@ function App() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showDashboard, setShowDashboard] = useState(false);
   const [tosAccepted, setTosAccepted] = useState(false);
+  const [refinementMode, setRefinementMode] = useState<'batch' | 'single'>('batch');
+  const [focusedLogo, setFocusedLogo] = useState<Logo | null>(null);
 
   // Check if user has paid (based on database subscription status with debug support)
   const isPaid = isPremiumUser()
@@ -1075,20 +1077,53 @@ function App() {
   }
 
   const proceedToRefinement = async () => {
-    if (selectedLogos.length > 2) {
-      showToast('Please select maximum 2 logos to refine (or provide feedback without selecting any)', 'warning')
-      return
+    if (refinementMode === 'batch') {
+      // Batch mode: can select up to 2 logos
+      if (selectedLogos.length > 2) {
+        showToast('Please select maximum 2 logos to refine (or provide feedback without selecting any)', 'warning')
+        return
+      }
+    } else {
+      // Single-logo mode: must have a focused logo
+      if (!focusedLogo) {
+        showToast('Please select a logo to refine', 'error')
+        return
+      }
     }
 
     if (!userFeedback.trim()) {
-      showToast('Please provide feedback about what you like or dislike in the current logos to help generate better ones', 'info')
+      showToast('Please provide feedback about what you like or dislike to help generate better versions', 'info')
       return
     }
 
     await handleRefinement()
   }
 
+  // Start single-logo iterative refinement mode
+  const startSingleLogoRefinement = (logo: Logo) => {
+    setFocusedLogo(logo)
+    setRefinementMode('single')
+    setSelectedLogos([logo])
+    setUserFeedback('')
+    showToast('Single-logo refinement mode activated. Provide feedback to iterate on this design.', 'success')
 
+    // Scroll to feedback section
+    setTimeout(() => {
+      const feedbackSection = document.getElementById('feedback-section')
+      if (feedbackSection) {
+        feedbackSection.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 100)
+  }
+
+  // Exit single-logo mode and return to batch mode
+  const exitSingleLogoMode = () => {
+    setRefinementMode('batch')
+    setFocusedLogo(null)
+    setSelectedLogos([])
+    setUserFeedback('')
+    showToast('Returned to batch refinement mode', 'info')
+  }
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files
@@ -2471,7 +2506,7 @@ function App() {
                       </div>
                     )}
 
-                    {/* Action buttons - save and download on top right */}
+                    {/* Action buttons - save, download, and refine on top right */}
                     <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 flex space-x-2">
                       {/* Download button - golden scintillating */}
                       <button
@@ -2500,19 +2535,65 @@ function App() {
                       >
                         {isLogoSaved(logo.url) ? '❤️' : '🤍'}
                       </button>
+
+                      {/* Refine This Logo button - magic wand icon */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          startSingleLogoRefinement(logo)
+                        }}
+                        className={`rounded-lg w-8 h-8 flex items-center justify-center shadow-lg backdrop-blur-sm transition-all duration-200 text-sm font-bold ${
+                          focusedLogo?.id === logo.id
+                            ? 'bg-cyan-400 text-white'
+                            : 'bg-cyan-100/80 hover:bg-cyan-200/80 text-cyan-700'
+                        }`}
+                        title="Refine this logo iteratively"
+                      >
+                        ✨
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
 
+              {/* Single-Logo Refinement Mode Indicator */}
+              {refinementMode === 'single' && focusedLogo && round.round === currentRound && (
+                <div className="mb-6 bg-gradient-to-r from-cyan-50 to-blue-50 border-2 border-cyan-300 rounded-2xl p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-16 h-16 bg-white rounded-lg shadow-md overflow-hidden">
+                        <img src={focusedLogo.url} alt="Focused logo" className="w-full h-full object-cover" />
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2 mb-1">
+                          <span className="text-2xl">✨</span>
+                          <h3 className="text-xl font-bold text-cyan-900">Single-Logo Refinement Mode</h3>
+                        </div>
+                        <p className="text-cyan-700">
+                          Iterating on Logo #{focusedLogo.number}. Provide feedback to refine this specific design.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={exitSingleLogoMode}
+                      className="px-4 py-2 bg-white hover:bg-gray-100 text-cyan-700 rounded-lg font-medium transition-colors shadow-sm"
+                    >
+                      Exit Mode
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Feedback Section for Refinement - Only show for current round */}
               {round.round === currentRound && currentRound > 0 && currentRound < 3 && (
-                <div className="mb-8 bg-gray-50 rounded-2xl p-6">
+                <div id="feedback-section" className="mb-8 bg-gray-50 rounded-2xl p-6">
                   <h3 className="text-xl font-bold text-gray-800 mb-4">
-                    Provide Feedback for Refinement
+                    {refinementMode === 'single' ? 'Refine This Logo' : 'Provide Feedback for Refinement'}
                   </h3>
                   <p className="text-gray-600 mb-4">
-                    Tell us what you like or dislike about these logos. Optionally select 1-2 specific ones to focus on:
+                    {refinementMode === 'single'
+                      ? 'Tell us how to improve this specific logo. Be specific about colors, shapes, text, or style:'
+                      : 'Tell us what you like or dislike about these logos. Optionally select 1-2 specific ones to focus on:'}
                   </p>
                   <textarea
                     value={userFeedback}
@@ -2520,10 +2601,12 @@ function App() {
                     placeholder="Example: I like the modern look but the text is too thin. The colors are great but maybe try a different font style..."
                     className="w-full h-24 p-4 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                   />
-                  {userFeedback.trim() && selectedLogos.length <= 2 && (
+                  {userFeedback.trim() && (refinementMode === 'single' || selectedLogos.length <= 2) && (
                     <p className="text-sm text-green-600 mt-2 flex items-center">
                       <span className="mr-2">✓</span>
-                      {selectedLogos.length > 0
+                      {refinementMode === 'single'
+                        ? 'Ready to refine this logo with your feedback'
+                        : selectedLogos.length > 0
                         ? `Ready to refine ${selectedLogos.length} selected logo${selectedLogos.length > 1 ? 's' : ''} with your feedback`
                         : 'Ready to refine with your general feedback'
                       }
