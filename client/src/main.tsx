@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
-import { SpeedInsights } from '@vercel/speed-insights/react'
-import { Analytics } from '@vercel/analytics/react'
+// import { SpeedInsights } from '@vercel/speed-insights/react'
+// import { Analytics } from '@vercel/analytics/react'
 import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
 import AppRouter from './AppRouter'
@@ -302,13 +302,13 @@ createRoot(document.getElementById('root')!).render(
     >
       <BrowserRouter>
         <AppRouter />
-        {/* Only load analytics in production to avoid ad blocker errors in dev */}
-        {import.meta.env.PROD && (
+        {/* Analytics disabled - enable in Vercel dashboard first, then uncomment */}
+        {/* {import.meta.env.PROD && (
           <>
             <SpeedInsights />
             <Analytics />
           </>
-        )}
+        )} */}
       </BrowserRouter>
     </ClerkProvider>
   </StrictMode>,
