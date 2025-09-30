@@ -302,8 +302,13 @@ createRoot(document.getElementById('root')!).render(
     >
       <BrowserRouter>
         <AppRouter />
-        <SpeedInsights />
-        <Analytics />
+        {/* Only load analytics in production to avoid ad blocker errors in dev */}
+        {import.meta.env.PROD && (
+          <>
+            <SpeedInsights />
+            <Analytics />
+          </>
+        )}
       </BrowserRouter>
     </ClerkProvider>
   </StrictMode>,
