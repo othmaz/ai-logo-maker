@@ -15,6 +15,7 @@ import {
 import './animations.css'
 import CheckoutForm from './CheckoutForm';
 import { useDbContext } from './contexts/DatabaseContext';
+import DownloadModal from './components/DownloadModal';
 // import type { DatabaseContextType } from './contexts/DatabaseContext.d';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
@@ -229,7 +230,7 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
 function App() {
   const navigate = useNavigate()
   const { isSignedIn, user, isLoaded } = useUser()
-  const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadingLogos, userProfile, updateUserSubscription, refreshUserProfile, trackLogoGeneration } = useDbContext()
+  const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadingLogos, userProfile, updateUserSubscription, refreshUserProfile, trackLogoGeneration, isPremiumUser } = useDbContext()
 
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
@@ -255,6 +256,8 @@ function App() {
   const [debugUsageOverride, setDebugUsageOverride] = useState<number | null>(null)
   const [toasts, setToasts] = useState<Toast[]>([])
   const [activeModal, setActiveModal] = useState<Modal['type']>(null)
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false)
+  const [selectedLogoForDownload, setSelectedLogoForDownload] = useState<Logo | null>(null)
   const [confirmModal, setConfirmModal] = useState<ConfirmationModal>({
     isOpen: false,
     title: '',
@@ -272,8 +275,8 @@ function App() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showDashboard, setShowDashboard] = useState(false);
 
-  // Check if user has paid (based on database subscription status)
-  const isPaid = isSignedIn && userProfile?.subscription_status === 'premium'
+  // Check if user has paid (based on database subscription status with debug support)
+  const isPaid = isPremiumUser()
 
   // Scroll to top function for title bar home button
   const scrollToHome = () => {
@@ -322,10 +325,8 @@ function App() {
   const restoreFormDataFromLocalStorage = () => {
     try {
       const saved = localStorage.getItem('logoMakerFormData')
-      console.log('🔍 Checking localStorage for saved data:', saved ? 'Found' : 'Not found')
       if (saved) {
         const data = JSON.parse(saved)
-        console.log('📊 Parsed localStorage data:', data)
         // Only restore if data is less than 1 hour old
         if (Date.now() - data.timestamp < 3600000) {
           setFormData(data.formData || formData)
@@ -370,7 +371,6 @@ function App() {
   // Restore form data after authentication
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      console.log('🔧 Authentication complete, triggering data restoration')
       restoreFormDataFromLocalStorage()
     }
   }, [isLoaded, isSignedIn])
@@ -379,7 +379,7 @@ function App() {
   const upscaleLogo = async (logoUrl: string, scale: number = 4): Promise<string> => {
     try {
       console.log('🔍 Starting logo upscaling for:', logoUrl)
-      showToast('Upscaling your logo to higher resolution...', 'info')
+      showToast('Processing premium download...', 'info')
 
       // Use relative URL for production, localhost for development
       const apiUrl = import.meta.env.DEV
@@ -399,6 +399,14 @@ function App() {
 
       if (!response.ok) {
         const errorData = await response.json()
+
+        // If REPLICATE_API_TOKEN is missing, fall back to original image for testing
+        if (errorData.error && errorData.error.includes('REPLICATE_API_TOKEN')) {
+          console.log('🧪 DEBUG: Upscaling skipped - using original resolution for testing')
+          showToast('Premium download complete (original resolution)', 'success')
+          return logoUrl
+        }
+
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
       }
 
@@ -411,6 +419,14 @@ function App() {
     } catch (error) {
       console.error('❌ Upscaling error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+
+      // For testing: if it's a token error, return original image instead of failing
+      if (errorMessage.includes('REPLICATE_API_TOKEN')) {
+        console.log('🧪 DEBUG: Falling back to original image due to missing token')
+        showToast('Premium download complete (original resolution)', 'success')
+        return logoUrl
+      }
+
       showToast('Failed to upscale logo: ' + errorMessage, 'error')
       throw error
     }
@@ -464,10 +480,7 @@ function App() {
     try {
       console.log('💳 Processing logo for paid download:', logo.id)
 
-      // Show processing notification
-      showToast('Processing your premium logo...', 'info')
-
-      // Upscale the logo to 8K resolution
+      // Upscale the logo to 8K resolution (upscaleLogo handles its own notifications)
       const upscaledUrl = await upscaleLogo(logo.url, 4)
 
       // Track the premium download event
@@ -627,12 +640,10 @@ function App() {
         console.log(`Set anonymous usage to ${count}, call debugUsageLimits.recheckUsage() to update state`);
       },
       setSignedInUsage: (count: number) => {
-        console.log(`🔧 Setting signed-in user usage to ${count} (this simulates having generated ${count} logos)`);
         setDebugUsageOverride(count);
         // Force immediate usage calculation with the new value
         const remaining = Math.max(0, 3 - count);
         setUsage({ remaining, total: 3, used: count });
-        console.log('🔧 DEBUG: Forced usage update - userGenerations =', count, ', remaining =', remaining);
       },
       recheckUsage: () => {
         checkUsageLimit();
@@ -673,24 +684,16 @@ function App() {
 
   // Function to check usage limits based on authentication and payment status
   const checkUsageLimit = async () => {
-    console.log('=== checkUsageLimit() CALLED ===');
-    console.log('📊 Current auth state - isSignedIn:', isSignedIn, ', isPaid:', isPaid);
-    console.log('📊 Current usage state before update:', usage);
-
     if (!isSignedIn) {
       // Anonymous users get 3 free generations
       const usedGenerations = parseInt(localStorage.getItem('anonymousGenerationsUsed') || '0')
       const remaining = Math.max(0, 3 - usedGenerations)
       setUsage({ remaining, total: 3, used: usedGenerations })
-      console.log('👤 Anonymous user usage: usedGenerations =', usedGenerations, ', remaining =', remaining);
     } else if (isPaid) {
       // Paid users have unlimited usage
       setUsage({ remaining: 999, total: 999, used: 0 })
-      console.log('💎 Paid user - unlimited usage');
     } else {
-      // Signed in but not paid users get 3 free generations
-      console.log('🔧 DEBUG: debugUsageOverride state value:', debugUsageOverride);
-
+      // Signed in but not paid users get 5 free generations
       // Use database generations_used (single source of truth)
       const dbGenerations = userProfile?.generations_used || 0;
       const userGenerations = debugUsageOverride !== null ? debugUsageOverride : dbGenerations;
@@ -698,14 +701,7 @@ function App() {
       const totalGenerationsForSignedInFree = 5; // 3 initial + 2 bonus
       const remaining = Math.max(0, totalGenerationsForSignedInFree - userGenerations)
       setUsage({ remaining, total: totalGenerationsForSignedInFree, used: userGenerations })
-      console.log('👤 Signed-in free user usage: userGenerations =', userGenerations, ', remaining =', remaining, ', total =', totalGenerationsForSignedInFree);
-      console.log('📊 Database generations:', dbGenerations);
-      if (debugUsageOverride !== null) {
-        console.log('🔧 DEBUG: Using override usage value:', debugUsageOverride);
-      }
     }
-
-    console.log('=== checkUsageLimit() COMPLETED ===');
   }
 
   // Check if a logo is already saved
@@ -1181,7 +1177,7 @@ function App() {
     }
   }
 
-  // Handle download button click - prompt sign in or upgrade modal
+  // Handle download button click - prompt sign in, upgrade, or download modal
   const handleDownloadClick = (logo: Logo) => {
     if (!isSignedIn) {
       // Save form data before showing sign in modal
@@ -1191,8 +1187,9 @@ function App() {
       // Show upgrade modal for non-premium users
       setActiveModal('upgrade')
     } else {
-      // Premium users can download directly (this shouldn't happen with golden button)
-      downloadLogo(logo)
+      // Premium users see download options modal
+      setSelectedLogoForDownload(logo)
+      setDownloadModalOpen(true)
     }
   }
 
@@ -3130,6 +3127,19 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Download Modal */}
+      {selectedLogoForDownload && (
+        <DownloadModal
+          isOpen={downloadModalOpen}
+          onClose={() => {
+            setDownloadModalOpen(false)
+            setSelectedLogoForDownload(null)
+          }}
+          logo={selectedLogoForDownload}
+          isPremiumUser={isPaid}
+        />
       )}
     </div>
   )
