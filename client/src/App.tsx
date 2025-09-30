@@ -274,6 +274,7 @@ function App() {
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [showDashboard, setShowDashboard] = useState(false);
+  const [tosAccepted, setTosAccepted] = useState(false);
 
   // Check if user has paid (based on database subscription status with debug support)
   const isPaid = isPremiumUser()
@@ -437,6 +438,11 @@ function App() {
     try {
       if (!isSignedIn || !user) {
         showToast('Please sign in to upgrade to premium', 'error')
+        return
+      }
+
+      if (!tosAccepted) {
+        showToast('Please accept the Terms of Service to continue', 'error')
         return
       }
 
@@ -3069,15 +3075,55 @@ function App() {
                             </p>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => {
-                              saveFormDataToLocalStorage()
-                              handlePaymentUpgrade()
-                            }}
-                            className="w-full px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50"
-                          >
-                            UPGRADE NOW - €9.99
-                          </button>
+                          <>
+                            {/* Terms of Service Checkbox */}
+                            <div className="flex items-start space-x-3 bg-gray-800/50 rounded-lg border border-cyan-400/30 p-4">
+                              <input
+                                type="checkbox"
+                                id="tos-checkbox"
+                                checked={tosAccepted}
+                                onChange={(e) => setTosAccepted(e.target.checked)}
+                                className="w-5 h-5 mt-0.5 cursor-pointer accent-cyan-400"
+                              />
+                              <label htmlFor="tos-checkbox" className="text-gray-300 text-sm cursor-pointer">
+                                I agree to the{' '}
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    setActiveModal('tos')
+                                  }}
+                                  className="text-cyan-400 hover:text-cyan-300 underline"
+                                >
+                                  Terms of Service
+                                </button>
+                                {' '}and{' '}
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault()
+                                    setActiveModal('privacy')
+                                  }}
+                                  className="text-cyan-400 hover:text-cyan-300 underline"
+                                >
+                                  Privacy Policy
+                                </button>
+                              </label>
+                            </div>
+
+                            <button
+                              onClick={() => {
+                                saveFormDataToLocalStorage()
+                                handlePaymentUpgrade()
+                              }}
+                              disabled={!tosAccepted}
+                              className={`w-full px-8 py-4 rounded-lg font-bold retro-mono text-lg shadow-lg transition-all duration-200 border-2 ${
+                                tosAccepted
+                                  ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white hover:from-cyan-600 hover:to-purple-700 hover:shadow-xl border-cyan-400/50 cursor-pointer'
+                                  : 'bg-gray-600 text-gray-400 border-gray-600 cursor-not-allowed opacity-50'
+                              }`}
+                            >
+                              UPGRADE NOW - €9.99
+                            </button>
+                          </>
                         )}
                       </div>
 
