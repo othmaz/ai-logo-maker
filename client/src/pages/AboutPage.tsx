@@ -3,39 +3,98 @@ import React from 'react'
 const AboutPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <div className="flex items-center justify-center min-h-screen pt-32 md:pt-40 lg:pt-48 pb-16">
-        <div className="relative max-w-6xl mx-auto px-4 text-center">
-          {/* Animated Border Container */}
-          <div className="relative p-8 border-4 border-transparent bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-2xl animate-pulse-border">
-            <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black rounded-xl p-12">
-              <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-6 max-w-5xl mx-auto leading-tight text-white">
-                WORK IN PROGRESS
-                <br />
-                <span className="text-glow animated-text-gradient text-xl lg:text-3xl xl:text-4xl">ABOUT US</span>
-              </h1>
+      <div className="pt-32 md:pt-40 lg:pt-48 pb-16">
+        <div className="relative max-w-4xl mx-auto px-4">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-6 leading-tight text-white">
+              ABOUT
+              <br />
+              <span className="text-glow animated-text-gradient text-xl lg:text-3xl xl:text-4xl">AI LOGO MAKER</span>
+            </h1>
+            <p className="retro-body text-base md:text-lg text-cyan-400 max-w-2xl mx-auto">
+              &gt; POWERED BY GOOGLE GEMINI • BUILT WITH PASSION
+            </p>
+          </div>
 
-              {/* Retro Computer Animation */}
-              <div className="flex justify-center items-center mt-8">
-                <div className="font-mono text-orange-400 text-lg animate-pulse">
-                  🖥️ SYSTEM.LOADING.STORY()
+          {/* Mission Section */}
+          <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-8 mb-8">
+            <h2 className="retro-title text-xl lg:text-2xl text-cyan-400 mb-4">
+              OUR MISSION
+            </h2>
+            <p className="retro-body text-gray-300 leading-relaxed mb-4">
+              We believe every business deserves a professional logo, regardless of budget or design expertise.
+              Our AI-powered platform democratizes logo design, making it fast, affordable, and accessible to everyone.
+            </p>
+            <p className="retro-body text-gray-300 leading-relaxed">
+              Powered by Google's Gemini AI, we generate unique, high-quality logos in minutes.
+              Try it free, upgrade for unlimited access and premium export options.
+            </p>
+          </div>
+
+          {/* What We Offer Section */}
+          <div className="bg-gray-800/50 rounded-2xl border border-purple-400/30 p-8 mb-8">
+            <h2 className="retro-title text-xl lg:text-2xl text-purple-400 mb-4">
+              WHAT WE OFFER
+            </h2>
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <span className="text-cyan-400 text-lg mt-1">✓</span>
+                <p className="retro-body text-gray-300">
+                  <strong className="text-white">AI-Powered Generation:</strong> Google Gemini creates unique logos tailored to your business
+                </p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <span className="text-cyan-400 text-lg mt-1">✓</span>
+                <p className="retro-body text-gray-300">
+                  <strong className="text-white">Professional Quality:</strong> 8K upscaling, SVG vectorization, background removal
+                </p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <span className="text-cyan-400 text-lg mt-1">✓</span>
+                <p className="retro-body text-gray-300">
+                  <strong className="text-white">Multiple Formats:</strong> Standard PNG, 8K resolution, SVG vector, favicon, and more
+                </p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <span className="text-cyan-400 text-lg mt-1">✓</span>
+                <p className="retro-body text-gray-300">
+                  <strong className="text-white">Fair Pricing:</strong> 3 free generations, then just €9.99 for unlimited access
+                </p>
+              </div>
+              <div className="flex items-start space-x-3">
+                <span className="text-cyan-400 text-lg mt-1">✓</span>
+                <p className="retro-body text-gray-300">
+                  <strong className="text-white">Commercial Rights:</strong> Full ownership for personal and commercial use
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Section */}
+          <div className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-2xl border-2 border-cyan-400/50 p-8">
+            <h2 className="retro-title text-xl lg:text-2xl text-cyan-400 mb-4">
+              GET IN TOUCH
+            </h2>
+            <div className="space-y-4">
+              <p className="retro-body text-gray-300 leading-relaxed">
+                Have questions, feedback, or need support? We're here to help.
+              </p>
+              <div className="flex items-center space-x-3 bg-gray-800/50 rounded-lg p-4 border border-cyan-400/30">
+                <span className="text-cyan-400 text-2xl">✉️</span>
+                <div>
+                  <p className="text-sm text-gray-400">Support Email</p>
+                  <a
+                    href="mailto:support@ailogomaker.com"
+                    className="text-cyan-400 hover:text-cyan-300 font-mono text-lg"
+                  >
+                    support@ailogomaker.com
+                  </a>
                 </div>
               </div>
-
-              {/* Retro Loading Animation */}
-              <div className="flex justify-center items-center space-x-2 mt-6">
-                <div className="w-3 h-3 bg-yellow-400 rounded-full animate-bounce"></div>
-                <div className="w-3 h-3 bg-orange-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                <div className="w-3 h-3 bg-red-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-              </div>
-
-              <p className="retro-body text-base md:text-lg text-cyan-400 mt-8 max-w-3xl mx-auto leading-relaxed">
-                &gt; CRAFTING OUR STORY AND MISSION...
-                <br />
-                &gt; MEET THE TEAM SECTION LOADING...
+              <p className="text-gray-400 text-sm retro-body">
+                We typically respond within 24 hours during business days.
               </p>
-
-              {/* Retro Terminal Cursor */}
-              <div className="inline-block w-3 h-6 bg-orange-400 ml-2 animate-pulse"></div>
             </div>
           </div>
         </div>
