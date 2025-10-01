@@ -341,18 +341,13 @@ function App() {
           setLogoCounter(data.logoCounter || 1)
           setUsage(data.usage || { remaining: 3, total: 3, used: 0 })
 
-          // Skip upgrade modal and go directly to payment if user was trying to upgrade before auth
+          // Show upgrade modal if user was trying to upgrade before auth
           if (data.shouldShowUpgradeModal) {
-            console.log('🎯 shouldShowUpgradeModal detected, preparing to call handlePaymentUpgrade')
+            console.log('🎯 shouldShowUpgradeModal detected, showing upgrade modal after auth')
             setTimeout(() => {
-              console.log('✅ Skipping upgrade modal, going directly to payment after auth')
-              console.log('🔄 Calling handlePaymentUpgrade...')
-              if (typeof handlePaymentUpgrade === 'function') {
-                handlePaymentUpgrade()
-              } else {
-                console.error('❌ handlePaymentUpgrade function not available')
-              }
-            }, 1000) // Small delay to let everything load
+              console.log('✅ Showing upgrade modal after authentication')
+              setActiveModal('upgrade')
+            }, 500) // Small delay to let everything load
           } else {
             console.log('❌ No shouldShowUpgradeModal found in localStorage data')
           }
