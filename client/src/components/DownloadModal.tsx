@@ -25,7 +25,7 @@ interface FormatOption {
 
 const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser, businessName = 'logo', onSave }) => {
   const { user } = useUser()
-  const [selectedFormats, setSelectedFormats] = useState<string[]>(['png-hd'])
+  const [selectedFormats, setSelectedFormats] = useState<string[]>(['png-hd', 'png'])
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<Record<string, 'pending' | 'processing' | 'completed' | 'error'>>({})
   const [showUnzipInstructions, setShowUnzipInstructions] = useState(false)
