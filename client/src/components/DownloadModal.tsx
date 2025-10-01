@@ -294,14 +294,17 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4">
-      <div className="bg-gray-800 rounded-2xl border border-gray-600 max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fadeIn">
+      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl border-2 border-cyan-400/50 shadow-[0_0_50px_rgba(34,211,238,0.3)] max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col animate-slideUp">
+        <div className="p-6 overflow-y-auto flex-1">
           <div className="flex justify-between items-start mb-6">
-            <h2 className="text-2xl font-bold text-white font-mono">DOWNLOAD CENTER</h2>
+            <div>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent font-mono">DOWNLOAD CENTER</h2>
+              <div className="h-1 w-24 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full mt-2"></div>
+            </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white text-2xl"
+              className="text-gray-400 hover:text-cyan-400 text-3xl transition-all hover:rotate-90 duration-300"
             >
               ×
             </button>
@@ -363,20 +366,43 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
                         {format.description}
                       </p>
                       {downloadProgress[format.id] && (
-                        <div className="mt-2">
+                        <div className="mt-3">
                           {downloadProgress[format.id] === 'processing' && (
-                            <div className="flex items-center space-x-2">
-                              <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
-                              <span className="text-yellow-400 text-xs">
-                                {format.id === 'png' ? 'Processing 8K upscale (5-10 sec)...' : 'Processing...'}
-                              </span>
+                            <div className="space-y-2">
+                              <div className="flex items-center space-x-2">
+                                <div className="relative">
+                                  <div className="w-4 h-4 border-2 border-yellow-400/30 rounded-full"></div>
+                                  <div className="absolute inset-0 w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                                </div>
+                                <span className="text-yellow-400 text-xs font-bold animate-pulse">
+                                  {format.id === 'png' ? 'AI UPSCALING TO 8K...' : 'PROCESSING...'}
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-700 rounded-full h-1 overflow-hidden">
+                                <div className="h-full bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400 rounded-full animate-shimmer" style={{width: '100%'}}></div>
+                              </div>
+                              {format.id === 'png' && (
+                                <span className="text-yellow-300/70 text-[10px] italic">⏱️ 5-10 seconds</span>
+                              )}
                             </div>
                           )}
                           {downloadProgress[format.id] === 'completed' && (
-                            <span className="text-green-400 text-xs">✓ Complete</span>
+                            <div className="flex items-center space-x-2 animate-fadeIn">
+                              <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                              <span className="text-green-400 text-xs font-bold">COMPLETE</span>
+                            </div>
                           )}
                           {downloadProgress[format.id] === 'error' && (
-                            <span className="text-red-400 text-xs">✗ Failed</span>
+                            <div className="flex items-center space-x-2 animate-shake">
+                              <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">!</span>
+                              </div>
+                              <span className="text-red-400 text-xs font-bold">FAILED</span>
+                            </div>
                           )}
                         </div>
                       )}
@@ -386,18 +412,42 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               ))}
             </div>
           </div>
+        </div>
 
-          {/* Download Button */}
+        {/* Floating Download Button */}
+        <div className="sticky bottom-0 p-4 bg-gradient-to-t from-gray-900 via-gray-900 to-transparent border-t border-cyan-400/30">
           <button
             onClick={handleDownload}
             disabled={selectedFormats.length === 0 || isDownloading}
-            className={`w-full py-3 px-6 rounded-lg font-bold font-mono transition-all ${
+            className={`relative w-full py-4 px-8 rounded-2xl font-bold font-mono text-lg transition-all duration-300 overflow-hidden group ${
               selectedFormats.length === 0 || isDownloading
-                ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700'
+                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+                : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:scale-105 hover:shadow-[0_0_30px_rgba(34,211,238,0.6)] active:scale-95'
             }`}
           >
-            {isDownloading ? 'CREATING YOUR FILES...' : `DOWNLOAD ALL FORMATS`}
+            {/* Animated background shine */}
+            {!isDownloading && selectedFormats.length > 0 && (
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+            )}
+
+            <div className="relative flex items-center justify-center space-x-3">
+              {isDownloading ? (
+                <>
+                  <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span className="animate-pulse">CREATING YOUR FILES...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-6 h-6 animate-bounce" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  <span>DOWNLOAD {selectedFormats.length} FORMAT{selectedFormats.length !== 1 ? 'S' : ''}</span>
+                  <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </>
+              )}
+            </div>
           </button>
         </div>
       </div>
