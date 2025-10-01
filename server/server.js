@@ -1115,17 +1115,27 @@ app.post('/api/logos/:id/remove-background', async (req, res) => {
 
     console.log(`✅ Background removal completed, output size: ${processedImageBuffer.length} bytes`)
 
-    // Generate filename for the processed image
+    // Upload to Vercel Blob Storage
     const timestamp = Date.now()
     const filename = `logo-${id}-no-bg-${timestamp}.png`
-    const outputPath = path.join(__dirname, 'generated-logos', filename)
+    let processedUrl
 
-    // Save the processed image
-    await fs.promises.writeFile(outputPath, processedImageBuffer)
-    console.log(`💾 Processed image saved to: ${outputPath}`)
-
-    // Generate URL for the processed image
-    const processedUrl = `/images/${filename}`
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      try {
+        console.log(`📤 Uploading background-removed image to Vercel Blob: ${filename}`)
+        const blob = await put(filename, processedImageBuffer, {
+          access: 'public',
+          contentType: 'image/png',
+        })
+        processedUrl = blob.url
+        console.log(`✅ Background-removed image uploaded to Vercel Blob: ${processedUrl}`)
+      } catch (blobError) {
+        console.warn('⚠️ Vercel Blob upload failed:', blobError.message)
+        throw new Error('Failed to upload processed image to storage')
+      }
+    } else {
+      throw new Error('Blob storage not configured')
+    }
 
     // Track analytics
     await sql`
