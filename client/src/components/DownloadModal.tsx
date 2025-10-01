@@ -368,40 +368,51 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
                       {downloadProgress[format.id] && (
                         <div className="mt-3">
                           {downloadProgress[format.id] === 'processing' && (
-                            <div className="space-y-2">
-                              <div className="flex items-center space-x-2">
-                                <div className="relative">
-                                  <div className="w-4 h-4 border-2 border-yellow-400/30 rounded-full"></div>
-                                  <div className="absolute inset-0 w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                            <div className="space-y-2 animate-fadeIn">
+                              <div className="flex items-center space-x-3">
+                                <div className="relative w-5 h-5">
+                                  <div className="absolute inset-0 border-3 border-yellow-400/20 rounded-full"></div>
+                                  <div className="absolute inset-0 border-3 border-transparent border-t-yellow-400 border-r-yellow-400 rounded-full animate-spin"></div>
                                 </div>
-                                <span className="text-yellow-400 text-xs font-bold animate-pulse">
+                                <span className="text-yellow-400 text-sm font-bold tracking-wide">
                                   {format.id === 'png' ? 'AI UPSCALING TO 8K...' : 'PROCESSING...'}
                                 </span>
                               </div>
-                              <div className="w-full bg-gray-700 rounded-full h-1 overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400 rounded-full animate-shimmer" style={{width: '100%'}}></div>
+                              <div className="relative w-full h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{backgroundSize: '200% 100%'}}></div>
                               </div>
                               {format.id === 'png' && (
-                                <span className="text-yellow-300/70 text-[10px] italic">⏱️ 5-10 seconds</span>
+                                <div className="flex items-center space-x-1.5">
+                                  <svg className="w-3 h-3 text-yellow-400/70" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                  </svg>
+                                  <span className="text-yellow-400/70 text-xs">5-10 seconds</span>
+                                </div>
                               )}
                             </div>
                           )}
                           {downloadProgress[format.id] === 'completed' && (
-                            <div className="flex items-center space-x-2 animate-fadeIn">
-                              <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
+                            <div className="flex items-center space-x-3 animate-fadeIn">
+                              <div className="relative w-5 h-5">
+                                <div className="absolute inset-0 bg-green-500 rounded-full animate-[pulse_0.5s_ease-out]"></div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
                               </div>
-                              <span className="text-green-400 text-xs font-bold">COMPLETE</span>
+                              <span className="text-green-400 text-sm font-bold tracking-wide">COMPLETE</span>
                             </div>
                           )}
                           {downloadProgress[format.id] === 'error' && (
-                            <div className="flex items-center space-x-2 animate-shake">
-                              <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-bold">!</span>
+                            <div className="flex items-center space-x-3 animate-shake">
+                              <div className="relative w-5 h-5">
+                                <div className="absolute inset-0 bg-red-500 rounded-full"></div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <span className="text-white text-sm font-bold">!</span>
+                                </div>
                               </div>
-                              <span className="text-red-400 text-xs font-bold">FAILED</span>
+                              <span className="text-red-400 text-sm font-bold tracking-wide">FAILED</span>
                             </div>
                           )}
                         </div>
