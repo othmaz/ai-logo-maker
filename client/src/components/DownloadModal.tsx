@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useUser } from '@clerk/clerk-react'
+import JSZip from 'jszip'
 
 interface DownloadModalProps {
   isOpen: boolean
@@ -10,6 +11,7 @@ interface DownloadModalProps {
     logo_url?: string
   }
   isPremiumUser: boolean
+  businessName?: string
 }
 
 interface FormatOption {
@@ -19,11 +21,19 @@ interface FormatOption {
   enabled: boolean
 }
 
-const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser }) => {
+const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser, businessName = 'logo' }) => {
   const { user } = useUser()
   const [selectedFormats, setSelectedFormats] = useState<string[]>(['png-hd'])
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<Record<string, 'pending' | 'processing' | 'completed' | 'error'>>({})
+  const [showUnzipInstructions, setShowUnzipInstructions] = useState(false)
+
+  // Sanitize business name for file system
+  const sanitizeFilename = (name: string) => {
+    return name.replace(/[^a-z0-9]/gi, '-').toLowerCase()
+  }
+
+  const safeBusinessName = sanitizeFilename(businessName)
 
   const formatOptions: FormatOption[] = [
     {
@@ -119,23 +129,23 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
     setDownloadProgress(newProgress)
 
     try {
-      // Download each selected format
+      const zip = new JSZip()
+      const folder = zip.folder(safeBusinessName)
+
+      if (!folder) {
+        throw new Error('Failed to create ZIP folder')
+      }
+
+      // Process each selected format and add to ZIP
       for (const formatId of selectedFormats) {
         setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
 
         try {
           if (formatId === 'png-hd') {
-            // Full HD PNG Download (original resolution)
             const imageResponse = await fetch(logo.logo_url || logo.url)
             const blob = await imageResponse.blob()
-            const url = window.URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = 'logo-fullhd.png'
-            a.click()
-            window.URL.revokeObjectURL(url)
+            folder.file(`${safeBusinessName}-fullhd.png`, blob)
           } else if (formatId === 'png') {
-            // 8K Upscale
             const response = await fetch(`/api/logos/${logo.id}/upscale`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -144,19 +154,11 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
             const result = await response.json()
             if (result.success) {
-              // Download the upscaled image
               const imageResponse = await fetch(result.upscaledUrl)
               const blob = await imageResponse.blob()
-              const url = window.URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = 'logo-8K.png'
-              a.click()
-              window.URL.revokeObjectURL(url)
+              folder.file(`${safeBusinessName}-8k.png`, blob)
             }
           } else if (formatId === 'png-no-bg') {
-            // Background removal
-            console.log('🎨 Calling background removal endpoint...')
             const response = await fetch(`/api/logos/${logo.id}/remove-background`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -166,26 +168,16 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               })
             })
 
-            console.log('📋 Response status:', response.status)
             const result = await response.json()
-            console.log('📋 Response result:', result)
-
             if (result.success) {
-              // Download the background-removed image
               const imageResponse = await fetch(result.processedUrl)
               const blob = await imageResponse.blob()
-              const url = window.URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = 'logo-no-background.png'
-              a.click()
-              window.URL.revokeObjectURL(url)
+              folder.file(`${safeBusinessName}-no-background.png`, blob)
             } else {
               console.error('❌ Background removal failed:', result.error)
               throw new Error(result.error || 'Background removal failed')
             }
           } else if (formatId === 'svg') {
-            // SVG Conversion
             const response = await fetch(`/api/logos/${logo.id}/vectorize`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -194,10 +186,9 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
             const result = await response.json()
             if (result.success) {
-              downloadSVG(result.svgData, 'logo-vector.svg')
+              folder.file(`${safeBusinessName}-vector.svg`, result.svgData)
             }
-          } else if (formatId === 'favicon' || formatId === 'profile') {
-            // Additional formats
+          } else if (formatId === 'favicon') {
             const response = await fetch(`/api/logos/${logo.id}/formats`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -210,7 +201,34 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
             const result = await response.json()
             if (result.success && result.formats[formatId]) {
               const format = result.formats[formatId]
-              downloadFile(format.data, format.filename, format.mimeType)
+              const byteCharacters = atob(format.data)
+              const byteNumbers = new Array(byteCharacters.length)
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i)
+              }
+              const byteArray = new Uint8Array(byteNumbers)
+              folder.file(`${safeBusinessName}-favicon.ico`, byteArray)
+            }
+          } else if (formatId === 'profile') {
+            const response = await fetch(`/api/logos/${logo.id}/formats`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                clerkUserId: user.id,
+                formats: [formatId]
+              })
+            })
+
+            const result = await response.json()
+            if (result.success && result.formats[formatId]) {
+              const format = result.formats[formatId]
+              const byteCharacters = atob(format.data)
+              const byteNumbers = new Array(byteCharacters.length)
+              for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i)
+              }
+              const byteArray = new Uint8Array(byteNumbers)
+              folder.file(`${safeBusinessName}-profile.png`, byteArray)
             }
           }
 
@@ -220,19 +238,25 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
           setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
         }
       }
+
+      // Generate and download ZIP file
+      const zipBlob = await zip.generateAsync({ type: 'blob' })
+      const url = window.URL.createObjectURL(zipBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${safeBusinessName}-logos.zip`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      // Show unzip instructions
+      setShowUnzipInstructions(true)
+
     } catch (error) {
       console.error('Download error:', error)
     } finally {
       setIsDownloading(false)
-      // Close modal after 2 seconds if all downloads completed
-      setTimeout(() => {
-        const allCompleted = Object.values(downloadProgress).every(status =>
-          status === 'completed' || status === 'error'
-        )
-        if (allCompleted) {
-          onClose()
-        }
-      }, 2000)
     }
   }
 
@@ -337,10 +361,61 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
                 : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-600 hover:to-blue-700'
             }`}
           >
-            {isDownloading ? 'DOWNLOADING...' : `DOWNLOAD SELECTED (${selectedFormats.length})`}
+            {isDownloading ? 'CREATING YOUR FILES...' : `DOWNLOAD ALL FORMATS`}
           </button>
         </div>
       </div>
+
+      {/* Unzip Instructions Modal */}
+      {showUnzipInstructions && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[110] p-4">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border-2 border-cyan-400 max-w-lg w-full p-8 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">📦</div>
+              <h2 className="text-3xl font-bold text-white font-mono mb-2">DOWNLOAD COMPLETE!</h2>
+              <p className="text-cyan-400 font-mono">Your files are ready in: {safeBusinessName}-logos.zip</p>
+            </div>
+
+            <div className="bg-gray-700/50 rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-bold text-white font-mono mb-4">📂 HOW TO ACCESS YOUR FILES:</h3>
+              <div className="space-y-3 text-gray-300">
+                <div className="flex items-start space-x-3">
+                  <span className="text-cyan-400 font-bold">1.</span>
+                  <p>Find the downloaded <span className="text-white font-mono">{safeBusinessName}-logos.zip</span> file (usually in your Downloads folder)</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <span className="text-cyan-400 font-bold">2.</span>
+                  <p><span className="text-white font-bold">Double-click</span> the ZIP file to extract it</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <span className="text-cyan-400 font-bold">3.</span>
+                  <p>Open the <span className="text-white font-mono">{safeBusinessName}</span> folder</p>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <span className="text-cyan-400 font-bold">4.</span>
+                  <p>All your logo files are inside with the business name prefix!</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-cyan-400/10 border border-cyan-400/30 rounded-lg p-4 mb-6">
+              <p className="text-cyan-300 text-sm">
+                💡 <span className="font-bold">Tip:</span> Each file is named <span className="font-mono">{safeBusinessName}-[format].png</span> for easy organization!
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowUnzipInstructions(false)
+                onClose()
+              }}
+              className="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg font-bold font-mono hover:from-cyan-600 hover:to-blue-700 transition-all"
+            >
+              GOT IT! ✓
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

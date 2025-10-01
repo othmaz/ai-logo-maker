@@ -3314,6 +3314,7 @@ function App() {
           }}
           logo={selectedLogoForDownload}
           isPremiumUser={isPaid}
+          businessName={formData.businessName || 'logo'}
         />
       )}
     </div>
