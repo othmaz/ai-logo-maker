@@ -427,7 +427,10 @@ app.post('/api/create-payment-intent', async (req, res) => {
 // Stripe webhook endpoint for secure payment verification
 app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  // Use production webhook secret in production, local secret for development
+  const endpointSecret = process.env.VERCEL
+    ? process.env.STRIPE_WEBHOOK_SECRET_PRODUCTION
+    : process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!stripe) {
     console.error('❌ Stripe not configured for webhook processing');
@@ -436,6 +439,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
   if (!endpointSecret) {
     console.error('❌ STRIPE_WEBHOOK_SECRET not configured');
+    console.error('Environment:', process.env.VERCEL ? 'PRODUCTION' : 'LOCAL');
     return res.status(500).send('Webhook secret not configured');
   }
 
