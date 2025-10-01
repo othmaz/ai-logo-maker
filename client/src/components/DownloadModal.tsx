@@ -181,19 +181,29 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
         }
       }
 
+      // PHASE 1.5: Download Full HD immediately (no waiting needed - it's just the original file)
+      if (selectedFormats.includes('png-hd')) {
+        setDownloadProgress(prev => ({ ...prev, 'png-hd': 'processing' }))
+        try {
+          const imageResponse = await fetch(logo.logo_url || logo.url)
+          const blob = await imageResponse.blob()
+          folder.file(`${safeBusinessName}-fullhd.png`, blob)
+          setDownloadProgress(prev => ({ ...prev, 'png-hd': 'completed' }))
+        } catch (error) {
+          console.error('Error downloading png-hd:', error)
+          setDownloadProgress(prev => ({ ...prev, 'png-hd': 'error' }))
+        }
+      }
+
       // PHASE 2: Process remaining formats (using bestQualityUrl which is 8K if available)
       for (const formatId of selectedFormats) {
-        // Skip 8K since we already processed it
-        if (formatId === 'png') continue
+        // Skip formats we already processed
+        if (formatId === 'png' || formatId === 'png-hd') continue
 
         setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
 
         try {
-          if (formatId === 'png-hd') {
-            const imageResponse = await fetch(logo.logo_url || logo.url)
-            const blob = await imageResponse.blob()
-            folder.file(`${safeBusinessName}-fullhd.png`, blob)
-          } else if (formatId === 'png-no-bg') {
+          if (formatId === 'png-no-bg') {
             const response = await fetch(`/api/logos/${logo.id}/remove-background`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
