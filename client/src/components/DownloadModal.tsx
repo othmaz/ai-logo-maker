@@ -146,6 +146,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
         const formatId = 'png'
         setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
 
+        try {
           const response = await fetch(`/api/logos/${logo.id}/upscale`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
