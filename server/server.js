@@ -927,17 +927,56 @@ app.post('/api/logos/:id/upscale', async (req, res) => {
     )
 
     console.log('✅ 8K upscaling completed')
+    console.log('🔍 Replicate output type:', typeof output)
+
+    // Handle different output types from Replicate
+    let upscaledUrl
+
+    if (typeof output === 'string') {
+      // Output is already a URL
+      upscaledUrl = output
+      console.log('✅ Got URL from Replicate:', upscaledUrl)
+    } else if (output && typeof output === 'object') {
+      // Output is a stream or file - need to read it and upload to Blob
+      console.log('📥 Reading stream from Replicate...')
+
+      // Convert stream to buffer
+      const chunks = []
+      for await (const chunk of output) {
+        chunks.push(chunk)
+      }
+      const buffer = Buffer.concat(chunks)
+      console.log(`✅ Stream read, size: ${buffer.length} bytes`)
+
+      // Upload to Vercel Blob
+      const timestamp = Date.now()
+      const filename = `logo-${id}-8k-${timestamp}.png`
+
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        console.log(`📤 Uploading 8K image to Vercel Blob: ${filename}`)
+        const blob = await put(filename, buffer, {
+          access: 'public',
+          contentType: 'image/png',
+        })
+        upscaledUrl = blob.url
+        console.log(`✅ 8K image uploaded to Vercel Blob: ${upscaledUrl}`)
+      } else {
+        throw new Error('Blob storage not configured')
+      }
+    } else {
+      throw new Error('Unexpected output format from Replicate')
+    }
 
     // Track analytics
     await sql`
       INSERT INTO usage_analytics (action, clerk_user_id, metadata)
-      VALUES ('logo_upscaled_8k', ${clerkUserId}, ${JSON.stringify({ logo_id: id, original_url: logoUrl, upscaled_url: output })})
+      VALUES ('logo_upscaled_8k', ${clerkUserId}, ${JSON.stringify({ logo_id: id, original_url: logoUrl, upscaled_url: upscaledUrl })})
     `
 
     res.json({
       success: true,
       originalUrl: logoUrl,
-      upscaledUrl: output,
+      upscaledUrl: upscaledUrl,
       scale: 8,
       resolution: '8K'
     })

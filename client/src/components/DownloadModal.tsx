@@ -365,13 +365,18 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
                       {downloadProgress[format.id] && (
                         <div className="mt-2">
                           {downloadProgress[format.id] === 'processing' && (
-                            <span className="text-yellow-400 text-xs">Processing...</span>
+                            <div className="flex items-center space-x-2">
+                              <div className="w-3 h-3 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                              <span className="text-yellow-400 text-xs">
+                                {format.id === 'png' ? 'Processing 8K upscale (5-10 sec)...' : 'Processing...'}
+                              </span>
+                            </div>
                           )}
                           {downloadProgress[format.id] === 'completed' && (
-                            <span className="text-green-400 text-xs">✓ Downloaded</span>
+                            <span className="text-green-400 text-xs">✓ Complete</span>
                           )}
                           {downloadProgress[format.id] === 'error' && (
-                            <span className="text-red-400 text-xs">✗ Error</span>
+                            <span className="text-red-400 text-xs">✗ Failed</span>
                           )}
                         </div>
                       )}
