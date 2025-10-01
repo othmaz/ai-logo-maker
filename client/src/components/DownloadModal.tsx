@@ -138,8 +138,46 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
         throw new Error('Failed to create ZIP folder')
       }
 
-      // Process each selected format and add to ZIP
+      // Store the highest quality image URL - start with original, upgrade to 8K if available
+      let bestQualityUrl = logo.logo_url || logo.url
+
+      // PHASE 1: Process 8K upscale FIRST if selected (since SVG and BG removal should use it)
+      if (selectedFormats.includes('png')) {
+        const formatId = 'png'
+        setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
+
+          const response = await fetch(`/api/logos/${logo.id}/upscale`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              clerkUserId: user.id,
+              logoUrl: logo.logo_url || logo.url
+            })
+          })
+
+          const result = await response.json()
+          if (result.success) {
+            bestQualityUrl = result.upscaledUrl // Update to use 8K for subsequent operations
+            const imageResponse = await fetch(result.upscaledUrl)
+            const blob = await imageResponse.blob()
+            folder.file(`${safeBusinessName}-8k.png`, blob)
+            setDownloadProgress(prev => ({ ...prev, [formatId]: 'completed' }))
+          } else {
+            console.error('❌ 8K upscale failed:', result.error)
+            setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
+            throw new Error(result.error || '8K upscale failed')
+          }
+        } catch (error) {
+          console.error(`Error downloading ${formatId}:`, error)
+          setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
+        }
+      }
+
+      // PHASE 2: Process remaining formats (using bestQualityUrl which is 8K if available)
       for (const formatId of selectedFormats) {
+        // Skip 8K since we already processed it
+        if (formatId === 'png') continue
+
         setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
 
         try {
@@ -147,32 +185,13 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
             const imageResponse = await fetch(logo.logo_url || logo.url)
             const blob = await imageResponse.blob()
             folder.file(`${safeBusinessName}-fullhd.png`, blob)
-          } else if (formatId === 'png') {
-            const response = await fetch(`/api/logos/${logo.id}/upscale`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                clerkUserId: user.id,
-                logoUrl: logo.logo_url || logo.url
-              })
-            })
-
-            const result = await response.json()
-            if (result.success) {
-              const imageResponse = await fetch(result.upscaledUrl)
-              const blob = await imageResponse.blob()
-              folder.file(`${safeBusinessName}-8k.png`, blob)
-            } else {
-              console.error('❌ 8K upscale failed:', result.error)
-              throw new Error(result.error || '8K upscale failed')
-            }
           } else if (formatId === 'png-no-bg') {
             const response = await fetch(`/api/logos/${logo.id}/remove-background`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 clerkUserId: user.id,
-                logoUrl: logo.logo_url || logo.url
+                logoUrl: bestQualityUrl // Use 8K version if available
               })
             })
 
@@ -191,7 +210,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 clerkUserId: user.id,
-                logoUrl: logo.logo_url || logo.url
+                logoUrl: bestQualityUrl // Use 8K version if available
               })
             })
 
@@ -209,7 +228,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               body: JSON.stringify({
                 clerkUserId: user.id,
                 formats: [formatId],
-                logoUrl: logo.logo_url || logo.url
+                logoUrl: bestQualityUrl // Use 8K version if available
               })
             })
 
@@ -234,7 +253,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               body: JSON.stringify({
                 clerkUserId: user.id,
                 formats: [formatId],
-                logoUrl: logo.logo_url || logo.url
+                logoUrl: bestQualityUrl // Use 8K version if available
               })
             })
 
