@@ -151,7 +151,10 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
             const response = await fetch(`/api/logos/${logo.id}/upscale`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ clerkUserId: user.id })
+              body: JSON.stringify({
+                clerkUserId: user.id,
+                logoUrl: logo.logo_url || logo.url
+              })
             })
 
             const result = await response.json()
@@ -159,6 +162,9 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               const imageResponse = await fetch(result.upscaledUrl)
               const blob = await imageResponse.blob()
               folder.file(`${safeBusinessName}-8k.png`, blob)
+            } else {
+              console.error('❌ 8K upscale failed:', result.error)
+              throw new Error(result.error || '8K upscale failed')
             }
           } else if (formatId === 'png-no-bg') {
             const response = await fetch(`/api/logos/${logo.id}/remove-background`, {
@@ -183,12 +189,18 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
             const response = await fetch(`/api/logos/${logo.id}/vectorize`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ clerkUserId: user.id })
+              body: JSON.stringify({
+                clerkUserId: user.id,
+                logoUrl: logo.logo_url || logo.url
+              })
             })
 
             const result = await response.json()
             if (result.success) {
               folder.file(`${safeBusinessName}-vector.svg`, result.svgData)
+            } else {
+              console.error('❌ SVG vectorization failed:', result.error)
+              throw new Error(result.error || 'SVG vectorization failed')
             }
           } else if (formatId === 'favicon') {
             const response = await fetch(`/api/logos/${logo.id}/formats`, {
@@ -196,7 +208,8 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 clerkUserId: user.id,
-                formats: [formatId]
+                formats: [formatId],
+                logoUrl: logo.logo_url || logo.url
               })
             })
 
@@ -210,6 +223,9 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               }
               const byteArray = new Uint8Array(byteNumbers)
               folder.file(`${safeBusinessName}-favicon.ico`, byteArray)
+            } else {
+              console.error('❌ Favicon generation failed:', result.error)
+              throw new Error(result.error || 'Favicon generation failed')
             }
           } else if (formatId === 'profile') {
             const response = await fetch(`/api/logos/${logo.id}/formats`, {
@@ -217,7 +233,8 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 clerkUserId: user.id,
-                formats: [formatId]
+                formats: [formatId],
+                logoUrl: logo.logo_url || logo.url
               })
             })
 
@@ -231,6 +248,9 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               }
               const byteArray = new Uint8Array(byteNumbers)
               folder.file(`${safeBusinessName}-profile.png`, byteArray)
+            } else {
+              console.error('❌ Profile picture generation failed:', result.error)
+              throw new Error(result.error || 'Profile picture generation failed')
             }
           }
 

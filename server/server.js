@@ -872,7 +872,7 @@ app.post('/api/logos/:id/upscale', async (req, res) => {
 
   try {
     const { id } = req.params
-    const { clerkUserId } = req.body
+    const { clerkUserId, logoUrl: providedLogoUrl } = req.body
 
     if (!clerkUserId) {
       return res.status(400).json({ error: 'clerkUserId is required' })
@@ -884,18 +884,30 @@ app.post('/api/logos/:id/upscale', async (req, res) => {
       return res.status(403).json({ error: 'Premium subscription required for 8K upscaling' })
     }
 
-    // Get logo from database
-    await connectToDatabase()
-    const { rows } = await sql`
-      SELECT logo_url FROM saved_logos
-      WHERE id = ${id} AND clerk_user_id = ${clerkUserId} LIMIT 1
-    `
+    // Use logoUrl from request body, or try to get from database as fallback
+    let logoUrl = providedLogoUrl
 
-    if (!rows[0]) {
-      return res.status(404).json({ error: 'Logo not found' })
+    if (!logoUrl) {
+      console.log(`🔍 Looking up logo ${id} in database...`)
+
+      // Get logo from database as fallback
+      await connectToDatabase()
+      const { rows } = await sql`
+        SELECT logo_url FROM saved_logos
+        WHERE id = ${id} AND clerk_user_id = ${clerkUserId} LIMIT 1
+      `
+
+      if (!rows[0]) {
+        return res.status(404).json({ error: 'Logo not found and no logoUrl provided' })
+      }
+
+      logoUrl = rows[0].logo_url
     }
 
-    const logoUrl = rows[0].logo_url
+    if (!logoUrl) {
+      return res.status(400).json({ error: 'No image URL found for this logo' })
+    }
+
     console.log('🔍 Upscaling logo:', logoUrl)
 
     if (!replicate) {
@@ -944,7 +956,7 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
 
   try {
     const { id } = req.params
-    const { clerkUserId } = req.body
+    const { clerkUserId, logoUrl: providedLogoUrl } = req.body
 
     if (!clerkUserId) {
       return res.status(400).json({ error: 'clerkUserId is required' })
@@ -956,18 +968,30 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
       return res.status(403).json({ error: 'Premium subscription required for SVG conversion' })
     }
 
-    // Get logo from database
-    await connectToDatabase()
-    const { rows } = await sql`
-      SELECT logo_url FROM saved_logos
-      WHERE id = ${id} AND clerk_user_id = ${clerkUserId} LIMIT 1
-    `
+    // Use logoUrl from request body, or try to get from database as fallback
+    let imageUrl = providedLogoUrl
 
-    if (!rows[0]) {
-      return res.status(404).json({ error: 'Logo not found' })
+    if (!imageUrl) {
+      console.log(`🔍 Looking up logo ${id} in database...`)
+
+      // Get logo from database as fallback
+      await connectToDatabase()
+      const { rows } = await sql`
+        SELECT logo_url FROM saved_logos
+        WHERE id = ${id} AND clerk_user_id = ${clerkUserId} LIMIT 1
+      `
+
+      if (!rows[0]) {
+        return res.status(404).json({ error: 'Logo not found and no logoUrl provided' })
+      }
+
+      imageUrl = rows[0].logo_url
     }
 
-    const imageUrl = rows[0].logo_url
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'No image URL found for this logo' })
+    }
+
     console.log('🔍 Vectorizing logo:', imageUrl)
 
     // Fetch and process image
@@ -1171,7 +1195,7 @@ app.post('/api/logos/:id/formats', async (req, res) => {
 
   try {
     const { id } = req.params
-    const { clerkUserId, formats } = req.body
+    const { clerkUserId, formats, logoUrl: providedLogoUrl } = req.body
 
     if (!clerkUserId) {
       return res.status(400).json({ error: 'clerkUserId is required' })
@@ -1187,18 +1211,30 @@ app.post('/api/logos/:id/formats', async (req, res) => {
       return res.status(403).json({ error: 'Premium subscription required for additional formats' })
     }
 
-    // Get logo from database
-    await connectToDatabase()
-    const { rows } = await sql`
-      SELECT logo_url FROM saved_logos
-      WHERE id = ${id} AND clerk_user_id = ${clerkUserId} LIMIT 1
-    `
+    // Use logoUrl from request body, or try to get from database as fallback
+    let imageUrl = providedLogoUrl
 
-    if (!rows[0]) {
-      return res.status(404).json({ error: 'Logo not found' })
+    if (!imageUrl) {
+      console.log(`🔍 Looking up logo ${id} in database...`)
+
+      // Get logo from database as fallback
+      await connectToDatabase()
+      const { rows } = await sql`
+        SELECT logo_url FROM saved_logos
+        WHERE id = ${id} AND clerk_user_id = ${clerkUserId} LIMIT 1
+      `
+
+      if (!rows[0]) {
+        return res.status(404).json({ error: 'Logo not found and no logoUrl provided' })
+      }
+
+      imageUrl = rows[0].logo_url
     }
 
-    const imageUrl = rows[0].logo_url
+    if (!imageUrl) {
+      return res.status(400).json({ error: 'No image URL found for this logo' })
+    }
+
     console.log('🔍 Processing formats for logo:', imageUrl)
 
     const imageBuffer = await fetchImageBuffer(imageUrl)
