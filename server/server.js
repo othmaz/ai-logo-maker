@@ -8,6 +8,7 @@ const Replicate = require('replicate')
 const Stripe = require('stripe')
 const sharp = require('sharp')
 const potrace = require('potrace')
+const { put } = require('@vercel/blob')
 const { connectToDatabase, sql } = require('./lib/db')
 const { migrateFromLocalStorage } = require('./lib/migrate')
 
@@ -129,32 +130,30 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
         console.log('✅ Found image data in response!')
         const imageData = part.inlineData.data
         const buffer = Buffer.from(imageData, "base64")
-        
-        // In serverless environments (Vercel), always use data URLs
-        if (process.env.VERCEL) {
-          console.log('💾 Serverless environment detected - returning base64 data URL')
-          return `data:image/png;base64,${imageData}`
+
+        // Try to upload to Vercel Blob Storage if token is available
+        if (process.env.BLOB_READ_WRITE_TOKEN) {
+          try {
+            const timestamp = Date.now()
+            const filename = `logo-${timestamp}.png`
+
+            console.log(`📤 Uploading to Vercel Blob: ${filename}`)
+            const blob = await put(filename, buffer, {
+              access: 'public',
+              contentType: 'image/png',
+            })
+
+            console.log(`✅ Logo uploaded to Vercel Blob: ${blob.url}`)
+            return blob.url
+          } catch (blobError) {
+            console.warn('⚠️ Vercel Blob upload failed:', blobError.message)
+            console.log('💾 Falling back to data URL')
+          }
         }
 
-        // For local/Railway environments, save to file system
-        try {
-          const timestamp = Date.now()
-          const filename = `logo-${timestamp}.png`
-          const filepath = path.join(imagesDir, filename)
-
-          // Save the image
-          fs.writeFileSync(filepath, buffer)
-          console.log(`💾 Logo saved as ${filename}`)
-
-          // Return the URL to access the image
-          const baseUrl = `http://localhost:${port}`
-          return `${baseUrl}/images/${filename}`
-        } catch (saveError) {
-          console.warn('⚠️ Could not save image file, using data URL')
-          console.log('💾 Returning base64 data URL instead')
-          // Fallback to data URL
-          return `data:image/png;base64,${imageData}`
-        }
+        // Fallback to data URL if Blob upload fails or token not available
+        console.log('💾 Using base64 data URL (no Vercel Blob token or upload failed)')
+        return `data:image/png;base64,${imageData}`
       }
     }
     
