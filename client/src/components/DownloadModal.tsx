@@ -9,9 +9,11 @@ interface DownloadModalProps {
     id: string
     url: string
     logo_url?: string
+    prompt?: string
   }
   isPremiumUser: boolean
   businessName?: string
+  onSave?: (logo: { id: string; url: string; prompt: string }) => void
 }
 
 interface FormatOption {
@@ -21,7 +23,7 @@ interface FormatOption {
   enabled: boolean
 }
 
-const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser, businessName = 'logo' }) => {
+const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser, businessName = 'logo', onSave }) => {
   const { user } = useUser()
   const [selectedFormats, setSelectedFormats] = useState<string[]>(['png-hd'])
   const [isDownloading, setIsDownloading] = useState(false)
@@ -249,6 +251,15 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
       a.click()
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
+
+      // Auto-save logo to collection after successful download
+      if (onSave && logo.prompt) {
+        onSave({
+          id: logo.id,
+          url: logo.logo_url || logo.url,
+          prompt: logo.prompt
+        })
+      }
 
       // Show unzip instructions
       setShowUnzipInstructions(true)
