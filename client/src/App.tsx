@@ -719,6 +719,13 @@ function App() {
 
   // Save logo to database
   const saveLogo = (logo: Logo) => {
+    // If user is not signed in, show upgrade modal to prompt sign up
+    if (!isSignedIn) {
+      setActiveModal('upgrade')
+      showToast('Sign up to save logos to your collection!', 'info')
+      return
+    }
+
     // Check if logo is already saved
     if (isLogoSaved(logo.url)) {
       showToast('Logo is already in your collection!', 'info')
