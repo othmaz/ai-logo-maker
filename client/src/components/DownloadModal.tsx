@@ -27,7 +27,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
   const { user } = useUser()
   const [selectedFormats, setSelectedFormats] = useState<string[]>(['png-hd', 'png'])
   const [isDownloading, setIsDownloading] = useState(false)
-  const [downloadProgress, setDownloadProgress] = useState<Record<string, 'pending' | 'processing' | 'completed' | 'error'>>({})
+  const [downloadProgress, setDownloadProgress] = useState<Record<string, 'pending' | 'waiting' | 'processing' | 'completed' | 'error'>>({})
   const [showUnzipInstructions, setShowUnzipInstructions] = useState(false)
 
   // Sanitize business name for file system
@@ -124,9 +124,16 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
     if (!user || selectedFormats.length === 0) return
 
     setIsDownloading(true)
-    const newProgress: Record<string, 'pending' | 'processing' | 'completed' | 'error'> = {}
+    const newProgress: Record<string, 'pending' | 'waiting' | 'processing' | 'completed' | 'error'> = {}
+    const has8K = selectedFormats.includes('png')
+
     selectedFormats.forEach(format => {
-      newProgress[format] = 'pending'
+      // If 8K is selected, formats that depend on it should wait
+      if (has8K && format !== 'png' && format !== 'png-hd') {
+        newProgress[format] = 'waiting' // SVG, BG removal, favicon, profile wait for 8K
+      } else {
+        newProgress[format] = 'pending'
+      }
     })
     setDownloadProgress(newProgress)
 
@@ -387,6 +394,19 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
                       </p>
                       {downloadProgress[format.id] && (
                         <div className="mt-3">
+                          {downloadProgress[format.id] === 'waiting' && (
+                            <div className="flex items-center space-x-3 animate-fadeIn">
+                              <div className="relative w-5 h-5">
+                                <div className="absolute inset-0 border-3 border-gray-500/30 rounded-full"></div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
+                                </div>
+                              </div>
+                              <span className="text-gray-400 text-sm tracking-wide">
+                                Waiting for 8K...
+                              </span>
+                            </div>
+                          )}
                           {downloadProgress[format.id] === 'processing' && (
                             <div className="space-y-2 animate-fadeIn">
                               <div className="flex items-center space-x-3">
