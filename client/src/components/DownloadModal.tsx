@@ -128,10 +128,23 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
     const has8K = selectedFormats.includes('png')
 
     selectedFormats.forEach(format => {
-      // If 8K is selected, formats that depend on it should wait
-      if (has8K && format !== 'png' && format !== 'png-hd') {
-        newProgress[format] = 'waiting' // SVG, BG removal, favicon, profile wait for 8K
-      } else {
+      // Phase 1: 8K and Full HD run in parallel - no waiting
+      if (format === 'png' || format === 'png-hd') {
+        newProgress[format] = 'pending'
+      }
+      // Phase 2: Background removal, favicon, profile wait for 8K
+      else if (has8K && (format === 'png-no-bg' || format === 'favicon' || format === 'profile')) {
+        newProgress[format] = 'waiting'
+      }
+      // SVG waits for background removal (if selected), otherwise waits for 8K
+      else if (format === 'svg') {
+        if (selectedFormats.includes('png-no-bg') || has8K) {
+          newProgress[format] = 'waiting'
+        } else {
+          newProgress[format] = 'pending'
+        }
+      }
+      else {
         newProgress[format] = 'pending'
       }
     })
@@ -147,53 +160,70 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
       // Store the highest quality image URL - start with original, upgrade to 8K if available
       let bestQualityUrl = logo.logo_url || logo.url
+      let backgroundRemovedUrl = null // Track background-removed URL for SVG
 
-      // PHASE 1: Process 8K upscale FIRST if selected (since SVG and BG removal should use it)
+      // PHASE 1: Process 8K and Full HD in PARALLEL
+      // Full HD should complete instantly, 8K takes 5-10 seconds
+      const phase1Promises = []
+
+      // 8K upscale (slow, 5-10 seconds)
       if (selectedFormats.includes('png')) {
         const formatId = 'png'
         setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
 
-        try {
-          const response = await fetch(`/api/logos/${logo.id}/upscale`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              clerkUserId: user.id,
-              logoUrl: logo.logo_url || logo.url
+        const upscalePromise = (async () => {
+          try {
+            const response = await fetch(`/api/logos/${logo.id}/upscale`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                clerkUserId: user.id,
+                logoUrl: logo.logo_url || logo.url
+              })
             })
-          })
 
-          const result = await response.json()
-          if (result.success) {
-            bestQualityUrl = result.upscaledUrl // Update to use 8K for subsequent operations
-            const imageResponse = await fetch(result.upscaledUrl)
-            const blob = await imageResponse.blob()
-            folder.file(`${safeBusinessName}-8k.png`, blob)
-            setDownloadProgress(prev => ({ ...prev, [formatId]: 'completed' }))
-          } else {
-            console.error('❌ 8K upscale failed:', result.error)
+            const result = await response.json()
+            if (result.success) {
+              bestQualityUrl = result.upscaledUrl // Update to use 8K for subsequent operations
+              const imageResponse = await fetch(result.upscaledUrl)
+              const blob = await imageResponse.blob()
+              folder.file(`${safeBusinessName}-8k.png`, blob)
+              setDownloadProgress(prev => ({ ...prev, [formatId]: 'completed' }))
+            } else {
+              console.error('❌ 8K upscale failed:', result.error)
+              setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
+              throw new Error(result.error || '8K upscale failed')
+            }
+          } catch (error) {
+            console.error(`Error downloading ${formatId}:`, error)
             setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
-            throw new Error(result.error || '8K upscale failed')
           }
-        } catch (error) {
-          console.error(`Error downloading ${formatId}:`, error)
-          setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
-        }
+        })()
+
+        phase1Promises.push(upscalePromise)
       }
 
-      // PHASE 1.5: Download Full HD immediately (no waiting needed - it's just the original file)
+      // Full HD download (instant - just fetch the original)
       if (selectedFormats.includes('png-hd')) {
         setDownloadProgress(prev => ({ ...prev, 'png-hd': 'processing' }))
-        try {
-          const imageResponse = await fetch(logo.logo_url || logo.url)
-          const blob = await imageResponse.blob()
-          folder.file(`${safeBusinessName}-fullhd.png`, blob)
-          setDownloadProgress(prev => ({ ...prev, 'png-hd': 'completed' }))
-        } catch (error) {
-          console.error('Error downloading png-hd:', error)
-          setDownloadProgress(prev => ({ ...prev, 'png-hd': 'error' }))
-        }
+
+        const fullHdPromise = (async () => {
+          try {
+            const imageResponse = await fetch(logo.logo_url || logo.url)
+            const blob = await imageResponse.blob()
+            folder.file(`${safeBusinessName}-fullhd.png`, blob)
+            setDownloadProgress(prev => ({ ...prev, 'png-hd': 'completed' }))
+          } catch (error) {
+            console.error('Error downloading png-hd:', error)
+            setDownloadProgress(prev => ({ ...prev, 'png-hd': 'error' }))
+          }
+        })()
+
+        phase1Promises.push(fullHdPromise)
       }
+
+      // Wait for Phase 1 to complete (both 8K and Full HD)
+      await Promise.all(phase1Promises)
 
       // PHASE 2: Process remaining formats (using bestQualityUrl which is 8K if available)
       for (const formatId of selectedFormats) {
@@ -215,6 +245,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
             const result = await response.json()
             if (result.success) {
+              backgroundRemovedUrl = result.processedUrl // Save for SVG use
               const imageResponse = await fetch(result.processedUrl)
               const blob = await imageResponse.blob()
               folder.file(`${safeBusinessName}-no-background.png`, blob)
@@ -223,21 +254,45 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               throw new Error(result.error || 'Background removal failed')
             }
           } else if (formatId === 'svg') {
-            const response = await fetch(`/api/logos/${logo.id}/vectorize`, {
+            // Use background-removed URL if available, otherwise use 8K
+            const svgSourceUrl = backgroundRemovedUrl || bestQualityUrl
+
+            // Generate BOTH spline and polygon versions for comparison
+            console.log('🔺 Generating SVG - Spline version...')
+            const splineResponse = await fetch(`/api/logos/${logo.id}/vectorize`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 clerkUserId: user.id,
-                logoUrl: bestQualityUrl // Use 8K version if available
+                logoUrl: svgSourceUrl,
+                curveFitting: 'spline' // Smooth edges
               })
             })
 
-            const result = await response.json()
-            if (result.success) {
-              folder.file(`${safeBusinessName}-vector.svg`, result.svgData)
-            } else {
-              console.error('❌ SVG vectorization failed:', result.error)
-              throw new Error(result.error || 'SVG vectorization failed')
+            const splineResult = await splineResponse.json()
+            if (splineResult.success) {
+              folder.file(`${safeBusinessName}-vector-spline.svg`, splineResult.svgData)
+            }
+
+            console.log('🔺 Generating SVG - Polygon version...')
+            const polygonResponse = await fetch(`/api/logos/${logo.id}/vectorize`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                clerkUserId: user.id,
+                logoUrl: svgSourceUrl,
+                curveFitting: 'polygon' // Geometric edges
+              })
+            })
+
+            const polygonResult = await polygonResponse.json()
+            if (polygonResult.success) {
+              folder.file(`${safeBusinessName}-vector-polygon.svg`, polygonResult.svgData)
+            }
+
+            if (!splineResult.success && !polygonResult.success) {
+              console.error('❌ SVG vectorization failed for both modes')
+              throw new Error('SVG vectorization failed')
             }
           } else if (formatId === 'favicon') {
             const response = await fetch(`/api/logos/${logo.id}/formats`, {

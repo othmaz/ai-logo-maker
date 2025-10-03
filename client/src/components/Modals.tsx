@@ -176,7 +176,7 @@ const Modals: React.FC = () => {
                       <div className="space-y-4">
                         <div className="flex items-center space-x-3 text-gray-600">
                           <span className="text-2xl">📧</span>
-                          <span>support@ailogomaker.com</span>
+                          <span>support@craftyourlogo.com</span>
                         </div>
                         <div className="flex items-center space-x-3 text-gray-600">
                           <span className="text-2xl">💬</span>
@@ -191,18 +191,46 @@ const Modals: React.FC = () => {
 
                     <div className="space-y-4">
                       <h4 className="font-semibold text-gray-800">Send us a message</h4>
-                      <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); showToast('Message sent! We\'ll get back to you soon.', 'success'); setActiveModal(null); }}>
+                      <form className="space-y-4" onSubmit={async (e) => {
+                        e.preventDefault()
+                        const formData = new FormData(e.currentTarget)
+                        const data = {
+                          name: formData.get('name') as string,
+                          email: formData.get('email') as string,
+                          subject: formData.get('subject') as string,
+                          message: formData.get('message') as string
+                        }
+
+                        try {
+                          const response = await fetch('/api/contact', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data)
+                          })
+
+                          if (!response.ok) {
+                            const error = await response.json()
+                            throw new Error(error.error || 'Failed to send message')
+                          }
+
+                          showToast('Message sent! We\'ll get back to you soon.', 'success')
+                          setActiveModal(null)
+                        } catch (error) {
+                          console.error('Contact form error:', error)
+                          showToast(error instanceof Error ? error.message : 'Failed to send message. Please try again.', 'error')
+                        }
+                      }}>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                          <input type="text" required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
+                          <input name="name" type="text" required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                          <input type="email" required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
+                          <input name="email" type="email" required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                          <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
+                          <select name="subject" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500">
                             <option>General Question</option>
                             <option>Technical Issue</option>
                             <option>Billing Question</option>
@@ -212,7 +240,7 @@ const Modals: React.FC = () => {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                          <textarea rows={4} required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"></textarea>
+                          <textarea name="message" rows={4} required className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"></textarea>
                         </div>
                         <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
                           Send Message
@@ -360,6 +388,29 @@ const Modals: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Toast Notifications */}
+      <div className="fixed top-4 right-4 z-[100] space-y-2">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`px-6 py-3 rounded-lg shadow-lg text-white font-medium flex items-center gap-2 animate-in slide-in-from-top-5 ${
+              toast.type === 'success' ? 'bg-green-500' :
+              toast.type === 'error' ? 'bg-red-500' :
+              toast.type === 'warning' ? 'bg-yellow-500' :
+              'bg-blue-500'
+            }`}
+          >
+            <span>
+              {toast.type === 'success' ? '✓' :
+               toast.type === 'error' ? '✕' :
+               toast.type === 'warning' ? '⚠' :
+               'ℹ'}
+            </span>
+            <span>{toast.message}</span>
+          </div>
+        ))}
+      </div>
     </>
   )
 }

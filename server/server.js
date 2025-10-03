@@ -11,6 +11,7 @@ const potrace = require('potrace')
 const { put } = require('@vercel/blob')
 const { connectToDatabase, sql } = require('./lib/db')
 const { migrateFromLocalStorage } = require('./lib/migrate')
+const { Resend } = require('resend')
 
 dotenv.config({ path: path.join(__dirname, '../.env') })
 
@@ -27,6 +28,9 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
+
+// Initialize Resend client
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
 
 const app = express()
 const port = process.env.PORT || 3001
@@ -57,6 +61,96 @@ try {
 // Serve static files from generated-logos directory (only if directory exists)
 if (fs.existsSync(imagesDir)) {
   app.use('/images', express.static(imagesDir))
+}
+
+// Polygonal SVG Generator - Creates geometric/low-poly style vectorization
+async function createPolygonalSVG(pixelData, width, height) {
+  console.log('🔺 Creating polygonal SVG...')
+
+  // Sample grid size - controls polygon density (smaller = more detail, larger = more geometric)
+  const gridSize = 8
+
+  // Extract color regions using grid sampling
+  const colorRegions = []
+
+  for (let y = 0; y < height; y += gridSize) {
+    for (let x = 0; x < width; x += gridSize) {
+      const idx = (y * width + x) * 4
+      const r = pixelData[idx]
+      const g = pixelData[idx + 1]
+      const b = pixelData[idx + 2]
+      const a = pixelData[idx + 3]
+
+      // Skip transparent pixels
+      if (a < 128) continue
+
+      // Create color hex
+      const color = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+
+      colorRegions.push({ x, y, color, r, g, b })
+    }
+  }
+
+  // Group similar colors together
+  const colorGroups = {}
+  colorRegions.forEach(region => {
+    // Quantize colors to reduce total number
+    const qR = Math.round(region.r / 32) * 32
+    const qG = Math.round(region.g / 32) * 32
+    const qB = Math.round(region.b / 32) * 32
+    const key = `${qR}-${qG}-${qB}`
+
+    if (!colorGroups[key]) {
+      colorGroups[key] = {
+        color: `rgb(${qR},${qG},${qB})`,
+        points: []
+      }
+    }
+    colorGroups[key].points.push({ x: region.x, y: region.y })
+  })
+
+  // Build SVG with polygonal shapes
+  let svgPaths = ''
+
+  Object.values(colorGroups).forEach(group => {
+    if (group.points.length < 3) return // Need at least 3 points for polygon
+
+    // Create convex hull or simplified polygon from points
+    const polygon = createPolygonFromPoints(group.points, gridSize)
+    svgPaths += `  <path d="${polygon}" fill="${group.color}" />\n`
+  })
+
+  const svg = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+${svgPaths}</svg>`
+
+  console.log('✅ Polygonal SVG created')
+  return svg
+}
+
+// Create polygon path from a set of points
+function createPolygonFromPoints(points, gridSize) {
+  if (points.length === 0) return ''
+
+  // Sort points to create a reasonable polygon shape
+  // Use a simple approach: sort by angle from center
+  const centerX = points.reduce((sum, p) => sum + p.x, 0) / points.length
+  const centerY = points.reduce((sum, p) => sum + p.y, 0) / points.length
+
+  const sortedPoints = points
+    .map(p => ({
+      ...p,
+      angle: Math.atan2(p.y - centerY, p.x - centerX)
+    }))
+    .sort((a, b) => a.angle - b.angle)
+
+  // Create rectangular blocks for a more geometric look
+  const rects = []
+  sortedPoints.forEach(p => {
+    rects.push(`M${p.x},${p.y} L${p.x + gridSize},${p.y} L${p.x + gridSize},${p.y + gridSize} L${p.x},${p.y + gridSize} Z`)
+  })
+
+  return rects.join(' ')
 }
 
 
@@ -625,6 +719,169 @@ app.get('/api/verify-payment/:paymentIntentId', async (req, res) => {
   }
 });
 
+// ============================
+// Email APIs (Resend)
+// ============================
+
+// Contact form endpoint
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body
+
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: 'Name, email, and message are required' })
+    }
+
+    if (!resend) {
+      console.error('❌ Resend API key not configured')
+      return res.status(500).json({ error: 'Email service not configured' })
+    }
+
+    console.log('📧 Sending contact form email from:', email)
+
+    // Send email to support
+    const { data, error } = await resend.emails.send({
+      from: 'Craft Your Logo <noreply@craftyourlogo.com>',
+      to: 'support@craftyourlogo.com',
+      subject: `Contact Form: ${subject}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: linear-gradient(to bottom, #f8f9fa, #ffffff); border: 1px solid #e0e0e0; border-radius: 8px;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: bold;">New Contact Form Submission</h1>
+          </div>
+
+          <div style="padding: 30px; background: white; border-radius: 0 0 8px 8px;">
+            <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+              <p style="margin: 0 0 8px 0; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">From</p>
+              <p style="margin: 0; color: #333; font-size: 16px; font-weight: 600;">${name}</p>
+              <p style="margin: 5px 0 0 0; color: #667eea; font-size: 14px;">${email}</p>
+            </div>
+
+            <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+              <p style="margin: 0 0 8px 0; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Subject</p>
+              <p style="margin: 0; color: #333; font-size: 16px; font-weight: 600;">${subject}</p>
+            </div>
+
+            <div>
+              <p style="margin: 0 0 12px 0; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Message</p>
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea;">
+                <p style="margin: 0; color: #333; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${message}</p>
+              </div>
+            </div>
+          </div>
+
+          <div style="text-align: center; padding: 20px; color: #999; font-size: 12px;">
+            <p style="margin: 0;">Sent from Craft Your Logo contact form</p>
+          </div>
+        </div>
+      `
+    })
+
+    if (error) {
+      console.error('❌ Resend error:', error)
+      return res.status(400).json({ error: error.message })
+    }
+
+    console.log('✅ Contact email sent successfully:', data.id)
+    res.json({ success: true, messageId: data.id })
+
+  } catch (error) {
+    console.error('❌ Contact form error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Send welcome email
+app.post('/api/emails/welcome', async (req, res) => {
+  try {
+    const { email, name } = req.body
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' })
+    }
+
+    if (!resend) {
+      console.error('❌ Resend API key not configured')
+      return res.status(500).json({ error: 'Email service not configured' })
+    }
+
+    console.log('📧 Sending welcome email to:', email)
+
+    const displayName = name || 'Creator'
+
+    const { data, error } = await resend.emails.send({
+      from: 'Craft Your Logo <noreply@craftyourlogo.com>',
+      to: email,
+      subject: 'Welcome to Craft Your Logo! 🎨',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background: linear-gradient(to bottom, #f8f9fa, #ffffff);">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">Welcome to Craft Your Logo!</h1>
+            <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">Your journey to stunning logos starts here</p>
+          </div>
+
+          <div style="padding: 40px 30px; background: white;">
+            <h2 style="color: #333; margin: 0 0 20px 0; font-size: 24px;">Hey ${displayName}! 👋</h2>
+
+            <p style="color: #555; line-height: 1.8; font-size: 16px; margin: 0 0 20px 0;">
+              We're thrilled to have you join Craft Your Logo! You've just unlocked the power to create professional, AI-generated logos in seconds.
+            </p>
+
+            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e8eaf6 100%); padding: 25px; border-radius: 12px; border-left: 4px solid #667eea; margin: 25px 0;">
+              <h3 style="color: #667eea; margin: 0 0 15px 0; font-size: 18px;">🎁 You've Got 15 Free Credits!</h3>
+              <p style="color: #555; margin: 0; line-height: 1.6; font-size: 15px;">
+                Start creating right away with your free credits. Each generation creates 5 unique logo variations for you to choose from.
+              </p>
+            </div>
+
+            <h3 style="color: #333; margin: 30px 0 15px 0; font-size: 20px;">✨ What You Can Do:</h3>
+            <ul style="color: #555; line-height: 1.8; font-size: 15px; padding-left: 20px;">
+              <li style="margin-bottom: 10px;"><strong>Generate Unlimited Variations:</strong> Create 5 logos per credit with our AI</li>
+              <li style="margin-bottom: 10px;"><strong>Refine Your Designs:</strong> Use our feedback system to perfect your logos</li>
+              <li style="margin-bottom: 10px;"><strong>Download in Multiple Formats:</strong> Get standard PNGs instantly</li>
+              <li style="margin-bottom: 10px;"><strong>Upgrade for Premium:</strong> Unlock 8K, background removal, SVG vectors & more</li>
+            </ul>
+
+            <div style="text-align: center; margin: 35px 0;">
+              <a href="https://craftyourlogo.com" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
+                Start Creating Now
+              </a>
+            </div>
+
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px;">
+              <p style="color: #666; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">
+                <strong>Need help?</strong> Our support team is here for you at
+                <a href="mailto:support@craftyourlogo.com" style="color: #667eea; text-decoration: none;">support@craftyourlogo.com</a>
+              </p>
+            </div>
+          </div>
+
+          <div style="text-align: center; padding: 30px 20px; background: #f8f9fa; border-top: 1px solid #e0e0e0;">
+            <p style="color: #999; margin: 0 0 10px 0; font-size: 13px;">
+              Made with ❤️ by the Craft Your Logo team
+            </p>
+            <p style="color: #ccc; margin: 0; font-size: 12px;">
+              © ${new Date().getFullYear()} Craft Your Logo. All rights reserved.
+            </p>
+          </div>
+        </div>
+      `
+    })
+
+    if (error) {
+      console.error('❌ Resend error:', error)
+      return res.status(400).json({ error: error.message })
+    }
+
+    console.log('✅ Welcome email sent successfully:', data.id)
+    res.json({ success: true, messageId: data.id })
+
+  } catch (error) {
+    console.error('❌ Welcome email error:', error)
+    res.status(500).json({ error: error.message })
+  }
+})
+
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`)
 })
@@ -635,10 +892,17 @@ app.listen(port, () => {
 
 app.post('/api/users/sync', async (req, res) => {
   try {
-    const { clerkUserId, email } = req.body
+    const { clerkUserId, email, firstName } = req.body
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
 
     await connectToDatabase()
+
+    // Check if this is a new user
+    const existingUser = await sql`
+      SELECT id FROM users WHERE clerk_user_id = ${clerkUserId}
+    `
+    const isNewUser = existingUser.rows.length === 0
+
     const { rows } = await sql`
       INSERT INTO users (clerk_user_id, email)
       VALUES (${clerkUserId}, ${email || null})
@@ -647,6 +911,75 @@ app.post('/api/users/sync', async (req, res) => {
     `
 
     console.log(`✅ User synced: ${clerkUserId}, subscription: ${rows[0]?.subscription_status}`)
+
+    // Send welcome email to new users
+    if (isNewUser && email && resend) {
+      try {
+        await resend.emails.send({
+          from: 'Craft Your Logo <noreply@craftyourlogo.com>',
+          to: email,
+          subject: 'Welcome to Craft Your Logo! 🎨',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background: linear-gradient(to bottom, #f8f9fa, #ffffff);">
+              <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">Welcome to Craft Your Logo!</h1>
+                <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">Your journey to stunning logos starts here</p>
+              </div>
+
+              <div style="padding: 40px 30px; background: white;">
+                <h2 style="color: #333; margin: 0 0 20px 0; font-size: 24px;">Hey ${firstName || 'Creator'}! 👋</h2>
+
+                <p style="color: #555; line-height: 1.8; font-size: 16px; margin: 0 0 20px 0;">
+                  We're thrilled to have you join Craft Your Logo! You've just unlocked the power to create professional, AI-generated logos in seconds.
+                </p>
+
+                <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e8eaf6 100%); padding: 25px; border-radius: 12px; border-left: 4px solid #667eea; margin: 25px 0;">
+                  <h3 style="color: #667eea; margin: 0 0 15px 0; font-size: 18px;">🎁 You've Got 15 Free Credits!</h3>
+                  <p style="color: #555; margin: 0; line-height: 1.6; font-size: 15px;">
+                    Start creating right away with your free credits. Each generation creates 5 unique logo variations for you to choose from.
+                  </p>
+                </div>
+
+                <h3 style="color: #333; margin: 30px 0 15px 0; font-size: 20px;">✨ What You Can Do:</h3>
+                <ul style="color: #555; line-height: 1.8; font-size: 15px; padding-left: 20px;">
+                  <li style="margin-bottom: 10px;"><strong>Generate Unlimited Variations:</strong> Create 5 logos per credit with our AI</li>
+                  <li style="margin-bottom: 10px;"><strong>Refine Your Designs:</strong> Use our feedback system to perfect your logos</li>
+                  <li style="margin-bottom: 10px;"><strong>Download in Multiple Formats:</strong> Get standard PNGs instantly</li>
+                  <li style="margin-bottom: 10px;"><strong>Upgrade for Premium:</strong> Unlock 8K, background removal, SVG vectors & more</li>
+                </ul>
+
+                <div style="text-align: center; margin: 35px 0;">
+                  <a href="https://craftyourlogo.com" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
+                    Start Creating Now
+                  </a>
+                </div>
+
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px;">
+                  <p style="color: #666; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">
+                    <strong>Need help?</strong> Our support team is here for you at
+                    <a href="mailto:support@craftyourlogo.com" style="color: #667eea; text-decoration: none;">support@craftyourlogo.com</a>
+                  </p>
+                </div>
+              </div>
+
+              <div style="text-align: center; padding: 30px 20px; background: #f8f9fa; border-top: 1px solid #e0e0e0;">
+                <p style="color: #999; margin: 0 0 10px 0; font-size: 13px;">
+                  Made with ❤️ by the Craft Your Logo team
+                </p>
+                <p style="color: #ccc; margin: 0; font-size: 12px;">
+                  © ${new Date().getFullYear()} Craft Your Logo. All rights reserved.
+                </p>
+              </div>
+            </div>
+          `
+        })
+        console.log(`📧 Welcome email sent to: ${email}`)
+      } catch (emailError) {
+        console.error('❌ Failed to send welcome email:', emailError)
+        // Don't fail user sync if email fails
+      }
+    }
+
     res.json({ user: rows[0] })
   } catch (error) {
     console.error('❌ Failed to sync user:', error)
@@ -995,11 +1328,15 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
 
   try {
     const { id } = req.params
-    const { clerkUserId, logoUrl: providedLogoUrl } = req.body
+    const { clerkUserId, logoUrl: providedLogoUrl, curveFitting } = req.body
 
     if (!clerkUserId) {
       return res.status(400).json({ error: 'clerkUserId is required' })
     }
+
+    // Default to spline if not specified
+    const curveMode = curveFitting || 'spline'
+    console.log(`🔺 Using curve fitting mode: ${curveMode}`)
 
     // Verify premium status
     const isPremium = await verifyPremiumUser(clerkUserId)
@@ -1007,7 +1344,7 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
       return res.status(403).json({ error: 'Premium subscription required for SVG conversion' })
     }
 
-    // Use logoUrl from request body, or try to get from database as fallback
+    // Use logoUrl from request body (8K version for better polygon detail), or try to get from database as fallback
     let imageUrl = providedLogoUrl
 
     if (!imageUrl) {
@@ -1032,33 +1369,87 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
     }
 
     console.log('🔍 Vectorizing logo:', imageUrl)
+    console.log(`🔺 Using FreeConvert API with mode: ${curveMode}`)
 
-    // Fetch and process image
-    const imageBuffer = await fetchImageBuffer(imageUrl)
+    // Use FreeConvert API for colored SVG conversion
+    const freeConvertApiKey = process.env.FREECONVERT_API_KEY
 
-    // Convert to high-contrast PNG for better vectorization
-    const processedBuffer = await sharp(imageBuffer)
-      .png()
-      .sharpen()
-      .normalise()
-      .toBuffer()
+    if (!freeConvertApiKey) {
+      return res.status(500).json({ error: 'FreeConvert API key not configured' })
+    }
 
-    // Convert to SVG using potrace
-    const svgString = await new Promise((resolve, reject) => {
-      potrace.trace(processedBuffer, {
-        background: '#FFFFFF',
-        color: 'auto',
-        threshold: 128,
-        optTolerance: 0.4,
-        turdSize: 100,
-        turnPolicy: potrace.Potrace.TURNPOLICY_MINORITY
-      }, (err, svg) => {
-        if (err) reject(err)
-        else resolve(svg)
+    // Create FreeConvert job
+    const jobResponse = await fetch('https://api.freeconvert.com/v1/process/jobs', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${freeConvertApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        tasks: {
+          'import-1': {
+            operation: 'import/url',
+            url: imageUrl,
+            filename: 'logo.png'
+          },
+          'convert-1': {
+            operation: 'convert',
+            input: 'import-1',
+            input_format: 'png',
+            output_format: 'svg',
+            options: {
+              'color-mode': 'color',
+              'clustering': 'stacked',
+              'color-precision': 16,
+              'gradient-step': 8,
+              'filter-speckle': 5,
+              'curve-fitting': curveMode
+            }
+          },
+          'export-1': {
+            operation: 'export/url',
+            input: ['convert-1'],
+            filename: 'logo-vector.svg'
+          }
+        }
       })
     })
 
-    console.log('✅ SVG vectorization completed')
+    const jobResult = await jobResponse.json()
+
+    // Wait for job to complete
+    let jobStatus = jobResult
+    while (jobStatus.status === 'processing' || jobStatus.status === 'pending') {
+      await new Promise(resolve => setTimeout(resolve, 3000))
+      const statusResponse = await fetch(`https://api.freeconvert.com/v1/process/jobs/${jobResult.id}`, {
+        headers: { 'Authorization': `Bearer ${freeConvertApiKey}` }
+      })
+      jobStatus = await statusResponse.json()
+    }
+
+    if (jobStatus.status !== 'completed') {
+      throw new Error('SVG conversion failed: ' + (jobStatus.message || 'Unknown error'))
+    }
+
+    // Get the export URL
+    const exportTask = jobStatus.tasks.find(t => t.name === 'export-1')
+    if (!exportTask?.result?.url) {
+      throw new Error('No SVG file in conversion result')
+    }
+
+    // Download the SVG
+    const svgResponse = await fetch(exportTask.result.url)
+    let svgString = await svgResponse.text()
+
+    // Remove dark background
+    svgString = svgString.replace(/<path d="[^"]*" fill="#363636"[^>]*\/>/,'')
+
+    // Add viewBox if missing
+    if (!svgString.includes('viewBox=')) {
+      svgString = svgString.replace(/<svg([^>]+)>/, '<svg$1 viewBox="0 0 8192 8192">')
+    }
+
+    console.log('✅ SVG vectorization completed via FreeConvert!')
 
     // Track analytics
     await sql`
