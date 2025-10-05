@@ -36,7 +36,18 @@ const app = express()
 const port = process.env.PORT || 3001
 
 app.use(cors())
-app.use(express.json({ limit: '50mb' }))
+
+// Stripe webhook must come BEFORE express.json() to receive raw body
+// (will be added later in the file before other routes)
+
+// Parse JSON for all routes EXCEPT webhook
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/stripe/webhook') {
+    next()
+  } else {
+    express.json({ limit: '50mb' })(req, res, next)
+  }
+})
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
 // Verify DB connectivity on boot (non-blocking)
