@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
 import { useDbContext } from '../contexts/DatabaseContext'
@@ -9,8 +9,12 @@ const PaymentSuccessPage: React.FC = () => {
   const { isSignedIn, user } = useUser()
   const { updateUserSubscription, refreshUserProfile } = useDbContext()
   const [isProcessing, setIsProcessing] = useState(true)
+  const hasProcessed = useRef(false)
 
   useEffect(() => {
+    // Prevent infinite loop - only run once
+    if (hasProcessed.current) return
+
     const handlePaymentSuccess = async () => {
       console.log('🎉 PaymentSuccessPage loaded - checking gtag...')
 
@@ -88,10 +92,13 @@ const PaymentSuccessPage: React.FC = () => {
       } else {
         setIsProcessing(false)
       }
+
+      hasProcessed.current = true
     }
 
     handlePaymentSuccess()
-  }, [searchParams, isSignedIn, user, updateUserSubscription, refreshUserProfile])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
