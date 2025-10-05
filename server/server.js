@@ -1025,9 +1025,17 @@ app.put('/api/users/subscription', async (req, res) => {
     if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
 
     await connectToDatabase()
-    const result = await sql`UPDATE users SET subscription_status = ${status || 'free'} WHERE clerk_user_id = ${clerkUserId}`
 
-    console.log(`✅ Updated subscription for user ${clerkUserId} to ${status}. Rows affected: ${result.count}`)
+    // Update subscription status and credits_limit based on status
+    const creditsLimit = status === 'premium' ? 999999 : 15
+    const result = await sql`
+      UPDATE users
+      SET subscription_status = ${status || 'free'},
+          credits_limit = ${creditsLimit}
+      WHERE clerk_user_id = ${clerkUserId}
+    `
+
+    console.log(`✅ Updated subscription for user ${clerkUserId} to ${status} with credits_limit ${creditsLimit}. Rows affected: ${result.count}`)
 
     res.json({ success: true, rowsAffected: result.count })
   } catch (error) {
@@ -1123,11 +1131,11 @@ app.delete('/api/logos/clear', async (req, res) => {
 
 app.post('/api/generations/track', async (req, res) => {
   try {
-    const { clerkUserId, prompt } = req.body
+    const { clerkUserId, prompt, logosGenerated = 1, isPremium = false } = req.body
     if (!clerkUserId || !prompt) return res.status(400).json({ error: 'clerkUserId and prompt required' })
 
     await connectToDatabase()
-    await sql`INSERT INTO generation_history (clerk_user_id, prompt) VALUES (${clerkUserId}, ${prompt})`
+    await sql`INSERT INTO generation_history (clerk_user_id, prompt, logos_generated, is_premium) VALUES (${clerkUserId}, ${prompt}, ${logosGenerated}, ${isPremium})`
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: error.message })
