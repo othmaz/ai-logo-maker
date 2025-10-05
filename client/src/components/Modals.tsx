@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useModal } from '../contexts/ModalContext'
 
 interface Toast {
@@ -8,6 +9,7 @@ interface Toast {
 }
 
 const Modals: React.FC = () => {
+  const navigate = useNavigate()
   const { activeModal, setActiveModal, confirmModal } = useModal()
   const [toasts, setToasts] = useState<Toast[]>([])
   const [clientSecret, setClientSecret] = useState<string | null>(null)
@@ -333,7 +335,10 @@ const Modals: React.FC = () => {
 
                       {/* Retro Upgrade Button */}
                       <button
-                        onClick={() => {/* Payment logic would go here */}}
+                        onClick={() => {
+                          setActiveModal(null)
+                          navigate('/pricing')
+                        }}
                         className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50 mb-4"
                       >
                         UPGRADE NOW - €9.99
