@@ -1,40 +1,97 @@
-import React, { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useUser } from '@clerk/clerk-react'
+import { useDbContext } from '../contexts/DatabaseContext'
 
 const PaymentSuccessPage: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { isSignedIn, user } = useUser()
+  const { updateUserSubscription, refreshUserProfile } = useDbContext()
+  const [isProcessing, setIsProcessing] = useState(true)
 
   useEffect(() => {
-    console.log('🎉 PaymentSuccessPage loaded - checking gtag...')
+    const handlePaymentSuccess = async () => {
+      console.log('🎉 PaymentSuccessPage loaded - checking gtag...')
 
-    // Send conversion event to Google Analytics
-    if (window.gtag) {
-      console.log('✅ gtag is available, sending purchase events...')
+      // Send conversion event to Google Analytics
+      if (window.gtag) {
+        console.log('✅ gtag is available, sending purchase events...')
 
-      // Standard GA4 purchase event (shows in GA4 real-time)
-      window.gtag('event', 'purchase', {
-        value: 9.99,
-        currency: 'EUR',
-        transaction_id: Date.now().toString()
-      })
+        // Standard GA4 purchase event (shows in GA4 real-time)
+        window.gtag('event', 'purchase', {
+          value: 9.99,
+          currency: 'EUR',
+          transaction_id: Date.now().toString()
+        })
 
-      // Custom conversion event for Google Ads
-      window.gtag('event', 'ads_conversion_purchase', {
-        value: 9.99,
-        currency: 'EUR',
-        transaction_id: Date.now().toString()
-      })
+        // Custom conversion event for Google Ads
+        window.gtag('event', 'ads_conversion_purchase', {
+          value: 9.99,
+          currency: 'EUR',
+          transaction_id: Date.now().toString()
+        })
 
-      console.log('📊 Purchase events sent to Google Analytics')
+        console.log('📊 Purchase events sent to Google Analytics')
 
-      // Debug: Check dataLayer
-      if (window.dataLayer) {
-        console.log('📊 DataLayer after purchase:', window.dataLayer.slice(-5))
+        // Debug: Check dataLayer
+        if (window.dataLayer) {
+          console.log('📊 DataLayer after purchase:', window.dataLayer.slice(-5))
+        }
+      } else {
+        console.warn('⚠️ gtag not available on payment success page!')
       }
-    } else {
-      console.warn('⚠️ gtag not available on payment success page!')
+
+      // Verify and process payment
+      const paymentIntent = searchParams.get('payment_intent')
+      const paymentIntentClientSecret = searchParams.get('payment_intent_client_secret')
+
+      if (paymentIntent && paymentIntentClientSecret && isSignedIn && user) {
+        try {
+          console.log('🎉 Payment success detected, verifying payment...')
+
+          // Verify payment status with Stripe
+          const verificationResponse = await fetch(`/api/verify-payment/${paymentIntent}`)
+          if (!verificationResponse.ok) {
+            throw new Error('Failed to verify payment')
+          }
+
+          const paymentData = await verificationResponse.json()
+          console.log('💳 Payment verification:', paymentData)
+
+          if (paymentData.status !== 'succeeded') {
+            console.error('❌ Payment not confirmed by Stripe:', paymentData.status)
+            setIsProcessing(false)
+            return
+          }
+
+          console.log('✅ Payment verified with Stripe, updating subscription...')
+
+          // Update database subscription status
+          console.log('🔄 Calling updateUserSubscription function...')
+          const dbResult = await updateUserSubscription('premium')
+          console.log('📊 Database update result:', dbResult)
+
+          if (dbResult && dbResult.success) {
+            console.log('✅ Database subscription status updated to premium')
+            await refreshUserProfile()
+          } else {
+            console.error('❌ Failed to update database subscription:', dbResult ? dbResult.error : 'No result returned')
+          }
+
+          setIsProcessing(false)
+
+        } catch (error) {
+          console.error('❌ Error during payment verification:', error)
+          setIsProcessing(false)
+        }
+      } else {
+        setIsProcessing(false)
+      }
     }
-  }, [])
+
+    handlePaymentSuccess()
+  }, [searchParams, isSignedIn, user, updateUserSubscription, refreshUserProfile])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
