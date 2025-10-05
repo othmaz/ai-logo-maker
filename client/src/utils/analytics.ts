@@ -38,9 +38,19 @@ export const trackPurchase = (transactionId: string, value: number = 9.99) => {
 
 // Track Sign Up Conversion
 export const trackSignUp = (userId: string, email?: string) => {
-  if (typeof window.gtag !== 'function') return;
+  if (typeof window.gtag !== 'function') {
+    console.warn('⚠️ gtag not available - Google Analytics not loaded');
+    return;
+  }
 
-  // Send the custom conversion event to Google Ads
+  // Send standard GA4 sign_up event (will show in GA4 real-time)
+  window.gtag('event', 'sign_up', {
+    method: 'clerk',
+    user_id: userId,
+    email: email
+  });
+
+  // Send custom conversion event for Google Ads
   window.gtag('event', 'ads_conversion_sign_up', {
     user_id: userId,
     email: email

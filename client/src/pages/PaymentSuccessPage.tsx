@@ -7,6 +7,14 @@ const PaymentSuccessPage: React.FC = () => {
   useEffect(() => {
     // Send conversion event to Google Analytics
     if (window.gtag) {
+      // Standard GA4 purchase event (shows in GA4 real-time)
+      window.gtag('event', 'purchase', {
+        value: 9.99,
+        currency: 'EUR',
+        transaction_id: Date.now().toString()
+      })
+
+      // Custom conversion event for Google Ads
       window.gtag('event', 'ads_conversion_purchase', {
         value: 9.99,
         currency: 'EUR',
