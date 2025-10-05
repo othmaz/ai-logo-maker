@@ -5,8 +5,12 @@ const PaymentSuccessPage: React.FC = () => {
   const navigate = useNavigate()
 
   useEffect(() => {
+    console.log('🎉 PaymentSuccessPage loaded - checking gtag...')
+
     // Send conversion event to Google Analytics
     if (window.gtag) {
+      console.log('✅ gtag is available, sending purchase events...')
+
       // Standard GA4 purchase event (shows in GA4 real-time)
       window.gtag('event', 'purchase', {
         value: 9.99,
@@ -20,6 +24,15 @@ const PaymentSuccessPage: React.FC = () => {
         currency: 'EUR',
         transaction_id: Date.now().toString()
       })
+
+      console.log('📊 Purchase events sent to Google Analytics')
+
+      // Debug: Check dataLayer
+      if (window.dataLayer) {
+        console.log('📊 DataLayer after purchase:', window.dataLayer.slice(-5))
+      }
+    } else {
+      console.warn('⚠️ gtag not available on payment success page!')
     }
   }, [])
 
