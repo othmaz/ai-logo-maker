@@ -1,6 +1,12 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useUser } from '@clerk/clerk-react'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements } from '@stripe/react-stripe-js'
+import CheckoutForm from '../CheckoutForm'
 import { useModal } from '../contexts/ModalContext'
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
 
 interface Toast {
   id: string
@@ -10,9 +16,12 @@ interface Toast {
 
 const Modals: React.FC = () => {
   const navigate = useNavigate()
+  const { isSignedIn, user } = useUser()
   const { activeModal, setActiveModal, confirmModal } = useModal()
   const [toasts, setToasts] = useState<Toast[]>([])
   const [clientSecret, setClientSecret] = useState<string | null>(null)
+  const [isLoadingPayment, setIsLoadingPayment] = useState(false)
+  const [tosAccepted, setTosAccepted] = useState(false)
 
   const showToast = (message: string, type: Toast['type'] = 'info') => {
     const id = Math.random().toString(36).substr(2, 9)
@@ -21,6 +30,46 @@ const Modals: React.FC = () => {
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id))
     }, 5000)
+  }
+
+  const handlePaymentUpgrade = async () => {
+    try {
+      if (!isSignedIn || !user) {
+        showToast('Please sign in to upgrade to premium', 'error')
+        return
+      }
+
+      if (!tosAccepted) {
+        showToast('Please accept the Terms of Service to continue', 'error')
+        return
+      }
+
+      setIsLoadingPayment(true)
+      showToast('Creating payment...', 'info')
+
+      const response = await fetch('/api/create-payment-intent-with-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          userEmail: user.primaryEmailAddress?.emailAddress || user.emailAddresses[0]?.emailAddress
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create payment intent')
+      }
+
+      const { clientSecret: secret } = await response.json()
+      setClientSecret(secret)
+      showToast('Payment ready!', 'success')
+
+    } catch (error) {
+      console.error('Payment error:', error)
+      showToast('Payment failed. Please try again.', 'error')
+    } finally {
+      setIsLoadingPayment(false)
+    }
   }
 
   if (!activeModal && !confirmModal.isOpen) return null
@@ -260,7 +309,9 @@ const Modals: React.FC = () => {
               {activeModal === 'upgrade' && (
                 <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white p-8 -m-6 rounded-xl">
                   {clientSecret ? (
-                    <div>Payment integration would go here</div>
+                    <Elements stripe={stripePromise} options={{ clientSecret }}>
+                      <CheckoutForm />
+                    </Elements>
                   ) : (
                     <div className="text-center">
                       {/* Retro Header */}
@@ -333,19 +384,48 @@ const Modals: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Terms of Service Checkbox */}
+                      <div className="mb-6 flex items-start">
+                        <input
+                          type="checkbox"
+                          id="tos-checkbox"
+                          checked={tosAccepted}
+                          onChange={(e) => setTosAccepted(e.target.checked)}
+                          className="mt-1 mr-3 w-4 h-4"
+                        />
+                        <label htmlFor="tos-checkbox" className="text-sm text-gray-300 text-left retro-mono">
+                          I accept the{' '}
+                          <button
+                            onClick={() => setActiveModal('tos')}
+                            className="text-cyan-400 hover:text-cyan-300 underline"
+                          >
+                            Terms of Service
+                          </button>
+                          {' '}and{' '}
+                          <button
+                            onClick={() => setActiveModal('privacy')}
+                            className="text-cyan-400 hover:text-cyan-300 underline"
+                          >
+                            Privacy Policy
+                          </button>
+                        </label>
+                      </div>
+
                       {/* Retro Upgrade Button */}
                       <button
-                        onClick={() => {
-                          setActiveModal(null)
-                          navigate('/pricing')
-                        }}
-                        className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold rounded-lg hover:from-cyan-600 hover:to-purple-700 transition-all duration-200 retro-mono text-lg shadow-lg hover:shadow-xl border-2 border-cyan-400/50 mb-4"
+                        onClick={handlePaymentUpgrade}
+                        disabled={!tosAccepted || isLoadingPayment}
+                        className={`w-full px-8 py-4 rounded-lg font-bold retro-mono text-lg shadow-lg transition-all duration-200 border-2 ${
+                          tosAccepted && !isLoadingPayment
+                            ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white hover:from-cyan-600 hover:to-purple-700 hover:shadow-xl border-cyan-400/50 cursor-pointer'
+                            : 'bg-gray-600 text-gray-400 border-gray-600 cursor-not-allowed opacity-50'
+                        }`}
                       >
-                        UPGRADE NOW - €9.99
+                        {isLoadingPayment ? 'LOADING...' : 'UPGRADE NOW - €9.99'}
                       </button>
 
                       {/* Terminal Footer */}
-                      <p className="retro-body text-cyan-400 text-sm">
+                      <p className="retro-body text-cyan-400 text-sm mt-4">
                         &gt; ONE-TIME PAYMENT • INSTANT ACCESS • NO SUBSCRIPTION
                       </p>
 
