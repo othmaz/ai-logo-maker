@@ -39,6 +39,7 @@ const AppRouterContent: React.FC = () => {
           <Route path="/" element={<HomePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/payment/success" element={<PaymentSuccessPage />} />
+          <Route path="/payment-success" element={<PaymentSuccessPage />} />
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/api" element={<ApiPage />} />
           <Route path="/about" element={<AboutPage />} />
