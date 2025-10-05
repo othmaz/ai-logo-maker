@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { useDatabase } from '../hooks/useDatabase';
+import { trackSignUp } from '../utils/analytics';
 
 const DatabaseContext = createContext(null);
 
@@ -23,6 +24,9 @@ export const DatabaseProvider = ({ children }) => {
   const [isMigrated, setIsMigrated] = useState(false);
   const [isLoadingLogos, setIsLoadingLogos] = useState(false);
 
+  // Track if we've already fired the sign-up event
+  const hasTrackedSignup = useRef(false);
+
   // Initialize user data when they sign in
   useEffect(() => {
     const initializeUser = async () => {
@@ -36,6 +40,20 @@ export const DatabaseProvider = ({ children }) => {
         const profileResponse = await db.getUserProfile();
         const profile = profileResponse?.profile || profileResponse; // Handle both response formats
         setUserProfile(profile);
+
+        // 2.5. Track new sign-ups for Google Ads conversion
+        if (!hasTrackedSignup.current && user) {
+          // Check if user is newly created (within last 5 minutes)
+          const userCreatedAt = new Date(user.createdAt);
+          const now = new Date();
+          const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+          if (userCreatedAt > fiveMinutesAgo) {
+            // This is a new sign-up!
+            trackSignUp(user.id, user.primaryEmailAddress?.emailAddress);
+            hasTrackedSignup.current = true;
+          }
+        }
 
         // 3. Check if we need to migrate from localStorage
         const localStorageData = {

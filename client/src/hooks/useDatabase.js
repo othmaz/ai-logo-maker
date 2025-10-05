@@ -43,7 +43,8 @@ export function useDatabase() {
         method: 'POST',
         body: JSON.stringify({
           clerkUserId: user.id,
-          email: user.emailAddresses[0]?.emailAddress
+          email: user.emailAddresses[0]?.emailAddress,
+          firstName: user.firstName
         })
       });
       return result;

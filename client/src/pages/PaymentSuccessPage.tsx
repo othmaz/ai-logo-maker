@@ -1,8 +1,19 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const PaymentSuccessPage: React.FC = () => {
   const navigate = useNavigate()
+
+  useEffect(() => {
+    // Send conversion event to Google Analytics
+    if (window.gtag) {
+      window.gtag('event', 'ads_conversion_purchase', {
+        value: 9.99,
+        currency: 'EUR',
+        transaction_id: Date.now().toString()
+      })
+    }
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
