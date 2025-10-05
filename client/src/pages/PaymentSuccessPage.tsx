@@ -9,6 +9,7 @@ const PaymentSuccessPage: React.FC = () => {
   const { isSignedIn, user } = useUser()
   const { updateUserSubscription, refreshUserProfile } = useDbContext()
   const [isProcessing, setIsProcessing] = useState(true)
+  const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null)
   const hasProcessed = useRef(false)
 
   useEffect(() => {
@@ -79,6 +80,19 @@ const PaymentSuccessPage: React.FC = () => {
           if (dbResult && dbResult.success) {
             console.log('✅ Database subscription status updated to premium')
             await refreshUserProfile()
+
+            // Redirect to home page after 3 seconds so users can continue generating
+            setRedirectCountdown(3)
+            const countdownInterval = setInterval(() => {
+              setRedirectCountdown(prev => {
+                if (prev === null || prev <= 1) {
+                  clearInterval(countdownInterval)
+                  navigate('/')
+                  return null
+                }
+                return prev - 1
+              })
+            }, 1000)
           } else {
             console.error('❌ Failed to update database subscription:', dbResult ? dbResult.error : 'No result returned')
           }
@@ -108,9 +122,14 @@ const PaymentSuccessPage: React.FC = () => {
             <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl mb-6 text-white">
               PAYMENT SUCCESSFUL! <span style={{color: '#fde047', filter: 'none'}}>🎉</span>
             </h1>
-            <p className="text-xl text-gray-300 mb-8 font-mono">
+            <p className="text-xl text-gray-300 mb-4 font-mono">
               Welcome to Premium! You now have unlimited logo generation.
             </p>
+            {redirectCountdown !== null && (
+              <p className="text-lg text-cyan-400 font-mono animate-pulse">
+                Redirecting in {redirectCountdown}... or click below to start now
+              </p>
+            )}
           </div>
 
           <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-8 mb-8 max-w-4xl mx-auto">
