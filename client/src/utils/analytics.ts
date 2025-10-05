@@ -43,6 +43,8 @@ export const trackSignUp = (userId: string, email?: string) => {
     return;
   }
 
+  console.log('📊 Sending sign_up event to GA4...', { userId, email });
+
   // Send standard GA4 sign_up event (will show in GA4 real-time)
   window.gtag('event', 'sign_up', {
     method: 'clerk',
@@ -56,7 +58,12 @@ export const trackSignUp = (userId: string, email?: string) => {
     email: email
   });
 
-  console.log('📊 Sign up conversion tracked:', { userId, email });
+  console.log('✅ Sign up events sent to gtag');
+
+  // Debug: Check dataLayer
+  if (window.dataLayer) {
+    console.log('📊 DataLayer after sign_up:', window.dataLayer.slice(-4));
+  }
 };
 
 // Track Logo Generation
