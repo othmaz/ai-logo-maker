@@ -2499,7 +2499,8 @@ function App() {
                 <p className="text-xl text-gray-600">
                   {round.round === 1 && "Provide feedback to refine logos further (optionally select 1-2 favorites)"}
                   {round.round === 2 && "Add feedback for final refinement (optionally select favorites)"}
-                  {round.round === 3 && "Final refined options - pick your perfect logo!"}
+                  {round.round >= 3 && isPremiumUser() && "Continue refining - provide feedback for further improvements"}
+                  {round.round >= 3 && !isPremiumUser() && "Upgrade to premium to continue refining your logos"}
                 </p>
               </div>
 
@@ -2613,9 +2614,33 @@ function App() {
                 </div>
               )}
 
-              {/* Feedback Section for Refinement - Only show for current round */}
-              {round.round === currentRound && currentRound > 0 && currentRound < 3 && (
-                <div id="feedback-section" className="mb-8 bg-gray-50 rounded-2xl p-6">
+              {/* Feedback Section for Refinement - Show for all rounds */}
+              {round.round === currentRound && currentRound > 0 && (
+                <div id="feedback-section" className="mb-8 bg-gray-50 rounded-2xl p-6 relative">
+                  {/* Premium-only overlay for round 3+ */}
+                  {currentRound >= 3 && !isPremiumUser() && (
+                    <div
+                      className="absolute inset-0 bg-gradient-to-br from-purple-50/95 to-pink-50/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center cursor-pointer z-10"
+                      onClick={() => {
+                        if (!isSignedIn) {
+                          saveFormDataBeforeAuth(true);
+                          navigate('/sign-in');
+                        } else {
+                          setActiveModal('upgrade');
+                        }
+                      }}
+                    >
+                      <div className="text-center p-6">
+                        <span className="text-6xl mb-4 block">🔒</span>
+                        <h3 className="text-2xl font-bold text-purple-900 mb-2">Premium Feature</h3>
+                        <p className="text-purple-700 mb-4">Continue refining beyond 3 rounds with unlimited iterations</p>
+                        <div className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg shadow-lg">
+                          {!isSignedIn ? 'Sign Up & Upgrade' : 'Upgrade to Premium'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <h3 className="text-xl font-bold text-gray-800 mb-4">
                     {refinementMode === 'single' ? 'Refine This Logo' : 'Provide Feedback for Refinement'}
                   </h3>
@@ -2627,8 +2652,20 @@ function App() {
                   <textarea
                     value={userFeedback}
                     onChange={(e) => setUserFeedback(e.target.value)}
+                    onClick={(e) => {
+                      if (currentRound >= 3 && !isPremiumUser()) {
+                        e.preventDefault();
+                        if (!isSignedIn) {
+                          saveFormDataBeforeAuth(true);
+                          navigate('/sign-in');
+                        } else {
+                          setActiveModal('upgrade');
+                        }
+                      }
+                    }}
                     placeholder="Example: I like the modern look but the text is too thin. The colors are great but maybe try a different font style..."
                     className="w-full h-24 p-4 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    disabled={currentRound >= 3 && !isPremiumUser()}
                   />
                   {userFeedback.trim() && (refinementMode === 'single' || selectedLogos.length <= 2) && (
                     <p className="text-sm text-green-600 mt-2 flex items-center">
@@ -2653,7 +2690,8 @@ function App() {
               {/* Action Buttons - Only show for current round */}
               {round.round === currentRound && (
                 <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                  {currentRound < 3 && (
+                  {/* Show refine button for rounds 1-2, or round 3+ for premium users */}
+                  {(currentRound < 3 || (currentRound >= 3 && isPremiumUser())) && (
                     <button
                       onClick={proceedToRefinement}
                       disabled={!userFeedback.trim() || selectedLogos.length > 2 || loading}
@@ -2685,6 +2723,24 @@ function App() {
                           </>
                         )}
                       </div>
+                    </button>
+                  )}
+
+                  {/* Show upgrade button for non-premium users on round 3+ */}
+                  {currentRound >= 3 && !isPremiumUser() && (
+                    <button
+                      onClick={() => {
+                        if (!isSignedIn) {
+                          saveFormDataBeforeAuth(true);
+                          navigate('/sign-in');
+                        } else {
+                          setActiveModal('upgrade');
+                        }
+                      }}
+                      className="relative px-12 py-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform shadow-lg hover:shadow-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-105"
+                    >
+                      <span className="mr-3 text-3xl">👑</span>
+                      <span className="text-white font-extrabold">{!isSignedIn ? 'Sign Up & Upgrade to Continue' : 'Upgrade to Continue Refining'}</span>
                     </button>
                   )}
                 </div>
