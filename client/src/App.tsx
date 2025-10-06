@@ -2623,7 +2623,7 @@ function App() {
                       className="absolute inset-0 bg-gradient-to-br from-purple-50/95 to-pink-50/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center cursor-pointer z-10"
                       onClick={() => {
                         if (!isSignedIn) {
-                          saveFormDataBeforeAuth(true);
+                          saveFormDataToLocalStorage(true);
                           navigate('/sign-in');
                         } else {
                           setActiveModal('upgrade');
@@ -2656,7 +2656,7 @@ function App() {
                       if (currentRound >= 3 && !isPremiumUser()) {
                         e.preventDefault();
                         if (!isSignedIn) {
-                          saveFormDataBeforeAuth(true);
+                          saveFormDataToLocalStorage(true);
                           navigate('/sign-in');
                         } else {
                           setActiveModal('upgrade');
@@ -2731,7 +2731,7 @@ function App() {
                     <button
                       onClick={() => {
                         if (!isSignedIn) {
-                          saveFormDataBeforeAuth(true);
+                          saveFormDataToLocalStorage(true);
                           navigate('/sign-in');
                         } else {
                           setActiveModal('upgrade');
