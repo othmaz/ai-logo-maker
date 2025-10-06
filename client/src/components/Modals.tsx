@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, SignUpButton } from '@clerk/clerk-react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
 import CheckoutForm from '../CheckoutForm'
@@ -412,17 +412,27 @@ const Modals: React.FC = () => {
                       </div>
 
                       {/* Retro Upgrade Button */}
-                      <button
-                        onClick={handlePaymentUpgrade}
-                        disabled={!tosAccepted || isLoadingPayment}
-                        className={`w-full px-8 py-4 rounded-lg font-bold retro-mono text-lg shadow-lg transition-all duration-200 border-2 ${
-                          tosAccepted && !isLoadingPayment
-                            ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white hover:from-cyan-600 hover:to-purple-700 hover:shadow-xl border-cyan-400/50 cursor-pointer'
-                            : 'bg-gray-600 text-gray-400 border-gray-600 cursor-not-allowed opacity-50'
-                        }`}
-                      >
-                        {isLoadingPayment ? 'LOADING...' : 'UPGRADE NOW - €9.99'}
-                      </button>
+                      {!isSignedIn ? (
+                        <SignUpButton mode="redirect" forceRedirectUrl="/">
+                          <button
+                            className="w-full px-8 py-4 rounded-lg font-bold retro-mono text-lg shadow-lg transition-all duration-200 border-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white hover:from-cyan-600 hover:to-purple-700 hover:shadow-xl border-cyan-400/50 cursor-pointer"
+                          >
+                            SIGN UP TO UPGRADE - €9.99
+                          </button>
+                        </SignUpButton>
+                      ) : (
+                        <button
+                          onClick={handlePaymentUpgrade}
+                          disabled={!tosAccepted || isLoadingPayment}
+                          className={`w-full px-8 py-4 rounded-lg font-bold retro-mono text-lg shadow-lg transition-all duration-200 border-2 ${
+                            tosAccepted && !isLoadingPayment
+                              ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white hover:from-cyan-600 hover:to-purple-700 hover:shadow-xl border-cyan-400/50 cursor-pointer'
+                              : 'bg-gray-600 text-gray-400 border-gray-600 cursor-not-allowed opacity-50'
+                          }`}
+                        >
+                          {isLoadingPayment ? 'LOADING...' : 'UPGRADE NOW - €9.99'}
+                        </button>
+                      )}
 
                       {/* Terminal Footer */}
                       <p className="retro-body text-cyan-400 text-sm mt-4">

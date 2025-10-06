@@ -2622,12 +2622,8 @@ function App() {
                     <div
                       className="absolute inset-0 bg-gradient-to-br from-purple-50/95 to-pink-50/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center cursor-pointer z-10"
                       onClick={() => {
-                        if (!isSignedIn) {
-                          saveFormDataToLocalStorage(true);
-                          navigate('/sign-in');
-                        } else {
-                          setActiveModal('upgrade');
-                        }
+                        saveFormDataToLocalStorage(true);
+                        setActiveModal('upgrade');
                       }}
                     >
                       <div className="text-center p-6">
@@ -2655,12 +2651,8 @@ function App() {
                     onClick={(e) => {
                       if (currentRound >= 3 && !isPremiumUser()) {
                         e.preventDefault();
-                        if (!isSignedIn) {
-                          saveFormDataToLocalStorage(true);
-                          navigate('/sign-in');
-                        } else {
-                          setActiveModal('upgrade');
-                        }
+                        saveFormDataToLocalStorage(true);
+                        setActiveModal('upgrade');
                       }
                     }}
                     placeholder="Example: I like the modern look but the text is too thin. The colors are great but maybe try a different font style..."
@@ -2730,12 +2722,8 @@ function App() {
                   {currentRound >= 3 && !isPremiumUser() && (
                     <button
                       onClick={() => {
-                        if (!isSignedIn) {
-                          saveFormDataToLocalStorage(true);
-                          navigate('/sign-in');
-                        } else {
-                          setActiveModal('upgrade');
-                        }
+                        saveFormDataToLocalStorage(true);
+                        setActiveModal('upgrade');
                       }}
                       className="relative px-12 py-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform shadow-lg hover:shadow-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-105"
                     >
