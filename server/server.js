@@ -586,22 +586,6 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 
             console.log('✅ User subscription updated successfully');
 
-            // Track payment analytics
-            await sql`
-              INSERT INTO usage_analytics (user_id, event_type, event_data)
-              VALUES (
-                ${userId},
-                'payment_success',
-                ${JSON.stringify({
-                  payment_id: paymentIntent.id,
-                  amount: paymentIntent.amount,
-                  currency: paymentIntent.currency
-                })}
-              )
-            `;
-
-            console.log('📊 Payment analytics tracked');
-
             // Send premium upgrade confirmation email
             console.log('📧 Checking email conditions - userEmail:', userEmail, 'resend:', !!resend);
             if (userEmail && resend) {
@@ -689,27 +673,6 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
       case 'payment_intent.payment_failed':
         const failedPayment = event.data.object;
         console.log('❌ Payment failed:', failedPayment.id);
-
-        // Track failed payment analytics
-        const failedUserId = failedPayment.metadata?.userId;
-        if (failedUserId) {
-          try {
-            await connectToDatabase();
-            await sql`
-              INSERT INTO usage_analytics (user_id, event_type, event_data)
-              VALUES (
-                ${failedUserId},
-                'payment_failed',
-                ${JSON.stringify({
-                  payment_id: failedPayment.id,
-                  error: failedPayment.last_payment_error?.message
-                })}
-              )
-            `;
-          } catch (dbError) {
-            console.error('❌ Failed to track payment failure:', dbError);
-          }
-        }
         break;
 
       default:
@@ -745,6 +708,7 @@ app.post('/api/create-payment-intent-with-user', async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: 999, // €9.99 in cents
       currency: 'eur',
+      description: 'Craft Your Logo - Premium Upgrade',
       automatic_payment_methods: {
         enabled: true,
       },
