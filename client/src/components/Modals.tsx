@@ -338,7 +338,7 @@ const Modals: React.FC = () => {
                       {/* Terminal Style Comparison */}
                       <div className="bg-gray-800/50 rounded-2xl border border-cyan-400/30 p-6 mb-8 max-w-3xl mx-auto">
                         <div className="grid md:grid-cols-2 gap-8 text-left">
-                          <div className="space-y-3">
+                          <div className="p-4">
                             <h4 className="retro-mono text-lg font-bold text-gray-400 mb-4 text-center">FREE TIER</h4>
                             <div className="space-y-2">
                               <div className="flex items-center space-x-3">
@@ -369,10 +369,10 @@ const Modals: React.FC = () => {
                               </div>
                               <div className="flex items-center space-x-3">
                                 <span className="text-cyan-400 retro-mono">✨</span>
-                                <span className="text-cyan-400 retro-mono text-sm">8K HIGH RESOLUTION</span>
+                                <span className="text-cyan-400 retro-mono text-sm">PRO PACK (8K, SVG, ICO AND MORE)</span>
                               </div>
                               <div className="flex items-center space-x-3">
-                                <span className="text-cyan-400 retro-mono">⚡</span>
+                                <span className="text-cyan-400 retro-mono">⚡️</span>
                                 <span className="text-cyan-400 retro-mono text-sm">PRIORITY SUPPORT</span>
                               </div>
                               <div className="flex items-center space-x-3">
