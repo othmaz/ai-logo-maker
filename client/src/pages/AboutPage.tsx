@@ -3,14 +3,12 @@ import React from 'react'
 const AboutPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <div className="pt-32 md:pt-40 lg:pt-48 pb-16">
-        <div className="relative max-w-4xl mx-auto px-4">
+      <div className="container mx-auto px-4 pt-24 md:pt-32 lg:pt-40 pb-16">
+        <div className="relative max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
+          <div className="text-center mb-12 pt-16 md:pt-20 lg:pt-24">
             <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-6 leading-tight text-white">
-              ABOUT
-              <br />
-              <span className="text-glow animated-text-gradient text-xl lg:text-3xl xl:text-4xl">AI LOGO MAKER</span>
+              ABOUT <span className="text-glow animated-text-gradient">CRAFT YOUR LOGO</span>
             </h1>
             <p className="retro-body text-base md:text-lg text-cyan-400 max-w-2xl mx-auto">
               &gt; POWERED BY GOOGLE GEMINI • BUILT WITH PASSION
@@ -22,11 +20,11 @@ const AboutPage: React.FC = () => {
             <h2 className="retro-title text-xl lg:text-2xl text-cyan-400 mb-4">
               OUR MISSION
             </h2>
-            <p className="retro-body text-gray-300 leading-relaxed mb-4">
+            <p className="retro-body text-gray-300 leading-relaxed mb-4 text-lg md:text-xl">
               We believe every business deserves a professional logo, regardless of budget or design expertise.
               Our AI-powered platform democratizes logo design, making it fast, affordable, and accessible to everyone.
             </p>
-            <p className="retro-body text-gray-300 leading-relaxed">
+            <p className="retro-body text-gray-300 leading-relaxed text-lg md:text-xl">
               Powered by Google's Gemini AI, we generate unique, high-quality logos in minutes.
               Try it free, upgrade for unlimited access and premium export options.
             </p>
@@ -40,31 +38,31 @@ const AboutPage: React.FC = () => {
             <div className="space-y-3">
               <div className="flex items-start space-x-3">
                 <span className="text-cyan-400 text-lg mt-1">✓</span>
-                <p className="retro-body text-gray-300">
+                <p className="retro-body text-gray-300 text-lg md:text-xl">
                   <strong className="text-white">AI-Powered Generation:</strong> Google Gemini creates unique logos tailored to your business
                 </p>
               </div>
               <div className="flex items-start space-x-3">
                 <span className="text-cyan-400 text-lg mt-1">✓</span>
-                <p className="retro-body text-gray-300">
+                <p className="retro-body text-gray-300 text-lg md:text-xl">
                   <strong className="text-white">Professional Quality:</strong> 8K upscaling, SVG vectorization, background removal
                 </p>
               </div>
               <div className="flex items-start space-x-3">
                 <span className="text-cyan-400 text-lg mt-1">✓</span>
-                <p className="retro-body text-gray-300">
+                <p className="retro-body text-gray-300 text-lg md:text-xl">
                   <strong className="text-white">Multiple Formats:</strong> Standard PNG, 8K resolution, SVG vector, favicon, and more
                 </p>
               </div>
               <div className="flex items-start space-x-3">
                 <span className="text-cyan-400 text-lg mt-1">✓</span>
-                <p className="retro-body text-gray-300">
+                <p className="retro-body text-gray-300 text-lg md:text-xl">
                   <strong className="text-white">Credits System:</strong> 15 free credits, then just €9.99 for unlimited access
                 </p>
               </div>
               <div className="flex items-start space-x-3">
                 <span className="text-cyan-400 text-lg mt-1">✓</span>
-                <p className="retro-body text-gray-300">
+                <p className="retro-body text-gray-300 text-lg md:text-xl">
                   <strong className="text-white">Commercial Rights:</strong> Full ownership for personal and commercial use
                 </p>
               </div>
@@ -77,22 +75,22 @@ const AboutPage: React.FC = () => {
               GET IN TOUCH
             </h2>
             <div className="space-y-4">
-              <p className="retro-body text-gray-300 leading-relaxed">
+              <p className="retro-body text-gray-300 leading-relaxed text-lg md:text-xl">
                 Have questions, feedback, or need support? We're here to help.
               </p>
               <div className="flex items-center space-x-3 bg-gray-800/50 rounded-lg p-4 border border-cyan-400/30">
                 <span className="text-cyan-400 text-2xl">✉️</span>
                 <div>
-                  <p className="text-sm text-gray-400">Support Email</p>
+                  <p className="text-gray-400 text-lg md:text-xl">Support Email</p>
                   <a
                     href="mailto:support@ailogomaker.com"
-                    className="text-cyan-400 hover:text-cyan-300 font-mono text-lg"
+                    className="text-cyan-400 hover:text-cyan-300 font-mono text-lg md:text-xl"
                   >
                     support@ailogomaker.com
                   </a>
                 </div>
               </div>
-              <p className="text-gray-400 text-sm retro-body">
+              <p className="text-gray-400 retro-body text-lg md:text-xl">
                 We typically respond within 24 hours during business days.
               </p>
             </div>
