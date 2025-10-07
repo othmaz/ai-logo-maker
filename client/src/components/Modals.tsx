@@ -413,7 +413,7 @@ const Modals: React.FC = () => {
 
                       {/* Retro Upgrade Button */}
                       {!isSignedIn ? (
-                        <SignUpButton mode="redirect" forceRedirectUrl="/">
+                        <SignUpButton mode="modal">
                           <button
                             className="w-full px-8 py-4 rounded-lg font-bold retro-mono text-lg shadow-lg transition-all duration-200 border-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white hover:from-cyan-600 hover:to-purple-700 hover:shadow-xl border-cyan-400/50 cursor-pointer"
                           >

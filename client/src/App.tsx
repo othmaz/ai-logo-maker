@@ -1408,12 +1408,12 @@ function App() {
                   )}
 
                   <SignedOut>
-                    <SignInButton mode="redirect">
+                    <SignInButton mode="modal">
                       <button className="nav-shimmer px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
                         SIGN IN
                       </button>
                     </SignInButton>
-                    <SignUpButton mode="redirect">
+                    <SignUpButton mode="modal">
                       <button className="nav-shimmer px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg hover:bg-pink-500 transition-all duration-200 border-2 border-purple-500 hover:border-pink-500 hover:shadow-[0_0_15px_rgba(255,16,240,0.5)] retro-mono text-xs">
                         SIGN UP
                       </button>
@@ -1656,12 +1656,12 @@ function App() {
                   )}
 
                   <SignedOut>
-                    <SignInButton mode="redirect">
+                    <SignInButton mode="modal">
                       <button className="nav-shimmer px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg hover:bg-green-400 transition-all duration-200 border-2 border-cyan-400 hover:border-green-400 hover:shadow-[0_0_15px_rgba(57,255,20,0.5)] retro-mono text-xs">
                         SIGN IN
                       </button>
                     </SignInButton>
-                    <SignUpButton mode="redirect">
+                    <SignUpButton mode="modal">
                       <button className="nav-shimmer px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg hover:bg-pink-500 transition-all duration-200 border-2 border-purple-500 hover:border-pink-500 hover:shadow-[0_0_15px_rgba(255,16,240,0.5)] retro-mono text-xs">
                         SIGN UP
                       </button>
