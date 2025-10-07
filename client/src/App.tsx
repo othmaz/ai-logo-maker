@@ -1313,7 +1313,7 @@ function App() {
               <div className="flex items-start space-x-0 mr-0 h-full">
                 {[...Array(50)].map((_, i) => (
                   <h1 key={`first-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.41rem] md:text-[7.15rem] lg:text-[8.89rem]" style={{marginRight: '-27.5px', lineHeight: '4rem'}}>
-                    FREE AI LOGO MAKER
+                    CRAFT YOUR LOGO
                   </h1>
                 ))}
               </div>
@@ -1321,7 +1321,7 @@ function App() {
               <div className="flex items-start space-x-0 mr-0 h-full">
                 {[...Array(50)].map((_, i) => (
                   <h1 key={`second-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.41rem] md:text-[7.15rem] lg:text-[8.89rem]" style={{marginRight: '-27.5px', lineHeight: '4rem'}}>
-                    FREE AI LOGO MAKER
+                    CRAFT YOUR LOGO
                   </h1>
                 ))}
               </div>
@@ -1557,7 +1557,7 @@ function App() {
               <div className="flex items-start space-x-0 mr-0 h-full">
                 {[...Array(50)].map((_, i) => (
                   <h1 key={`first-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.41rem] md:text-[7.15rem] lg:text-[8.89rem]" style={{marginRight: '-27.5px', lineHeight: '4rem'}}>
-                    FREE AI LOGO MAKER
+                    CRAFT YOUR LOGO
                   </h1>
                 ))}
               </div>
@@ -1565,7 +1565,7 @@ function App() {
               <div className="flex items-start space-x-0 mr-0 h-full">
                 {[...Array(50)].map((_, i) => (
                   <h1 key={`second-${i}`} className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-300 font-phosphate tracking-tighter flex items-center justify-center m-0 p-0 stable-font h-16 md:h-24 lg:h-32 text-[4.41rem] md:text-[7.15rem] lg:text-[8.89rem]" style={{marginRight: '-27.5px', lineHeight: '4rem'}}>
-                    FREE AI LOGO MAKER
+                    CRAFT YOUR LOGO
                   </h1>
                 ))}
               </div>
