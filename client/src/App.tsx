@@ -2709,17 +2709,6 @@ function App() {
                 </div>
               )}
 
-              {/* Selection Info - Only show for current round */}
-              {round.round === currentRound && (selectedLogos.length > 0 || userFeedback.trim()) && (
-                <div className="text-center mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-200">
-                  <p className="text-blue-800 font-medium text-lg">
-                    {selectedLogos.length > 0
-                      ? `${selectedLogos.length} logo${selectedLogos.length > 1 ? 's' : ''} selected for refinement`
-                      : 'General feedback provided for refinement'
-                    }
-                  </p>
-                </div>
-              )}
             </div>
           </div>
         </div>
