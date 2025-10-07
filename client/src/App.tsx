@@ -2614,9 +2614,15 @@ function App() {
               {/* Feedback Section for Refinement - Show for all rounds */}
               {round.round === currentRound && currentRound > 0 && (
                 <div id="feedback-section" className="mb-8 bg-gray-50 rounded-2xl p-6 relative">
-                  {/* Premium-only overlay for round 3+ - blurs the section */}
+                  {/* Premium-only overlay for round 3+ */}
                   {currentRound >= 3 && !isPremiumUser() && (
-                    <div className="absolute inset-0 bg-gray-100/80 backdrop-blur-sm rounded-2xl z-10 pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-50/95 to-pink-50/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center z-10 pointer-events-none">
+                      <div className="text-center p-6">
+                        <span className="text-6xl mb-4 block">🔒</span>
+                        <h3 className="text-2xl font-bold text-purple-900 mb-2">Premium Feature</h3>
+                        <p className="text-purple-700">Continue refining beyond 3 rounds with unlimited iterations</p>
+                      </div>
+                    </div>
                   )}
 
                   <h3 className="text-xl font-bold text-gray-800 mb-4">
