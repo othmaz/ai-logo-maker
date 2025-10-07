@@ -1007,10 +1007,7 @@ function App() {
       setGenerationHistory(prev => [...prev, newRound])
       setCurrentRound(prev => {
         const nextRound = prev + 1
-        // Show upgrade modal at round 3 for non-paid users
-        if (nextRound === 3 && !isPaid) {
-          setTimeout(() => setActiveModal('upgrade'), 1000)
-        }
+        // Don't auto-show upgrade modal - let user discover via locked refinement section
         return nextRound
       })
 
@@ -2617,24 +2614,9 @@ function App() {
               {/* Feedback Section for Refinement - Show for all rounds */}
               {round.round === currentRound && currentRound > 0 && (
                 <div id="feedback-section" className="mb-8 bg-gray-50 rounded-2xl p-6 relative">
-                  {/* Premium-only overlay for round 3+ */}
+                  {/* Premium-only overlay for round 3+ - blurs the section */}
                   {currentRound >= 3 && !isPremiumUser() && (
-                    <div
-                      className="absolute inset-0 bg-gradient-to-br from-purple-50/95 to-pink-50/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center cursor-pointer z-10"
-                      onClick={() => {
-                        saveFormDataToLocalStorage(true);
-                        setActiveModal('upgrade');
-                      }}
-                    >
-                      <div className="text-center p-6">
-                        <span className="text-6xl mb-4 block">🔒</span>
-                        <h3 className="text-2xl font-bold text-purple-900 mb-2">Premium Feature</h3>
-                        <p className="text-purple-700 mb-4">Continue refining beyond 3 rounds with unlimited iterations</p>
-                        <div className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg shadow-lg">
-                          {!isSignedIn ? 'Sign Up & Upgrade' : 'Upgrade to Premium'}
-                        </div>
-                      </div>
-                    </div>
+                    <div className="absolute inset-0 bg-gray-100/80 backdrop-blur-sm rounded-2xl z-10 pointer-events-none" />
                   )}
 
                   <h3 className="text-xl font-bold text-gray-800 mb-4">
@@ -2648,13 +2630,6 @@ function App() {
                   <textarea
                     value={userFeedback}
                     onChange={(e) => setUserFeedback(e.target.value)}
-                    onClick={(e) => {
-                      if (currentRound >= 3 && !isPremiumUser()) {
-                        e.preventDefault();
-                        saveFormDataToLocalStorage(true);
-                        setActiveModal('upgrade');
-                      }
-                    }}
                     placeholder="Example: I like the modern look but the text is too thin. The colors are great but maybe try a different font style..."
                     className="w-full h-24 p-4 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     disabled={currentRound >= 3 && !isPremiumUser()}
