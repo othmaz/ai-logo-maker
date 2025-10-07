@@ -847,10 +847,10 @@ app.post('/api/emails/welcome', async (req, res) => {
 
             <h3 style="color: #333; margin: 30px 0 15px 0; font-size: 20px;">✨ What You Can Do:</h3>
             <ul style="color: #555; line-height: 1.8; font-size: 15px; padding-left: 20px;">
-              <li style="margin-bottom: 10px;"><strong>Generate Unlimited Variations:</strong> Create 5 logos per credit with our AI</li>
-              <li style="margin-bottom: 10px;"><strong>Refine Your Designs:</strong> Use our feedback system to perfect your logos</li>
-              <li style="margin-bottom: 10px;"><strong>Download in Multiple Formats:</strong> Get standard PNGs instantly</li>
-              <li style="margin-bottom: 10px;"><strong>Upgrade for Premium:</strong> Unlock 8K, background removal, SVG vectors & more</li>
+              <li style="margin-bottom: 10px;"><strong>Generate Logo Variations:</strong> Create 5 unique logos per generation</li>
+              <li style="margin-bottom: 10px;"><strong>Refine Your Designs:</strong> Use our 3-round refinement system to perfect your logos</li>
+              <li style="margin-bottom: 10px;"><strong>Download Instantly:</strong> Get standard PNG downloads for free</li>
+              <li style="margin-bottom: 10px;"><strong>Upgrade for More:</strong> Unlock unlimited generations, 8K resolution, SVG vectors & more for just €9.99</li>
             </ul>
 
             <div style="text-align: center; margin: 35px 0;">
@@ -953,10 +953,10 @@ app.post('/api/users/sync', async (req, res) => {
 
                 <h3 style="color: #333; margin: 30px 0 15px 0; font-size: 20px;">✨ What You Can Do:</h3>
                 <ul style="color: #555; line-height: 1.8; font-size: 15px; padding-left: 20px;">
-                  <li style="margin-bottom: 10px;"><strong>Generate Unlimited Variations:</strong> Create 5 logos per credit with our AI</li>
-                  <li style="margin-bottom: 10px;"><strong>Refine Your Designs:</strong> Use our feedback system to perfect your logos</li>
-                  <li style="margin-bottom: 10px;"><strong>Download in Multiple Formats:</strong> Get standard PNGs instantly</li>
-                  <li style="margin-bottom: 10px;"><strong>Upgrade for Premium:</strong> Unlock 8K, background removal, SVG vectors & more</li>
+                  <li style="margin-bottom: 10px;"><strong>Generate Logo Variations:</strong> Create 5 unique logos per generation</li>
+                  <li style="margin-bottom: 10px;"><strong>Refine Your Designs:</strong> Use our 3-round refinement system to perfect your logos</li>
+                  <li style="margin-bottom: 10px;"><strong>Download Instantly:</strong> Get standard PNG downloads for free</li>
+                  <li style="margin-bottom: 10px;"><strong>Upgrade for More:</strong> Unlock unlimited generations, 8K resolution, SVG vectors & more for just €9.99</li>
                 </ul>
 
                 <div style="text-align: center; margin: 35px 0;">

@@ -8,7 +8,8 @@ const AboutPage: React.FC = () => {
           {/* Header */}
           <div className="text-center mb-12 pt-16 md:pt-20 lg:pt-24">
             <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl hero-text mb-6 leading-tight text-white">
-              ABOUT <span className="text-glow animated-text-gradient">CRAFT YOUR LOGO</span>
+              ABOUT<br />
+              <span className="text-glow animated-text-gradient">CRAFT YOUR LOGO</span>
             </h1>
             <p className="retro-body text-base md:text-lg text-cyan-400 max-w-2xl mx-auto">
               &gt; POWERED BY GOOGLE GEMINI • BUILT WITH PASSION
