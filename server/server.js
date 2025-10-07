@@ -603,7 +603,9 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
             console.log('📊 Payment analytics tracked');
 
             // Send premium upgrade confirmation email
+            console.log('📧 Checking email conditions - userEmail:', userEmail, 'resend:', !!resend);
             if (userEmail && resend) {
+              console.log('📧 Sending premium upgrade email to:', userEmail);
               try {
                 await resend.emails.send({
                   from: 'Craft Your Logo <noreply@craftyourlogo.com>',
@@ -666,10 +668,13 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
                     </div>
                   `
                 });
-                console.log('📧 Premium upgrade email sent to:', userEmail);
+                console.log('✅ Premium upgrade email sent successfully to:', userEmail);
               } catch (emailError) {
                 console.error('❌ Failed to send premium upgrade email:', emailError);
+                console.error('Email error details:', emailError.message);
               }
+            } else {
+              console.log('⚠️ Email not sent - missing userEmail or resend:', { userEmail, hasResend: !!resend });
             }
 
           } catch (dbError) {
@@ -743,6 +748,7 @@ app.post('/api/create-payment-intent-with-user', async (req, res) => {
       automatic_payment_methods: {
         enabled: true,
       },
+      receipt_email: userEmail, // Send Stripe receipt to this email
       metadata: {
         userId: userId,
         userEmail: userEmail || 'unknown'
