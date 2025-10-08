@@ -66,10 +66,10 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
         <div className="absolute right-4 top-0 h-full flex items-center gap-2">
           <SignedOut>
             <SignInButton mode="redirect">
-              <button className="px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg retro-mono text-xs">SIGN IN</button>
+              <button className="nav-shimmer px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg retro-mono text-xs">SIGN IN</button>
             </SignInButton>
             <SignUpButton mode="redirect">
-              <button className="px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg retro-mono text-xs">SIGN UP</button>
+              <button className="nav-shimmer px-2 md:px-4 py-1 md:py-2 bg-purple-500 text-white font-bold rounded-lg retro-mono text-xs">SIGN UP</button>
             </SignUpButton>
           </SignedOut>
           <SignedIn>
