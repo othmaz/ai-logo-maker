@@ -84,10 +84,10 @@ const AboutPage: React.FC = () => {
                 <div>
                   <p className="text-gray-400 text-lg md:text-xl">Support Email</p>
                   <a
-                    href="mailto:support@ailogomaker.com"
+                    href="mailto:support@craftyourlogo.com"
                     className="text-cyan-400 hover:text-cyan-300 font-mono text-lg md:text-xl"
                   >
-                    support@ailogomaker.com
+                    support@craftyourlogo.com
                   </a>
                 </div>
               </div>

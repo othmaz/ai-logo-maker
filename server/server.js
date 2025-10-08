@@ -866,8 +866,8 @@ app.post('/api/emails/welcome', async (req, res) => {
       subject: 'Welcome to Craft Your Logo! 🎨',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; background: linear-gradient(to bottom, #f8f9fa, #ffffff);">
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">Welcome to Craft Your Logo!</h1>
+          <div style="background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%); padding: 40px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0 0 10px 0; font-size: 32px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">Welcome to Craft Your Logo! 🎨</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 16px;">Your journey to stunning logos starts here</p>
           </div>
 
@@ -878,23 +878,23 @@ app.post('/api/emails/welcome', async (req, res) => {
               We're thrilled to have you join Craft Your Logo! You've just unlocked the power to create professional, AI-generated logos in seconds.
             </p>
 
-            <div style="background: linear-gradient(135deg, #f8f9fa 0%, #e8eaf6 100%); padding: 25px; border-radius: 12px; border-left: 4px solid #667eea; margin: 25px 0;">
-              <h3 style="color: #667eea; margin: 0 0 15px 0; font-size: 18px;">🎁 You've Got 15 Free Credits!</h3>
+            <div style="background: linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 100%); padding: 25px; border-radius: 12px; border-left: 4px solid #06b6d4; margin: 25px 0;">
+              <h3 style="color: #06b6d4; margin: 0 0 15px 0; font-size: 18px;">🎁 You've Got 15 Free Credits!</h3>
               <p style="color: #555; margin: 0; line-height: 1.6; font-size: 15px;">
                 Start creating right away with your free credits. Each generation creates 5 unique logo variations for you to choose from.
               </p>
             </div>
 
             <h3 style="color: #333; margin: 30px 0 15px 0; font-size: 20px;">✨ What You Can Do:</h3>
-            <ul style="color: #555; line-height: 1.8; font-size: 15px; padding-left: 20px;">
+            <ul style="color: #555; line-height: 1.8; font-size: 15px; padding-left: 20px; margin: 0;">
               <li style="margin-bottom: 10px;"><strong>Generate Logo Variations:</strong> Create 5 unique logos per generation</li>
               <li style="margin-bottom: 10px;"><strong>Refine Your Designs:</strong> Use our 3-round refinement system to perfect your logos</li>
               <li style="margin-bottom: 10px;"><strong>Download Instantly:</strong> Get standard PNG downloads for free</li>
-              <li style="margin-bottom: 10px;"><strong>Upgrade for More:</strong> Unlock unlimited generations, 8K resolution, SVG vectors & more for just €9.99</li>
+              <li style="margin-bottom: 0;"><strong>Upgrade for More:</strong> Unlock unlimited generations, 8K resolution, SVG vectors & more for just €9.99</li>
             </ul>
 
             <div style="text-align: center; margin: 35px 0;">
-              <a href="https://craftyourlogo.com" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">
+              <a href="https://craftyourlogo.com" style="display: inline-block; background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.4);">
                 Start Creating Now
               </a>
             </div>
@@ -902,16 +902,16 @@ app.post('/api/emails/welcome', async (req, res) => {
             <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 30px;">
               <p style="color: #666; margin: 0 0 10px 0; font-size: 14px; line-height: 1.6;">
                 <strong>Need help?</strong> Our support team is here for you at
-                <a href="mailto:support@craftyourlogo.com" style="color: #667eea; text-decoration: none;">support@craftyourlogo.com</a>
+                <a href="mailto:support@craftyourlogo.com" style="color: #06b6d4; text-decoration: none;">support@craftyourlogo.com</a>
               </p>
             </div>
           </div>
 
-          <div style="text-align: center; padding: 30px 20px; background: #f8f9fa; border-top: 1px solid #e0e0e0;">
-            <p style="color: #999; margin: 0 0 10px 0; font-size: 13px;">
-              Made with ❤️ by the Craft Your Logo team
+          <div style="background: #1f2937; padding: 30px 20px; text-align: center;">
+            <p style="color: #9ca3af; margin: 0 0 10px 0; font-size: 14px;">
+              Craft Your Logo - AI-Powered Logo Generation
             </p>
-            <p style="color: #ccc; margin: 0; font-size: 12px;">
+            <p style="color: #6b7280; margin: 0; font-size: 12px;">
               © ${new Date().getFullYear()} Craft Your Logo. All rights reserved.
             </p>
           </div>
