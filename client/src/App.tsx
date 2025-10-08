@@ -156,25 +156,26 @@ const createPromptVariations = (basePrompt: string, formData: FormData): string[
     ? 'WORDMARK ONLY: You MUST create a text-based logo using only typography and letterforms. NO symbols, NO icons, NO pictorial elements. Only the company name rendered in creative typography. '
     : 'PICTORIAL ONLY: You MUST create a pure icon/symbol logo with ZERO text, ZERO letters, ZERO words. NO company name, NO letterforms. Only visual symbols, shapes, and icons. '
   
-  // Create 5 completely different approaches - focus on clean, modern styles
+  // Critical instructions to prevent multiple logos in one image
+  const singleLogoInstruction = 'CRITICAL: Generate ONLY ONE logo design per image. Do NOT create multiple logo variations in a single image. Do NOT show different versions side-by-side. Each image must contain exactly ONE complete logo design. '
   const noTaglineInstruction = 'IMPORTANT: Do not include any taglines, slogans, or descriptive text below the logo - only the business name and/or icon elements. '
 
   // Create 5 variations with different stylistic approaches (respecting logo type)
   const variations = [
     // Variation 1: Modern & Clean
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Modern and clean, like contemporary premium brands. Sophisticated and professional. ${backgroundStyle}${colors ? `Use ${colors} as primary palette.` : 'Use professional color scheme.'} ${noTaglineInstruction}`,
+    `${basePrompt} ${singleLogoInstruction}${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Modern and clean, like contemporary premium brands. Sophisticated and professional. ${backgroundStyle}${colors ? `Use ${colors} as primary palette.` : 'Use professional color scheme.'} ${noTaglineInstruction}`,
 
     // Variation 2: Geometric & Minimal
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Geometric and minimal. Simple shapes, mathematical precision, balanced composition. ${backgroundStyle}${colors ? `Incorporate ${colors} strategically.` : 'Use minimal color palette.'} ${noTaglineInstruction}`,
+    `${basePrompt} ${singleLogoInstruction}${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Geometric and minimal. Simple shapes, mathematical precision, balanced composition. ${backgroundStyle}${colors ? `Incorporate ${colors} strategically.` : 'Use minimal color palette.'} ${noTaglineInstruction}`,
 
     // Variation 3: Bold & Confident
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Bold and confident. Strong visual presence, memorable and impactful design. ${backgroundStyle}${colors ? `Feature ${colors} prominently.` : 'Use bold, striking colors.'} ${noTaglineInstruction}`,
+    `${basePrompt} ${singleLogoInstruction}${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Bold and confident. Strong visual presence, memorable and impactful design. ${backgroundStyle}${colors ? `Feature ${colors} prominently.` : 'Use bold, striking colors.'} ${noTaglineInstruction}`,
 
     // Variation 4: Elegant & Refined
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Elegant and refined. Sophisticated aesthetics, premium feel, timeless design. ${backgroundStyle}${colors ? `Apply ${colors} with elegance.` : 'Use refined color choices.'} ${noTaglineInstruction}`,
+    `${basePrompt} ${singleLogoInstruction}${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Elegant and refined. Sophisticated aesthetics, premium feel, timeless design. ${backgroundStyle}${colors ? `Apply ${colors} with elegance.` : 'Use refined color choices.'} ${noTaglineInstruction}`,
 
     // Variation 5: Creative & Unique
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Creative and unique. Distinctive approach, memorable design, stands out from competitors. ${backgroundStyle}${colors ? `Utilize ${colors} creatively.` : 'Use distinctive color scheme.'} ${noTaglineInstruction}`
+    `${basePrompt} ${singleLogoInstruction}${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Creative and unique. Distinctive approach, memorable design, stands out from competitors. ${backgroundStyle}${colors ? `Utilize ${colors} creatively.` : 'Use distinctive color scheme.'} ${noTaglineInstruction}`
   ]
   
   return variations
@@ -209,20 +210,23 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
     ? `Color palette: ${colors}. `
     : 'Use appropriate professional colors. '
 
+  // Critical instruction to prevent multiple logos in one image
+  const singleLogoInstruction = 'CRITICAL: Generate ONLY ONE logo design per image. Do NOT create multiple logo variations in a single image. Do NOT show different versions side-by-side. Each image must contain exactly ONE complete logo design. '
+
   // Reference image context
   const referenceContext = 'REFINEMENT MODE: A reference image has been provided showing the selected logo. Study this image carefully and use it as the exact design foundation. '
 
   // Create focused refinement prompts
   const refinementPrompts = [
-    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Keep the EXACT same layout, typography, composition, and design structure from the reference image while applying only the requested modifications.`,
+    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Keep the EXACT same layout, typography, composition, and design structure from the reference image while applying only the requested modifications.`,
 
-    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Preserve all core design elements from the reference image and apply the user's changes without altering the fundamental structure.`,
+    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Preserve all core design elements from the reference image and apply the user's changes without altering the fundamental structure.`,
 
-    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Use the reference image as the base design and implement the requested changes while maintaining the same visual approach.`,
+    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Use the reference image as the base design and implement the requested changes while maintaining the same visual approach.`,
 
-    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Keep the design foundation from the reference image intact and apply the specific modifications requested by the user.`,
+    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Keep the design foundation from the reference image intact and apply the specific modifications requested by the user.`,
 
-    `${basePrompt} ${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Maintain the visual identity from the reference image while incorporating the user's refinement instructions.`
+    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Maintain the visual identity from the reference image while incorporating the user's refinement instructions.`
   ]
 
   return refinementPrompts
