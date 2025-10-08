@@ -180,13 +180,12 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
     console.log('🔑 API Key first/last 5 chars:', apiKey ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 5)}` : 'NONE')
     const ai = new GoogleGenAI({ apiKey: apiKey })
     
-    // Enhanced prompt for better logo generation
-    let enhancedPrompt = `Create a professional, high-quality logo design. ${prompt}. The logo should be clean, memorable, and suitable for business use. Use high contrast colors, clear typography if text is included, and ensure the design works well at different sizes. Style: modern and professional. Format: square logo suitable for business applications. IMPORTANT: Do not include any taglines, slogans, or descriptive text below the logo - only the business name and/or icon elements.`
+    // Use the prompt exactly as-is from the client - NO server modifications
+    // Client handles ALL instructions including refinement
+    const enhancedPrompt = prompt
 
-    // Add specific instructions for image refinement using direct image input
     if (referenceImages && referenceImages.length > 0) {
-      console.log('🎯 Using direct image refinement approach like Gemini chat...')
-      enhancedPrompt = `${prompt} Keep the exact same design, layout, typography, and structure as shown in the provided image. Apply only the specific changes requested while preserving everything else identical to the reference image.`
+      console.log('🎯 Refinement mode detected (reference images present)')
     }
 
     console.log('🚀 Attempting to generate logo with Gemini API...')

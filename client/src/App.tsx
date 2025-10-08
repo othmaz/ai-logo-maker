@@ -117,10 +117,10 @@ const logoReferences: LogoReference[] = [
 
 const buildBasePrompt = (formData: FormData): string => {
   const { businessName, industry, description } = formData
-  
-  // Very minimal base prompt - just the essentials
-  let prompt = `Create a logo for "${businessName}".`
-  
+
+  // Very minimal base prompt - just the essentials - business name in ALL CAPS
+  let prompt = `Create a logo for "${businessName.toUpperCase()}".`
+
   if (industry && description) {
     prompt += ` ${description}.`
   } else if (description) {
@@ -128,7 +128,7 @@ const buildBasePrompt = (formData: FormData): string => {
   } else if (industry) {
     prompt += ` A ${industry} business.`
   }
-  
+
   return prompt
 }
 
@@ -136,9 +136,9 @@ const createPromptVariations = (basePrompt: string, formData: FormData): string[
   const { colors, hasBackground, aestheticDirections, uploadedImages, logoType } = formData
   const logoInspiration = ''
   
-  // Custom image references
+  // Custom image references - now actually sent as image data to API
   const customImageInspiration = uploadedImages.length > 0
-    ? `The user has provided ${uploadedImages.length} custom reference image${uploadedImages.length > 1 ? 's' : ''} showing their preferred design style. ` 
+    ? `REFERENCE IMAGES PROVIDED: Study the ${uploadedImages.length} reference image${uploadedImages.length > 1 ? 's' : ''} carefully and draw inspiration from the style, aesthetics, and design approach shown. `
     : ''
   
   // Background instruction
@@ -151,29 +151,30 @@ const createPromptVariations = (basePrompt: string, formData: FormData): string[
     ? `Additional style notes: ${aestheticDirections}. `
     : ''
   
-  // Logo type instruction
-  const logoTypeInstruction = logoType === 'wordmark' 
-    ? 'FOCUS ON WORDMARK: Create text-based logos with beautiful typography, custom letterforms, and minimal or no symbols. The company name should be the primary design element. ' 
-    : 'FOCUS ON PICTORIAL: Create icon-based or symbol-based logos with minimal text. Design a memorable symbol, icon, or pictorial mark that represents the business. Keep text secondary or minimal. '
+  // Logo type instruction - STRICT enforcement
+  const logoTypeInstruction = logoType === 'wordmark'
+    ? 'WORDMARK ONLY: You MUST create a text-based logo using only typography and letterforms. NO symbols, NO icons, NO pictorial elements. Only the company name rendered in creative typography. '
+    : 'PICTORIAL ONLY: You MUST create a pure icon/symbol logo with ZERO text, ZERO letters, ZERO words. NO company name, NO letterforms. Only visual symbols, shapes, and icons. '
   
   // Create 5 completely different approaches - focus on clean, modern styles
   const noTaglineInstruction = 'IMPORTANT: Do not include any taglines, slogans, or descriptive text below the logo - only the business name and/or icon elements. '
 
+  // Create 5 variations with different stylistic approaches (respecting logo type)
   const variations = [
-    // Variation 1: Modern Brand Wordmark
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Create a clean, modern wordmark like contemporary big brands. Use a sophisticated, custom typeface with perfect letter spacing. Simple, elegant typography. ${backgroundStyle}${colors ? `Consider ${colors} but prioritize readability and elegance.` : 'Use minimal colors - could be black on white or single accent color.'} ${noTaglineInstruction}`,
+    // Variation 1: Modern & Clean
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Modern and clean, like contemporary premium brands. Sophisticated and professional. ${backgroundStyle}${colors ? `Use ${colors} as primary palette.` : 'Use professional color scheme.'} ${noTaglineInstruction}`,
 
-    // Variation 2: Minimal Symbol + Text
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Design a simple geometric symbol paired with clean typography. Minimal iconic element with the wordmark. ${backgroundStyle}${colors ? `Use ${colors} sparingly and strategically.` : 'Keep colors minimal and purposeful.'} ${noTaglineInstruction}`,
+    // Variation 2: Geometric & Minimal
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Geometric and minimal. Simple shapes, mathematical precision, balanced composition. ${backgroundStyle}${colors ? `Incorporate ${colors} strategically.` : 'Use minimal color palette.'} ${noTaglineInstruction}`,
 
-    // Variation 3: Pure Typography Focus
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Focus entirely on beautiful, modern typography. No symbols or icons - just perfectly crafted lettering. ${backgroundStyle}${colors ? `Incorporate ${colors} in the text treatment.` : 'Use sophisticated color choices.'} ${noTaglineInstruction}`,
+    // Variation 3: Bold & Confident
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Bold and confident. Strong visual presence, memorable and impactful design. ${backgroundStyle}${colors ? `Feature ${colors} prominently.` : 'Use bold, striking colors.'} ${noTaglineInstruction}`,
 
-    // Variation 4: Geometric Minimalism
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Use very simple geometric shapes - circles, squares, triangles. Clean, mathematical precision. ${backgroundStyle}${colors ? `Work ${colors} into the geometric elements.` : 'Use bold but minimal color palette.'} ${noTaglineInstruction}`,
+    // Variation 4: Elegant & Refined
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Elegant and refined. Sophisticated aesthetics, premium feel, timeless design. ${backgroundStyle}${colors ? `Apply ${colors} with elegance.` : 'Use refined color choices.'} ${noTaglineInstruction}`,
 
-    // Variation 5: Lettermark/Monogram
-    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Create a sophisticated lettermark or monogram using initials. Contemporary and refined. ${backgroundStyle}${colors ? `Use ${colors} in the lettermark design.` : 'Choose premium, professional colors.'} ${noTaglineInstruction}`
+    // Variation 5: Creative & Unique
+    `${basePrompt} ${logoTypeInstruction}${aestheticStyle}${customImageInspiration}${logoInspiration}Style: Creative and unique. Distinctive approach, memorable design, stands out from competitors. ${backgroundStyle}${colors ? `Utilize ${colors} creatively.` : 'Use distinctive color scheme.'} ${noTaglineInstruction}`
   ]
   
   return variations
@@ -188,10 +189,10 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
     ? `User refinement request: ${feedback.trim()}. `
     : ''
 
-  // Logo type instruction for refinement
+  // Logo type instruction for refinement - STRICT enforcement
   const logoTypeInstruction = logoType === 'wordmark'
-    ? 'MAINTAIN WORDMARK FOCUS: This must remain a text-based logo with typography as the primary element. '
-    : 'MAINTAIN PICTORIAL FOCUS: This must remain an icon/symbol-based logo. '
+    ? 'WORDMARK ONLY: This MUST remain a pure text-based logo with ZERO symbols or icons. Only typography and letterforms allowed. '
+    : 'PICTORIAL ONLY: This MUST remain a pure icon/symbol logo with ZERO text, ZERO letters, ZERO words. Only visual symbols allowed. '
 
   // Background instruction - CRITICAL
   const backgroundStyle = hasBackground
@@ -888,8 +889,54 @@ function App() {
     try {
       console.log('🚀 Sending request to server for AI logo generation...')
 
-      // Prepare reference images for refinement
+      // Prepare reference images for refinement AND uploaded inspiration images
       let referenceImages: Array<{data: string, mimeType: string}> = []
+
+      // Add uploaded inspiration images for initial generation
+      if (isInitial && formData.uploadedImages.length > 0) {
+        console.log('📸 Preparing uploaded inspiration images...')
+        const uploadedImagePromises = formData.uploadedImages.map(async (file) => {
+          try {
+            console.log(`🔄 Converting uploaded file to base64: ${file.name}`)
+            return new Promise<{data: string, mimeType: string}>((resolve) => {
+              const reader = new FileReader()
+              reader.onload = () => {
+                const img = new Image()
+                img.onload = () => {
+                  const canvas = document.createElement('canvas')
+                  const ctx = canvas.getContext('2d')
+                  const maxSize = 1024
+                  let { width, height } = img
+
+                  if (width > maxSize || height > maxSize) {
+                    const ratio = Math.min(maxSize / width, maxSize / height)
+                    width *= ratio
+                    height *= ratio
+                  }
+
+                  canvas.width = width
+                  canvas.height = height
+                  ctx?.drawImage(img, 0, 0, width, height)
+
+                  const base64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1]
+                  resolve({ data: base64, mimeType: 'image/jpeg' })
+                }
+                img.src = reader.result as string
+              }
+              reader.readAsDataURL(file)
+            })
+          } catch (error) {
+            console.error(`Failed to convert uploaded file: ${file.name}`, error)
+            return null
+          }
+        })
+
+        const uploadedResults = await Promise.all(uploadedImagePromises)
+        referenceImages = uploadedResults.filter((img): img is {data: string, mimeType: string} => img !== null)
+        console.log(`✅ Prepared ${referenceImages.length} uploaded inspiration images`)
+      }
+
+      // Add selected logos as reference images for refinement
       if (!isInitial && currentRound > 0 && selectedLogos.length > 0) {
         console.log('📸 Preparing reference images for refinement...')
 
