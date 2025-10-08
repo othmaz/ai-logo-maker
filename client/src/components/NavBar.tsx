@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from '@clerk/clerk-react'
 
@@ -14,7 +14,7 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
 
   const items = ['Home','Dashboard','Pricing','API','About']
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
-  const [lastScrollY, setLastScrollY] = useState(0)
+  const lastScrollY = useRef(0)
 
   useEffect(() => {
     const onScroll = () => {
@@ -22,16 +22,16 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
       // Slide up and stick under title bar when hidden
       if (currentY < 10) {
         setIsHeaderVisible(true)
-      } else if (currentY < lastScrollY) {
+      } else if (currentY < lastScrollY.current) {
         setIsHeaderVisible(true)
-      } else if (currentY > lastScrollY) {
+      } else if (currentY > lastScrollY.current) {
         setIsHeaderVisible(false)
       }
-      setLastScrollY(currentY)
+      lastScrollY.current = currentY
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [lastScrollY])
+  }, [])
 
   return (
     <div className={`fixed left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-b border-gray-600/50 z-[60] h-12 md:h-14 transition-all duration-300 ${
@@ -63,7 +63,7 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
           </button>
         </div>
 
-        <div className="absolute right-4 top-0 h-full flex items-center gap-2">
+        <div className="absolute right-4 top-0 h-full flex items-center gap-2" style={{ minWidth: '200px' }}>
           <SignedOut>
             <SignInButton mode="redirect">
               <button className="nav-shimmer px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg retro-mono text-xs">SIGN IN</button>
@@ -74,19 +74,21 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
           </SignedOut>
           <SignedIn>
             {/* Premium Status Indicator - Only for signed-in users */}
-            {isPaid ? (
-              <div className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs mr-2">
-                ✨ PREMIUM
-              </div>
-            ) : (
-              <button
-                onClick={onUpgradeClick}
-                className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs mr-2"
-              >
-                UPGRADE TO PREMIUM
-              </button>
-            )}
-            <UserButton />
+            <div className="flex items-center gap-2 transition-all duration-300">
+              {isPaid ? (
+                <div className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs">
+                  ✨ PREMIUM
+                </div>
+              ) : (
+                <button
+                  onClick={onUpgradeClick}
+                  className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs"
+                >
+                  UPGRADE TO PREMIUM
+                </button>
+              )}
+              <UserButton />
+            </div>
           </SignedIn>
         </div>
       </div>

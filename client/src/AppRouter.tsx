@@ -20,14 +20,14 @@ import AboutPage from './pages/AboutPage'
 // Inner component that uses the modal context
 const AppRouterContent: React.FC = () => {
   const { setActiveModal } = useModal()
-  const { isPremiumUser, userProfile } = useDbContext()
+  const { isPremiumUser } = useDbContext()
 
   const handleUpgradeClick = () => {
     setActiveModal('upgrade')
   }
 
-  // Get premium status - this will re-render when userProfile changes
-  const isPaid = isPremiumUser()
+  // Get premium status - memoized to prevent unnecessary re-renders
+  const isPaid = React.useMemo(() => isPremiumUser(), [isPremiumUser])
 
   // Listen for privacy modal open event from cookie banner
   React.useEffect(() => {

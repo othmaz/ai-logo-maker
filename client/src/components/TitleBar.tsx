@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 const TitleBar: React.FC = () => {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [isHeaderVisible, setIsHeaderVisible] = useState(true)
-  const [lastScrollY, setLastScrollY] = useState(0)
+  const lastScrollY = useRef(0)
 
   useEffect(() => {
     const onScroll = () => {
@@ -13,16 +13,16 @@ const TitleBar: React.FC = () => {
       // Show when scrolling up, hide when scrolling down
       if (currentY < 10) {
         setIsHeaderVisible(true)
-      } else if (currentY < lastScrollY) {
+      } else if (currentY < lastScrollY.current) {
         setIsHeaderVisible(true)
-      } else if (currentY > lastScrollY) {
+      } else if (currentY > lastScrollY.current) {
         setIsHeaderVisible(false)
       }
-      setLastScrollY(currentY)
+      lastScrollY.current = currentY
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
-  }, [lastScrollY])
+  }, [])
 
   return (
     <button
