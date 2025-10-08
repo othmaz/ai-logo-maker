@@ -63,7 +63,7 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
           </button>
         </div>
 
-        <div className="absolute right-4 top-0 h-full flex items-center gap-2" style={{ minWidth: '200px' }}>
+        <div className="absolute right-4 top-0 h-full flex items-center gap-2 justify-end">
           <SignedOut>
             <SignInButton mode="redirect">
               <button className="nav-shimmer px-2 md:px-4 py-1 md:py-2 bg-cyan-400 text-black font-bold rounded-lg retro-mono text-xs">SIGN IN</button>
@@ -74,21 +74,19 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
           </SignedOut>
           <SignedIn>
             {/* Premium Status Indicator - Only for signed-in users */}
-            <div className="flex items-center gap-2 transition-all duration-300">
-              {isPaid ? (
-                <div className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs">
-                  ✨ PREMIUM
-                </div>
-              ) : (
-                <button
-                  onClick={onUpgradeClick}
-                  className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs"
-                >
-                  UPGRADE TO PREMIUM
-                </button>
-              )}
-              <UserButton />
-            </div>
+            {isPaid ? (
+              <div className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs">
+                ✨ PREMIUM
+              </div>
+            ) : (
+              <button
+                onClick={onUpgradeClick}
+                className="golden-scintillate px-1.5 md:px-3 py-1 md:py-2 text-white font-bold rounded-lg retro-mono text-xs"
+              >
+                UPGRADE TO PREMIUM
+              </button>
+            )}
+            <UserButton />
           </SignedIn>
         </div>
       </div>
