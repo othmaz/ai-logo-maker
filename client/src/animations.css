@@ -601,6 +601,10 @@
   }
 }
 
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out forwards;
+}
+
 @keyframes shake {
   0%, 100% {
     transform: translateX(0);

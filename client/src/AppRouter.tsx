@@ -8,6 +8,7 @@ import NavBar from './components/NavBar'
 import SupportChatButton from './components/SupportChatButton'
 import Footer from './components/Footer'
 import Modals from './components/Modals'
+import CookieConsent from './components/CookieConsent'
 
 import HomePage from './pages/HomePage'
 import DashboardPage from './pages/DashboardPage'
@@ -27,6 +28,15 @@ const AppRouterContent: React.FC = () => {
 
   // Get premium status - this will re-render when userProfile changes
   const isPaid = isPremiumUser()
+
+  // Listen for privacy modal open event from cookie banner
+  React.useEffect(() => {
+    const handleOpenPrivacyModal = () => {
+      setActiveModal('privacy')
+    }
+    window.addEventListener('openPrivacyModal', handleOpenPrivacyModal)
+    return () => window.removeEventListener('openPrivacyModal', handleOpenPrivacyModal)
+  }, [setActiveModal])
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -52,6 +62,7 @@ const AppRouterContent: React.FC = () => {
       <Footer onOpenModal={setActiveModal} />
       <SupportChatButton onOpenModal={setActiveModal} />
       <Modals />
+      <CookieConsent />
     </div>
   )
 }
