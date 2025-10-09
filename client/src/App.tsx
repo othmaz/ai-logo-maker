@@ -1075,6 +1075,13 @@ function App() {
         return nextRound
       })
 
+      // If in solo refine mode, update focusedLogo to the newly generated logo
+      if (isSoloRefineMode && newLogos.length > 0) {
+        const newFocusedLogo = newLogos[0]; // Solo refine only generates 1 logo
+        setFocusedLogo(newFocusedLogo);
+        console.log('🎯 Updated focusedLogo to newly generated iteration:', newFocusedLogo.number);
+      }
+
       // Track successful logo generation with GA4
       try {
         if (typeof window !== 'undefined' && window.gtag) {
