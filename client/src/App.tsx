@@ -697,8 +697,8 @@ function App() {
     if (!isSignedIn) {
       // Anonymous users get 15 free credits
       const usedCredits = parseInt(localStorage.getItem('anonymousCreditsUsed') || '0')
-      const remaining = Math.max(0, 3 - usedCredits)
-      setUsage({ remaining, total: 3, used: usedCredits })
+      const remaining = Math.max(0, 15 - usedCredits)
+      setUsage({ remaining, total: 15, used: usedCredits })
     } else if (isPaid) {
       // Paid users have unlimited usage
       setUsage({ remaining: 999, total: 999, used: 0 })
@@ -1100,7 +1100,7 @@ function App() {
           const currentUsed = parseInt(localStorage.getItem('anonymousCreditsUsed') || '0')
           const newUsed = currentUsed + 1
           localStorage.setItem('anonymousCreditsUsed', newUsed.toString())
-          const newRemaining = Math.max(0, 3 - newUsed);
+          const newRemaining = Math.max(0, 15 - newUsed);
           setUsage(prev => ({ ...prev, used: newUsed, remaining: newRemaining }))
           console.log('🔢 Anonymous user - updated usage: currentUsed =', currentUsed, '→ newUsed =', newUsed, ', remaining =', newRemaining);
 
