@@ -77,6 +77,8 @@ interface GenerationRound {
   round: number
   logos: Logo[]
   selectedLogos: Logo[]
+  isSoloRefine?: boolean  // Is this a solo refinement iteration?
+  soloRefineOf?: number   // Which logo number was refined?
 }
 
 // Collection of famous logos as references
@@ -876,11 +878,11 @@ function App() {
       const basePrompt = buildBasePrompt(formData)
       prompts = createPromptVariations(basePrompt, formData)
     } else {
-      // Single-logo mode: only generate 1 logo instead of 5
-      if (refinementMode === 'single') {
-        const fullPrompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
+      // Single-logo mode: only generate 1 logo instead of 5, use focusedLogo
+      if (refinementMode === 'single' && focusedLogo) {
+        const fullPrompts = refinePromptFromSelection([focusedLogo], formData, userFeedback)
         prompts = [fullPrompts[0]] // Take only the first prompt for single-logo refinement
-        console.log('✨ SINGLE-LOGO MODE - Generating 1 focused iteration')
+        console.log('✨ SINGLE-LOGO MODE - Generating 1 focused iteration for logo:', focusedLogo.id)
       } else {
         prompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
         console.log('🔄 BATCH REFINEMENT MODE - Selected logos:', selectedLogos.length)
@@ -940,12 +942,13 @@ function App() {
         console.log(`✅ Prepared ${referenceImages.length} uploaded inspiration images`)
       }
 
-      // Add selected logos as reference images for refinement
-      if (!isInitial && currentRound > 0 && selectedLogos.length > 0) {
+      // Add selected logos OR focused logo as reference images for refinement
+      const logosToConvert = refinementMode === 'single' && focusedLogo ? [focusedLogo] : selectedLogos
+      if (!isInitial && currentRound > 0 && logosToConvert.length > 0) {
         console.log('📸 Preparing reference images for refinement...')
 
-        // Convert selected logo URLs to compressed base64 image data
-        const imagePromises = selectedLogos.map(async (logo) => {
+        // Convert logo URLs to compressed base64 image data
+        const imagePromises = logosToConvert.map(async (logo) => {
           try {
             console.log(`🔄 Converting logo to compressed base64: ${logo.url}`)
             const imageResponse = await fetch(logo.url)
@@ -1049,11 +1052,13 @@ function App() {
         setLogoCounter(prev => prev + data.logos.length) // Increment counter
         console.log('🖼️ AI-generated logos set:', newLogos)
       
-      // Save to history
+      // Save to history with metadata
       const newRound: GenerationRound = {
         round: currentRound + 1,
         logos: newLogos,
-        selectedLogos: []
+        selectedLogos: [],
+        isSoloRefine: refinementMode === 'single' && focusedLogo !== null,
+        soloRefineOf: refinementMode === 'single' && focusedLogo ? focusedLogo.number : undefined
       }
       setGenerationHistory(prev => [...prev, newRound])
       setCurrentRound(prev => {
@@ -2527,7 +2532,9 @@ function App() {
               {/* Round Header */}
               <div className="text-center mb-12">
                 <h2 className="text-4xl font-bold text-gray-800 mb-4">
-                  Round {round.round} - Choose Your Favorites
+                  {round.isSoloRefine && round.soloRefineOf
+                    ? `Iteration of Logo #${round.soloRefineOf}`
+                    : `Round ${round.round} - Choose Your Favorites`}
                 </h2>
 
                 {/* Progress Dots */}
@@ -2545,10 +2552,15 @@ function App() {
                 </div>
 
                 <p className="text-xl text-gray-600">
-                  {round.round === 1 && "Provide feedback to refine logos further (optionally select 1-2 favorites)"}
-                  {round.round === 2 && "Add feedback for final refinement (optionally select favorites)"}
-                  {round.round >= 3 && isPremiumUser() && "Continue refining - provide feedback for further improvements"}
-                  {round.round >= 3 && !isPremiumUser() && "Upgrade to premium to continue refining your logos"}
+                  {round.isSoloRefine
+                    ? "Continue iterating on this specific design with feedback"
+                    : round.round === 1
+                    ? "Provide feedback to refine logos further (optionally select 1-2 favorites)"
+                    : round.round === 2
+                    ? "Add feedback for final refinement (optionally select favorites)"
+                    : isPremiumUser()
+                    ? "Continue refining - provide feedback for further improvements"
+                    : "Upgrade to premium to continue refining your logos"}
                 </p>
               </div>
 
@@ -2665,13 +2677,13 @@ function App() {
               {/* Feedback Section for Refinement - Show for all rounds */}
               {round.round === currentRound && currentRound > 0 && (
                 <div id="feedback-section" className="mb-8 bg-gray-50 rounded-2xl p-6 relative">
-                  {/* Premium-only overlay for round 3+ */}
-                  {currentRound >= 3 && !isPremiumUser() && (
+                  {/* Premium-only overlay when credits are exhausted */}
+                  {usage.remaining <= 0 && !isPremiumUser() && (
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-50/95 to-pink-50/95 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center z-10 pointer-events-none">
                       <div className="text-center p-6">
                         <span className="text-6xl mb-4 block">🔒</span>
                         <h3 className="text-2xl font-bold text-purple-900 mb-2">Premium Feature</h3>
-                        <p className="text-purple-700">Continue refining beyond 3 rounds with unlimited iterations</p>
+                        <p className="text-purple-700">You've used all 15 free credits. Upgrade for unlimited logo generations!</p>
                       </div>
                     </div>
                   )}
@@ -2689,7 +2701,7 @@ function App() {
                     onChange={(e) => setUserFeedback(e.target.value)}
                     placeholder="Example: I like the modern look but the text is too thin. The colors are great but maybe try a different font style..."
                     className="w-full h-24 p-4 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-                    disabled={currentRound >= 3 && !isPremiumUser()}
+                    disabled={usage.remaining <= 0 && !isPremiumUser()}
                   />
                   {userFeedback.trim() && (refinementMode === 'single' || selectedLogos.length <= 2) && (
                     <p className="text-sm text-green-600 mt-2 flex items-center">
@@ -2714,8 +2726,8 @@ function App() {
               {/* Action Buttons - Only show for current round */}
               {round.round === currentRound && (
                 <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                  {/* Show refine button for rounds 1-2, or round 3+ for premium users */}
-                  {(currentRound < 3 || (currentRound >= 3 && isPremiumUser())) && (
+                  {/* Show refine button if user has credits remaining or is premium */}
+                  {(usage.remaining > 0 || isPremiumUser()) && (
                     <button
                       onClick={proceedToRefinement}
                       disabled={!userFeedback.trim() || selectedLogos.length > 2 || loading}
@@ -2750,8 +2762,8 @@ function App() {
                     </button>
                   )}
 
-                  {/* Show upgrade button for non-premium users on round 3+ */}
-                  {currentRound >= 3 && !isPremiumUser() && (
+                  {/* Show upgrade button when credits are exhausted */}
+                  {usage.remaining <= 0 && !isPremiumUser() && (
                     <button
                       onClick={() => {
                         saveFormDataToLocalStorage(true);
@@ -2760,7 +2772,7 @@ function App() {
                       className="relative px-12 py-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform shadow-lg hover:shadow-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-105"
                     >
                       <span className="mr-3 text-3xl">👑</span>
-                      <span className="text-white font-extrabold">{!isSignedIn ? 'Sign Up & Upgrade to Continue' : 'Upgrade to Continue Refining'}</span>
+                      <span className="text-white font-extrabold">{!isSignedIn ? 'Sign Up & Upgrade for Unlimited' : 'Upgrade for Unlimited Credits'}</span>
                     </button>
                   )}
                 </div>
