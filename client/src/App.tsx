@@ -1095,10 +1095,13 @@ function App() {
       // Update usage tracking for non-paid users (count both initial generations and refinements)
       if (!isPaid) {
         console.log('=== UPDATING USAGE TRACKING ===');
+        const creditsUsed = newLogos.length; // Each logo generated counts as 1 credit
+        console.log('💳 Credits being consumed:', creditsUsed);
+
         if (!isSignedIn) {
           // Update anonymous user usage in localStorage
           const currentUsed = parseInt(localStorage.getItem('anonymousCreditsUsed') || '0')
-          const newUsed = currentUsed + 1
+          const newUsed = currentUsed + creditsUsed
           localStorage.setItem('anonymousCreditsUsed', newUsed.toString())
           const newRemaining = Math.max(0, 15 - newUsed);
           setUsage(prev => ({ ...prev, used: newUsed, remaining: newRemaining }))
@@ -1113,7 +1116,7 @@ function App() {
           try {
             const promptText = prompts.length > 0 ? prompts[0] : formData.businessName || 'Logo generation';
             console.log('🔄 Tracking database generation for signed-in user:', promptText);
-            await trackLogoGeneration(promptText, 1, isPaid);
+            await trackLogoGeneration(promptText, creditsUsed, isPaid);
             console.log('✅ Database generation tracking completed');
 
             // Refresh user profile and usage limits after tracking
