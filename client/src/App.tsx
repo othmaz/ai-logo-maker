@@ -1053,13 +1053,21 @@ function App() {
         console.log('🖼️ AI-generated logos set:', newLogos)
       
       // Save to history with metadata
+      const isSoloRefineMode = refinementMode === 'single' && focusedLogo !== null
       const newRound: GenerationRound = {
         round: currentRound + 1,
         logos: newLogos,
         selectedLogos: [],
-        isSoloRefine: refinementMode === 'single' && focusedLogo !== null,
-        soloRefineOf: refinementMode === 'single' && focusedLogo ? focusedLogo.number : undefined
+        isSoloRefine: isSoloRefineMode,
+        soloRefineOf: isSoloRefineMode && focusedLogo ? focusedLogo.number : undefined
       }
+      console.log('🔖 Creating new round:', {
+        round: newRound.round,
+        isSoloRefine: newRound.isSoloRefine,
+        soloRefineOf: newRound.soloRefineOf,
+        refinementMode,
+        focusedLogo: focusedLogo?.number
+      })
       setGenerationHistory(prev => [...prev, newRound])
       setCurrentRound(prev => {
         const nextRound = prev + 1
