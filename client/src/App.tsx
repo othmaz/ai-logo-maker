@@ -187,9 +187,9 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
   const basePrompt = buildBasePrompt(formData)
   const { colors, hasBackground, aestheticDirections, logoType } = formData
 
-  // User feedback integration
+  // User feedback integration - HIGHEST PRIORITY
   const feedbackText = feedback && feedback.trim()
-    ? `User refinement request: ${feedback.trim()}. `
+    ? `CRITICAL USER CHANGES (HIGHEST PRIORITY): You MUST implement these exact modifications: ${feedback.trim()}. These changes take absolute precedence. `
     : ''
 
   // Logo type instruction for refinement - STRICT enforcement
@@ -216,19 +216,19 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
   const singleLogoInstruction = 'CRITICAL: Generate ONLY ONE logo design per image. Do NOT create multiple logo variations in a single image. Do NOT show different versions side-by-side. Each image must contain exactly ONE complete logo design. '
 
   // Reference image context
-  const referenceContext = 'REFINEMENT MODE: A reference image has been provided showing the selected logo. Study this image carefully and use it as the exact design foundation. '
+  const referenceContext = 'REFINEMENT MODE: A reference image has been provided showing the selected logo. Study this image carefully and use it as the design foundation. '
 
-  // Create focused refinement prompts
+  // Create focused refinement prompts with user feedback prioritized
   const refinementPrompts = [
-    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Keep the EXACT same layout, typography, composition, and design structure from the reference image while applying only the requested modifications.`,
+    `${basePrompt} ${singleLogoInstruction}${feedbackText}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}Preserve the overall design concept from the reference image EXCEPT where the user explicitly requested changes above.`,
 
-    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Preserve all core design elements from the reference image and apply the user's changes without altering the fundamental structure.`,
+    `${basePrompt} ${singleLogoInstruction}${feedbackText}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}Apply the user's requested modifications while maintaining other design elements from the reference image.`,
 
-    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Use the reference image as the base design and implement the requested changes while maintaining the same visual approach.`,
+    `${basePrompt} ${singleLogoInstruction}${feedbackText}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}Use the reference image as the base and implement the user's specific changes without altering unmentioned aspects.`,
 
-    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Keep the design foundation from the reference image intact and apply the specific modifications requested by the user.`,
+    `${basePrompt} ${singleLogoInstruction}${feedbackText}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}Keep the design foundation from the reference image but prioritize implementing the user's requested modifications.`,
 
-    `${basePrompt} ${singleLogoInstruction}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}${feedbackText}Maintain the visual identity from the reference image while incorporating the user's refinement instructions.`
+    `${basePrompt} ${singleLogoInstruction}${feedbackText}${referenceContext}${logoTypeInstruction}${backgroundStyle}${colorInstruction}${aestheticStyle}Maintain the visual approach from the reference image while ensuring all user-requested changes are applied.`
   ]
 
   return refinementPrompts
