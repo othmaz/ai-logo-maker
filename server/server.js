@@ -1486,7 +1486,17 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
     }
 
     if (jobStatus.status !== 'completed') {
-      throw new Error('SVG conversion failed: ' + (jobStatus.message || 'Unknown error'))
+      // Get detailed error from failed tasks
+      const failedTasks = jobStatus.tasks?.filter(t => t.status === 'failed') || []
+      const errorDetails = failedTasks.map(t => `${t.name}: ${t.message || t.code || 'unknown'}`).join(', ')
+      console.error('❌ FreeConvert job failed:', {
+        jobId: jobResult.id,
+        status: jobStatus.status,
+        message: jobStatus.message,
+        failedTasks: errorDetails,
+        fullJobStatus: JSON.stringify(jobStatus, null, 2)
+      })
+      throw new Error('SVG conversion failed: ' + (errorDetails || jobStatus.message || 'Unknown error'))
     }
 
     // Get the export URL
