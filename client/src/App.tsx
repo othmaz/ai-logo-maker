@@ -285,6 +285,7 @@ function App() {
   const [refinementMode, setRefinementMode] = useState<'batch' | 'single'>('batch');
   const [focusedLogo, setFocusedLogo] = useState<Logo | null>(null);
   const [logoCountSelection, setLogoCountSelection] = useState<1 | 3 | 5>(5); // User can choose 1, 3, or 5 logos after Round 1
+  const [showRefinementChoiceModal, setShowRefinementChoiceModal] = useState(false); // Modal for single logo refinement choice
 
   // Check if user has paid (based on database subscription status with debug support)
   const isPaid = isPremiumUser()
@@ -962,13 +963,7 @@ function App() {
       }
 
       // Add selected logos OR focused logo as reference images for refinement
-      // Smart auto-selection: if only 1 logo exists and none selected, auto-select it
-      let logosToConvert = refinementMode === 'single' && focusedLogo ? [focusedLogo] : selectedLogos
-      if (!isInitial && currentRound > 0 && logosToConvert.length === 0 && logos.length === 1) {
-        logosToConvert = [logos[0]]
-        console.log('🎯 Auto-selecting single logo for refinement:', logos[0].id)
-      }
-
+      const logosToConvert = refinementMode === 'single' && focusedLogo ? [focusedLogo] : selectedLogos
       if (!isInitial && currentRound > 0 && logosToConvert.length > 0) {
         console.log('📸 Preparing reference images for refinement...')
 
@@ -1195,6 +1190,12 @@ function App() {
         showToast('Please select maximum 2 logos to refine (or provide feedback without selecting any)', 'warning')
         return
       }
+
+      // Special case: single logo exists but not selected - show choice modal
+      if (selectedLogos.length === 0 && logos.length === 1 && currentRound > 0) {
+        setShowRefinementChoiceModal(true)
+        return
+      }
     } else {
       // Single-logo mode: must have a focused logo
       if (!focusedLogo) {
@@ -1209,6 +1210,21 @@ function App() {
     }
 
     await handleRefinement()
+  }
+
+  // Handle refinement with explicit choice (from modal)
+  const handleRefinementWithChoice = async (shouldRefine: boolean) => {
+    setShowRefinementChoiceModal(false)
+
+    if (shouldRefine && logos.length === 1) {
+      // User chose to refine the single logo - temporarily select it
+      setSelectedLogos([logos[0]])
+      await handleRefinement()
+      setSelectedLogos([]) // Clear selection after
+    } else {
+      // User chose fresh variations - proceed without selection
+      await handleRefinement()
+    }
   }
 
   // Start single-logo iterative refinement mode
@@ -2766,9 +2782,7 @@ function App() {
                         ? 'Ready to refine this logo with your feedback'
                         : selectedLogos.length > 0
                         ? `Ready to refine ${selectedLogos.length} selected logo${selectedLogos.length > 1 ? 's' : ''} with your feedback`
-                        : logos.length === 1
-                        ? 'Will refine the current logo with your feedback'
-                        : 'Will generate fresh variations with your feedback (select 1-2 logos to refine them instead)'
+                        : 'Ready to proceed with your feedback'
                       }
                     </p>
                   )}
@@ -3041,6 +3055,59 @@ function App() {
           </div>
         ))}
       </div>
+
+      {/* Refinement Choice Modal - Single Logo Case */}
+      {showRefinementChoiceModal && logos.length === 1 && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[90] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4">🎨</div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Refine or Start Fresh?</h2>
+              <p className="text-gray-600">
+                You have one logo. Would you like to refine it based on your feedback, or generate completely new variations?
+              </p>
+            </div>
+
+            {/* Show the current logo */}
+            <div className="mb-6 bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
+              <img
+                src={logos[0].url}
+                alt="Current logo"
+                className="w-full h-32 object-contain"
+              />
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => handleRefinementWithChoice(true)}
+                className="w-full py-4 px-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold text-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 shadow-md hover:shadow-lg"
+              >
+                ✨ Refine This Logo
+                <span className="block text-sm font-normal opacity-90 mt-1">
+                  Keep the design and apply your feedback
+                </span>
+              </button>
+
+              <button
+                onClick={() => handleRefinementWithChoice(false)}
+                className="w-full py-4 px-6 bg-white border-2 border-gray-300 text-gray-700 rounded-xl font-bold text-lg hover:border-purple-400 hover:bg-purple-50 transition-all duration-200"
+              >
+                🔄 Generate Fresh Variations
+                <span className="block text-sm font-normal opacity-75 mt-1">
+                  Start with completely new designs
+                </span>
+              </button>
+
+              <button
+                onClick={() => setShowRefinementChoiceModal(false)}
+                className="mt-2 text-gray-500 hover:text-gray-700 text-sm font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       {activeModal && (
