@@ -2725,50 +2725,21 @@ function App() {
                     </div>
                   )}
 
-                  <h3 className="text-xl font-bold text-gray-800 mb-4">
-                    {refinementMode === 'single' ? 'Refine This Logo' : 'Provide Feedback for Refinement'}
-                  </h3>
-
-                  {/* Logo Count Selection - Show after Round 1 in batch mode */}
-                  {currentRound > 0 && refinementMode === 'batch' && (
-                    <div className="mb-6">
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
-                        How many logos to generate? ({usage.remaining} {usage.remaining === 1 ? 'credit' : 'credits'} remaining)
-                      </label>
-                      <div className="flex gap-3">
-                        {([1, 3, 5] as const).map((count) => (
-                          <button
-                            key={count}
-                            onClick={() => setLogoCountSelection(count)}
-                            disabled={usage.remaining < count && !isPremiumUser()}
-                            className={`flex-1 py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 ${
-                              logoCountSelection === count
-                                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg scale-105'
-                                : usage.remaining < count && !isPremiumUser()
-                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-cyan-500 hover:shadow-md'
-                            }`}
-                          >
-                            <div className="flex flex-col items-center gap-1">
-                              <span className="text-2xl font-extrabold">{count}</span>
-                              <span className="text-xs font-normal opacity-80">
-                                {count === 1 ? 'logo' : 'logos'}
-                              </span>
-                              <span className="text-xs font-semibold mt-1">
-                                {count} {count === 1 ? 'credit' : 'credits'}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-gray-800">
+                      {refinementMode === 'single' ? 'Refine This Logo' : 'Provide Feedback for Refinement'}
+                    </h3>
+                    {/* Credits counter - prominent display */}
+                    {!isPremiumUser() && (
+                      <div className="flex items-center gap-2 bg-gradient-to-r from-purple-100 to-pink-100 px-4 py-2 rounded-full">
+                        <span className="text-2xl">💳</span>
+                        <div className="flex flex-col items-end">
+                          <span className="text-xs font-semibold text-purple-700 uppercase tracking-wide">Credits</span>
+                          <span className="text-xl font-extrabold text-purple-900">{usage.remaining}</span>
+                        </div>
                       </div>
-                      {usage.remaining < logoCountSelection && !isPremiumUser() && (
-                        <p className="text-sm text-orange-600 mt-2 flex items-center">
-                          <span className="mr-2">⚠️</span>
-                          Not enough credits for {logoCountSelection} logos. You have {usage.remaining} remaining.
-                        </p>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   <p className="text-gray-600 mb-4">
                     {refinementMode === 'single'
@@ -2804,42 +2775,69 @@ function App() {
 
               {/* Action Buttons - Only show for current round */}
               {round.round === currentRound && (
-                <div className="flex flex-col sm:flex-row gap-6 justify-center">
-                  {/* Show refine button if user has credits remaining or is premium */}
-                  {(usage.remaining > 0 || isPremiumUser()) && (
-                    <button
-                      onClick={proceedToRefinement}
-                      disabled={!userFeedback.trim() || selectedLogos.length > 2 || loading || (refinementMode === 'batch' && usage.remaining < logoCountSelection && !isPremiumUser())}
-                      className={`relative px-12 py-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform shadow-lg hover:shadow-xl overflow-hidden ${
-                        !userFeedback.trim() || selectedLogos.length > 2 || loading || (refinementMode === 'batch' && usage.remaining < logoCountSelection && !isPremiumUser())
-                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-105'
-                      }`}
-                    >
-                      {loading && (
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-pink-400 via-cyan-400 via-green-400 to-yellow-400 bg-[length:400%_100%] animate-[gradient_2s_ease-in-out_infinite]"></div>
-                      )}
-                      <div className="relative z-10 flex items-center justify-center">
-                        {loading ? (
-                          <>
-                            <div className="mr-4">
-                              <div className="flex space-x-1">
-                                <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite] [animation-delay:-0.32s]"></div>
-                                <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite] [animation-delay:-0.16s]"></div>
-                                <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite]"></div>
-                              </div>
-                            </div>
-                            <span className="text-white font-extrabold">Refining Logos...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="mr-3 text-3xl">✨</span>
-                            <span className="text-white font-extrabold">{selectedLogos.length > 0 ? `Refine Selected (${selectedLogos.length})` : 'Refine with Feedback'}</span>
-                          </>
-                        )}
+                <div className="flex flex-col gap-4 items-center">
+                  {/* Logo count selector - compact inline design for batch mode after Round 1 */}
+                  {currentRound > 0 && refinementMode === 'batch' && (usage.remaining > 0 || isPremiumUser()) && (
+                    <div className="flex items-center gap-3 text-gray-700">
+                      <span className="text-sm font-medium">Generate:</span>
+                      <div className="flex gap-2">
+                        {([1, 3, 5] as const).map((count) => (
+                          <button
+                            key={count}
+                            onClick={() => setLogoCountSelection(count)}
+                            disabled={usage.remaining < count && !isPremiumUser()}
+                            className={`w-12 h-12 rounded-lg font-bold text-base transition-all duration-150 ${
+                              logoCountSelection === count
+                                ? 'bg-gradient-to-br from-purple-600 to-pink-600 text-white shadow-md ring-2 ring-purple-300'
+                                : usage.remaining < count && !isPremiumUser()
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+                                : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-purple-400 hover:bg-purple-50'
+                            }`}
+                          >
+                            {count}
+                          </button>
+                        ))}
                       </div>
-                    </button>
+                      <span className="text-sm font-medium">{logoCountSelection === 1 ? 'logo' : 'logos'}</span>
+                    </div>
                   )}
+
+                  <div className="flex flex-col sm:flex-row gap-6 justify-center">
+                    {/* Show refine button if user has credits remaining or is premium */}
+                    {(usage.remaining > 0 || isPremiumUser()) && (
+                      <button
+                        onClick={proceedToRefinement}
+                        disabled={!userFeedback.trim() || selectedLogos.length > 2 || loading || (refinementMode === 'batch' && usage.remaining < logoCountSelection && !isPremiumUser())}
+                        className={`relative px-12 py-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform shadow-lg hover:shadow-xl overflow-hidden ${
+                          !userFeedback.trim() || selectedLogos.length > 2 || loading || (refinementMode === 'batch' && usage.remaining < logoCountSelection && !isPremiumUser())
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-105'
+                        }`}
+                      >
+                        {loading && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-pink-400 via-cyan-400 via-green-400 to-yellow-400 bg-[length:400%_100%] animate-[gradient_2s_ease-in-out_infinite]"></div>
+                        )}
+                        <div className="relative z-10 flex items-center justify-center">
+                          {loading ? (
+                            <>
+                              <div className="mr-4">
+                                <div className="flex space-x-1">
+                                  <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite] [animation-delay:-0.32s]"></div>
+                                  <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite] [animation-delay:-0.16s]"></div>
+                                  <div className="w-2 h-2 bg-white rounded-full animate-[bounce_1.4s_ease-in-out_infinite]"></div>
+                                </div>
+                              </div>
+                              <span className="text-white font-extrabold">Refining Logos...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="mr-3 text-3xl">✨</span>
+                              <span className="text-white font-extrabold">{selectedLogos.length > 0 ? `Refine Selected (${selectedLogos.length})` : 'Refine with Feedback'}</span>
+                            </>
+                          )}
+                        </div>
+                      </button>
+                    )}
 
                   {/* Show upgrade button when credits are exhausted */}
                   {usage.remaining <= 0 && !isPremiumUser() && (
