@@ -1460,7 +1460,7 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
               'clustering': 'stacked',
               'color-precision': 8, // Max allowed value is 8 (was 16, caused error)
               'gradient-step': 8,
-              'filter-speckle': 5,
+              'filter-speckle': 1, // Reduced from 5 to minimize noise filtering
               'curve-fitting': curveMode
             }
           },
