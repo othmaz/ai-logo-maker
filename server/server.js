@@ -1436,8 +1436,56 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
       return res.status(500).json({ error: 'FreeConvert API key not configured' })
     }
 
-    // Create FreeConvert job with preprocessing to reduce file size
-    // Step 1: Import, Step 2: Auto-crop to content, Step 3: Resize if still large, Step 4: Convert to SVG
+    // Preprocess image: auto-crop and resize to reduce SVG file size
+    console.log('🔄 Preprocessing image: auto-crop transparent edges and resize...')
+    let processedImageUrl = imageUrl
+
+    try {
+      // Download the original image
+      const imageResponse = await fetch(imageUrl)
+      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+
+      // Get original dimensions
+      const metadata = await sharp(imageBuffer).metadata()
+      console.log(`📏 Original dimensions: ${metadata.width}x${metadata.height}`)
+
+      // Step 1: Auto-crop transparent edges (trim)
+      const trimmed = await sharp(imageBuffer)
+        .trim({ threshold: 10 }) // Remove edges with <10 alpha
+        .toBuffer()
+
+      const trimmedMetadata = await sharp(trimmed).metadata()
+      console.log(`✂️ After trim: ${trimmedMetadata.width}x${trimmedMetadata.height}`)
+
+      // Step 2: Resize if still larger than 4096x4096
+      let processed = trimmed
+      if (trimmedMetadata.width > 4096 || trimmedMetadata.height > 4096) {
+        processed = await sharp(trimmed)
+          .resize(4096, 4096, {
+            fit: 'inside', // Maintain aspect ratio
+            withoutEnlargement: true
+          })
+          .toBuffer()
+
+        const resizedMetadata = await sharp(processed).metadata()
+        console.log(`📐 After resize: ${resizedMetadata.width}x${resizedMetadata.height}`)
+      }
+
+      // Upload processed image to Vercel Blob
+      const filename = `logo-${id}-processed-${Date.now()}.png`
+      const { url: uploadedUrl } = await put(filename, processed, {
+        access: 'public',
+        contentType: 'image/png'
+      })
+
+      processedImageUrl = uploadedUrl
+      console.log('✅ Preprocessed image uploaded:', processedImageUrl)
+    } catch (preprocessError) {
+      console.error('⚠️ Preprocessing failed, using original image:', preprocessError)
+      // Continue with original image if preprocessing fails
+    }
+
+    // Create FreeConvert job with processed image
     const jobResponse = await fetch('https://api.freeconvert.com/v1/process/jobs', {
       method: 'POST',
       headers: {
@@ -1448,32 +1496,12 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
         tasks: {
           'import-1': {
             operation: 'import/url',
-            url: imageUrl,
+            url: processedImageUrl, // Use preprocessed image
             filename: 'logo.png'
-          },
-          'crop-1': {
-            operation: 'convert',
-            input: 'import-1',
-            input_format: 'png',
-            output_format: 'png',
-            options: {
-              'trim': true, // Auto-crop transparent edges
-              'trim-fuzz': '5%' // 5% tolerance for edge detection
-            }
-          },
-          'resize-1': {
-            operation: 'convert',
-            input: 'crop-1',
-            input_format: 'png',
-            output_format: 'png',
-            options: {
-              'resize': '4096x4096>', // Only resize if larger than 4096x4096
-              'resize-fit': 'max' // Maintain aspect ratio, fit within bounds
-            }
           },
           'convert-1': {
             operation: 'convert',
-            input: 'resize-1', // Use cropped + resized image
+            input: 'import-1',
             input_format: 'png',
             output_format: 'svg',
             options: {
