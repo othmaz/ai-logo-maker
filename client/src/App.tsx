@@ -962,7 +962,13 @@ function App() {
       }
 
       // Add selected logos OR focused logo as reference images for refinement
-      const logosToConvert = refinementMode === 'single' && focusedLogo ? [focusedLogo] : selectedLogos
+      // Smart auto-selection: if only 1 logo exists and none selected, auto-select it
+      let logosToConvert = refinementMode === 'single' && focusedLogo ? [focusedLogo] : selectedLogos
+      if (!isInitial && currentRound > 0 && logosToConvert.length === 0 && logos.length === 1) {
+        logosToConvert = [logos[0]]
+        console.log('🎯 Auto-selecting single logo for refinement:', logos[0].id)
+      }
+
       if (!isInitial && currentRound > 0 && logosToConvert.length > 0) {
         console.log('📸 Preparing reference images for refinement...')
 
@@ -2754,13 +2760,15 @@ function App() {
                     disabled={usage.remaining <= 0 && !isPremiumUser()}
                   />
                   {userFeedback.trim() && (refinementMode === 'single' || selectedLogos.length <= 2) && (
-                    <p className="text-sm text-green-600 mt-2 flex items-center">
-                      <span className="mr-2">✓</span>
+                    <p className={`text-sm mt-2 flex items-center ${selectedLogos.length > 0 ? 'text-green-600' : 'text-blue-600'}`}>
+                      <span className="mr-2">{selectedLogos.length > 0 ? '✓' : '💡'}</span>
                       {refinementMode === 'single'
                         ? 'Ready to refine this logo with your feedback'
                         : selectedLogos.length > 0
                         ? `Ready to refine ${selectedLogos.length} selected logo${selectedLogos.length > 1 ? 's' : ''} with your feedback`
-                        : 'Ready to refine with your general feedback'
+                        : logos.length === 1
+                        ? 'Will refine the current logo with your feedback'
+                        : 'Will generate fresh variations with your feedback (select 1-2 logos to refine them instead)'
                       }
                     </p>
                   )}
