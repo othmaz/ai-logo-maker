@@ -254,8 +254,30 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               throw new Error(result.error || 'Background removal failed')
             }
           } else if (formatId === 'svg') {
-            // Use background-removed URL if available, otherwise use 8K
-            const svgSourceUrl = backgroundRemovedUrl || bestQualityUrl
+            // ALWAYS generate background-removed version for SVG (better vectorization)
+            let svgSourceUrl = backgroundRemovedUrl
+
+            if (!svgSourceUrl) {
+              // Background removal not done yet - do it now for SVG
+              console.log('🔄 Generating background-removed version for SVG...')
+              const bgRemovalResponse = await fetch(`/api/logos/${logo.id}/remove-background`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  clerkUserId: user.id,
+                  logoUrl: bestQualityUrl // Use 8K version
+                })
+              })
+
+              const bgRemovalResult = await bgRemovalResponse.json()
+              if (bgRemovalResult.success) {
+                svgSourceUrl = bgRemovalResult.processedUrl
+                console.log('✅ Background removed for SVG vectorization')
+              } else {
+                console.warn('⚠️ Background removal failed, using 8K with background')
+                svgSourceUrl = bestQualityUrl
+              }
+            }
 
             // Generate BOTH spline and polygon versions for comparison
             console.log('🔺 Generating SVG - Spline version...')
