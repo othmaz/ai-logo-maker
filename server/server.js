@@ -1458,10 +1458,14 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
             options: {
               'color-mode': 'color',
               'clustering': 'stacked',
-              'color-precision': 8, // Max allowed value is 8 (was 16, caused error)
-              'gradient-step': 1, // Testing: 1 for smooth gradients (0 caused more banding)
-              'filter-speckle': 1, // Reduced from 5 to minimize noise filtering
-              'curve-fitting': curveMode
+              'color-precision': 6, // Reduced from 8 to reduce file size (fewer colors)
+              'gradient-step': 1, // Smooth gradients
+              'filter-speckle': 4, // Increased from 1 to reduce complexity (remove tiny details)
+              'curve-fitting': curveMode,
+              'layer-difference': 16, // Add layer merging to simplify paths
+              'corner-threshold': 60, // Smoother corners = fewer nodes
+              'length-threshold': 4.0, // Remove very short segments
+              'splice-threshold': 45 // Merge similar paths
             }
           },
           'export-1': {
