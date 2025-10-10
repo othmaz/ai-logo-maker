@@ -840,7 +840,7 @@ function App() {
     }
   }, [usage.remaining, logoCountSelection, refinementMode, isPremiumUser])
 
-  const generateLogos = async (isInitial: boolean = true) => {
+  const generateLogos = async (isInitial: boolean = true, overrideSelectedLogos?: Logo[]) => {
     if (!formData.businessName) return
 
     // Check usage limits first (unless user is paid)
@@ -902,10 +902,12 @@ function App() {
         prompts = [fullPrompts[0]] // Take only the first prompt for single-logo refinement
         console.log('✨ SINGLE-LOGO MODE - Generating 1 focused iteration for logo:', focusedLogo.id)
       } else {
-        const fullPrompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
+        // Use override if provided (from modal choice), otherwise use state
+        const logosToRefine = overrideSelectedLogos !== undefined ? overrideSelectedLogos : selectedLogos
+        const fullPrompts = refinePromptFromSelection(logosToRefine, formData, userFeedback)
         // Use user's logo count selection (1, 3, or 5)
         prompts = fullPrompts.slice(0, logoCountSelection)
-        console.log(`🔄 BATCH REFINEMENT MODE - Generating ${logoCountSelection} logos, Selected logos:`, selectedLogos.length)
+        console.log(`🔄 BATCH REFINEMENT MODE - Generating ${logoCountSelection} logos, Selected logos:`, logosToRefine.length)
       }
       console.log('💬 User feedback:', userFeedback || 'No feedback provided')
     }
@@ -963,7 +965,9 @@ function App() {
       }
 
       // Add selected logos OR focused logo as reference images for refinement
-      const logosToConvert = refinementMode === 'single' && focusedLogo ? [focusedLogo] : selectedLogos
+      // Use override if provided (from modal choice), otherwise use state
+      const logosForReference = overrideSelectedLogos !== undefined ? overrideSelectedLogos : selectedLogos
+      const logosToConvert = refinementMode === 'single' && focusedLogo ? [focusedLogo] : logosForReference
       if (!isInitial && currentRound > 0 && logosToConvert.length > 0) {
         console.log('📸 Preparing reference images for refinement...')
 
@@ -1217,12 +1221,18 @@ function App() {
     setShowRefinementChoiceModal(false)
 
     if (shouldRefine && logos.length === 1) {
-      // User chose to refine the single logo - temporarily select it
-      setSelectedLogos([logos[0]])
-      await handleRefinement()
-      setSelectedLogos([]) // Clear selection after
+      // User chose to refine the single logo - pass it directly to generateLogos
+      console.log('🎯 User chose to refine the single logo:', logos[0].id)
+      const nextRound = currentRound + 1
+      await generateLogos(false, [logos[0]]) // Pass the logo as override
+      // Scroll to the newest results
+      setTimeout(() => {
+        const targetLevel = `level-${nextRound + 1}`
+        scrollToLevel(targetLevel)
+      }, 500)
     } else {
       // User chose fresh variations - proceed without selection
+      console.log('🔄 User chose fresh variations (no reference)')
       await handleRefinement()
     }
   }
