@@ -1436,7 +1436,8 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
       return res.status(500).json({ error: 'FreeConvert API key not configured' })
     }
 
-    // Create FreeConvert job
+    // Create FreeConvert job with preprocessing to reduce file size
+    // Step 1: Import, Step 2: Auto-crop to content, Step 3: Resize if still large, Step 4: Convert to SVG
     const jobResponse = await fetch('https://api.freeconvert.com/v1/process/jobs', {
       method: 'POST',
       headers: {
@@ -1450,17 +1451,37 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
             url: imageUrl,
             filename: 'logo.png'
           },
-          'convert-1': {
+          'crop-1': {
             operation: 'convert',
             input: 'import-1',
+            input_format: 'png',
+            output_format: 'png',
+            options: {
+              'trim': true, // Auto-crop transparent edges
+              'trim-fuzz': '5%' // 5% tolerance for edge detection
+            }
+          },
+          'resize-1': {
+            operation: 'convert',
+            input: 'crop-1',
+            input_format: 'png',
+            output_format: 'png',
+            options: {
+              'resize': '4096x4096>', // Only resize if larger than 4096x4096
+              'resize-fit': 'max' // Maintain aspect ratio, fit within bounds
+            }
+          },
+          'convert-1': {
+            operation: 'convert',
+            input: 'resize-1', // Use cropped + resized image
             input_format: 'png',
             output_format: 'svg',
             options: {
               'color-mode': 'color',
               'clustering': 'stacked',
-              'color-precision': 6, // Reduced from 8 to reduce file size (fewer colors)
+              'color-precision': 8, // Max quality
               'gradient-step': 1, // Smooth gradients
-              'filter-speckle': 4, // Increased from 1 to reduce complexity (remove tiny details)
+              'filter-speckle': 1, // Minimal filtering for detail preservation
               'curve-fitting': curveMode
             }
           },
