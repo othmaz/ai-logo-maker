@@ -1458,7 +1458,7 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
             options: {
               'color-mode': 'color',
               'clustering': 'stacked',
-              'color-precision': 16,
+              'color-precision': 8, // Max allowed value is 8 (was 16, caused error)
               'gradient-step': 8,
               'filter-speckle': 5,
               'curve-fitting': curveMode
