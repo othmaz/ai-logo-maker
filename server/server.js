@@ -1461,11 +1461,7 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
               'color-precision': 6, // Reduced from 8 to reduce file size (fewer colors)
               'gradient-step': 1, // Smooth gradients
               'filter-speckle': 4, // Increased from 1 to reduce complexity (remove tiny details)
-              'curve-fitting': curveMode,
-              'layer-difference': 16, // Add layer merging to simplify paths
-              'corner-threshold': 60, // Smoother corners = fewer nodes
-              'length-threshold': 4.0, // Remove very short segments
-              'splice-threshold': 45 // Merge similar paths
+              'curve-fitting': curveMode
             }
           },
           'export-1': {
