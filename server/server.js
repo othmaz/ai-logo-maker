@@ -1474,15 +1474,32 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
     })
 
     const jobResult = await jobResponse.json()
+    console.log('📋 FreeConvert job created:', jobResult.id, 'status:', jobResult.status)
+
+    // Check if job creation failed
+    if (!jobResult.id) {
+      console.error('❌ FreeConvert job creation failed:', jobResult)
+      throw new Error('Failed to create FreeConvert job: ' + JSON.stringify(jobResult))
+    }
 
     // Wait for job to complete
     let jobStatus = jobResult
+    let pollCount = 0
     while (jobStatus.status === 'processing' || jobStatus.status === 'pending') {
       await new Promise(resolve => setTimeout(resolve, 3000))
+      pollCount++
+      console.log(`⏳ Polling FreeConvert job (attempt ${pollCount})...`)
+
       const statusResponse = await fetch(`https://api.freeconvert.com/v1/process/jobs/${jobResult.id}`, {
         headers: { 'Authorization': `Bearer ${freeConvertApiKey}` }
       })
       jobStatus = await statusResponse.json()
+      console.log(`📊 Job status: ${jobStatus.status}`)
+
+      // Safety limit to avoid infinite loop
+      if (pollCount > 60) { // Max 3 minutes (60 * 3 seconds)
+        throw new Error('FreeConvert job timeout after 3 minutes')
+      }
     }
 
     if (jobStatus.status !== 'completed') {
