@@ -284,6 +284,7 @@ function App() {
   const [tosAccepted, setTosAccepted] = useState(false);
   const [refinementMode, setRefinementMode] = useState<'batch' | 'single'>('batch');
   const [focusedLogo, setFocusedLogo] = useState<Logo | null>(null);
+  const [logoCountSelection, setLogoCountSelection] = useState<1 | 3 | 5>(5); // User can choose 1, 3, or 5 logos after Round 1
 
   // Check if user has paid (based on database subscription status with debug support)
   const isPaid = isPremiumUser()
@@ -822,6 +823,22 @@ function App() {
     return () => window.removeEventListener('scroll', throttledScrollHandler)
   }, [lastScrollY])
 
+  // Auto-adjust logo count selection when credits are too low
+  useEffect(() => {
+    if (!isPremiumUser() && refinementMode === 'batch') {
+      if (usage.remaining < logoCountSelection) {
+        // Adjust to highest available count
+        if (usage.remaining >= 5) {
+          setLogoCountSelection(5)
+        } else if (usage.remaining >= 3) {
+          setLogoCountSelection(3)
+        } else if (usage.remaining >= 1) {
+          setLogoCountSelection(1)
+        }
+      }
+    }
+  }, [usage.remaining, logoCountSelection, refinementMode, isPremiumUser])
+
   const generateLogos = async (isInitial: boolean = true) => {
     if (!formData.businessName) return
 
@@ -884,8 +901,10 @@ function App() {
         prompts = [fullPrompts[0]] // Take only the first prompt for single-logo refinement
         console.log('✨ SINGLE-LOGO MODE - Generating 1 focused iteration for logo:', focusedLogo.id)
       } else {
-        prompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
-        console.log('🔄 BATCH REFINEMENT MODE - Selected logos:', selectedLogos.length)
+        const fullPrompts = refinePromptFromSelection(selectedLogos, formData, userFeedback)
+        // Use user's logo count selection (1, 3, or 5)
+        prompts = fullPrompts.slice(0, logoCountSelection)
+        console.log(`🔄 BATCH REFINEMENT MODE - Generating ${logoCountSelection} logos, Selected logos:`, selectedLogos.length)
       }
       console.log('💬 User feedback:', userFeedback || 'No feedback provided')
     }
@@ -2709,6 +2728,48 @@ function App() {
                   <h3 className="text-xl font-bold text-gray-800 mb-4">
                     {refinementMode === 'single' ? 'Refine This Logo' : 'Provide Feedback for Refinement'}
                   </h3>
+
+                  {/* Logo Count Selection - Show after Round 1 in batch mode */}
+                  {currentRound > 0 && refinementMode === 'batch' && (
+                    <div className="mb-6">
+                      <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        How many logos to generate? ({usage.remaining} {usage.remaining === 1 ? 'credit' : 'credits'} remaining)
+                      </label>
+                      <div className="flex gap-3">
+                        {([1, 3, 5] as const).map((count) => (
+                          <button
+                            key={count}
+                            onClick={() => setLogoCountSelection(count)}
+                            disabled={usage.remaining < count && !isPremiumUser()}
+                            className={`flex-1 py-4 px-6 rounded-xl font-bold text-lg transition-all duration-200 ${
+                              logoCountSelection === count
+                                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg scale-105'
+                                : usage.remaining < count && !isPremiumUser()
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-cyan-500 hover:shadow-md'
+                            }`}
+                          >
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-2xl font-extrabold">{count}</span>
+                              <span className="text-xs font-normal opacity-80">
+                                {count === 1 ? 'logo' : 'logos'}
+                              </span>
+                              <span className="text-xs font-semibold mt-1">
+                                {count} {count === 1 ? 'credit' : 'credits'}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      {usage.remaining < logoCountSelection && !isPremiumUser() && (
+                        <p className="text-sm text-orange-600 mt-2 flex items-center">
+                          <span className="mr-2">⚠️</span>
+                          Not enough credits for {logoCountSelection} logos. You have {usage.remaining} remaining.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <p className="text-gray-600 mb-4">
                     {refinementMode === 'single'
                       ? 'Tell us how to improve this specific logo. Be specific about colors, shapes, text, or style:'
@@ -2748,9 +2809,9 @@ function App() {
                   {(usage.remaining > 0 || isPremiumUser()) && (
                     <button
                       onClick={proceedToRefinement}
-                      disabled={!userFeedback.trim() || selectedLogos.length > 2 || loading}
+                      disabled={!userFeedback.trim() || selectedLogos.length > 2 || loading || (refinementMode === 'batch' && usage.remaining < logoCountSelection && !isPremiumUser())}
                       className={`relative px-12 py-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform shadow-lg hover:shadow-xl overflow-hidden ${
-                        !userFeedback.trim() || selectedLogos.length > 2 || loading
+                        !userFeedback.trim() || selectedLogos.length > 2 || loading || (refinementMode === 'batch' && usage.remaining < logoCountSelection && !isPremiumUser())
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-105'
                       }`}
