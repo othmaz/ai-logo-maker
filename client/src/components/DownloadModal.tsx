@@ -279,23 +279,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               }
             }
 
-            // Generate BOTH spline and polygon versions for comparison
-            console.log('🔺 Generating SVG - Spline version...')
-            const splineResponse = await fetch(`/api/logos/${logo.id}/vectorize`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                clerkUserId: user.id,
-                logoUrl: svgSourceUrl,
-                curveFitting: 'spline' // Smooth edges
-              })
-            })
-
-            const splineResult = await splineResponse.json()
-            if (splineResult.success) {
-              folder.file(`${safeBusinessName}-vector-spline.svg`, splineResult.svgData)
-            }
-
+            // Generate polygon version only (cost optimization: €1 per conversion)
             console.log('🔺 Generating SVG - Polygon version...')
             const polygonResponse = await fetch(`/api/logos/${logo.id}/vectorize`, {
               method: 'POST',
@@ -309,11 +293,9 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
             const polygonResult = await polygonResponse.json()
             if (polygonResult.success) {
-              folder.file(`${safeBusinessName}-vector-polygon.svg`, polygonResult.svgData)
-            }
-
-            if (!splineResult.success && !polygonResult.success) {
-              console.error('❌ SVG vectorization failed for both modes')
+              folder.file(`${safeBusinessName}-vector.svg`, polygonResult.svgData) // Simpler filename since only one version
+            } else {
+              console.error('❌ SVG vectorization failed')
               throw new Error('SVG vectorization failed')
             }
           } else if (formatId === 'favicon') {
