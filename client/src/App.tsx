@@ -2839,19 +2839,20 @@ function App() {
                       </button>
                     )}
 
-                  {/* Show upgrade button when credits are exhausted */}
-                  {usage.remaining <= 0 && !isPremiumUser() && (
-                    <button
-                      onClick={() => {
-                        saveFormDataToLocalStorage(true);
-                        setActiveModal('upgrade');
-                      }}
-                      className="relative px-12 py-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform shadow-lg hover:shadow-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-105"
-                    >
-                      <span className="mr-3 text-3xl">👑</span>
-                      <span className="text-white font-extrabold">{!isSignedIn ? 'Sign Up & Upgrade for Unlimited' : 'Upgrade for Unlimited Credits'}</span>
-                    </button>
-                  )}
+                    {/* Show upgrade button when credits are exhausted */}
+                    {usage.remaining <= 0 && !isPremiumUser() && (
+                      <button
+                        onClick={() => {
+                          saveFormDataToLocalStorage(true);
+                          setActiveModal('upgrade');
+                        }}
+                        className="relative px-12 py-6 rounded-2xl font-extrabold text-2xl transition-all duration-300 transform shadow-lg hover:shadow-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 hover:scale-105"
+                      >
+                        <span className="mr-3 text-3xl">👑</span>
+                        <span className="text-white font-extrabold">{!isSignedIn ? 'Sign Up & Upgrade for Unlimited' : 'Upgrade for Unlimited Credits'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
