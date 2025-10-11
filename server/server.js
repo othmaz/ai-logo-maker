@@ -1539,51 +1539,33 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
       svgString = svgString.replace(/<svg([^>]+)>/, '<svg$1 viewBox="0 0 8192 8192">')
     }
 
-    // Optimize SVG with SVGO
+    // Optimize SVG with SVGO (fast mode - essential plugins only)
     console.log('🔧 Optimizing SVG with SVGO...')
     const optimized = optimize(svgString, {
       plugins: [
         'removeDoctype',
         'removeComments',
         'removeMetadata',
-        'removeXMLProcInst',
-        'removeEditorsNSData',
-        'cleanupAttrs',
-        'mergeStyles',
-        'inlineStyles',
-        'minifyStyles',
         'cleanupIds',
         'removeUselessDefs',
-        'cleanupNumericValues',
-        'convertColors',
-        'removeUnknownsAndDefaults',
-        'removeNonInheritableGroupAttrs',
-        'removeUselessStrokeAndFill',
-        'removeViewBox',
-        'cleanupEnableBackground',
-        'removeHiddenElems',
         'removeEmptyText',
-        'convertShapeToPath',
-        'convertEllipseToCircle',
-        'moveElemsAttrsToGroup',
-        'moveGroupAttrsToElems',
-        'collapseGroups',
-        'convertPathData',
-        'convertTransform',
         'removeEmptyAttrs',
         'removeEmptyContainers',
-        'mergePaths',
-        'removeUnusedNS',
-        'sortDefsChildren',
-        'removeTitle',
-        'removeDesc',
         {
           name: 'cleanupNumericValues',
           params: {
-            floatPrecision: 2
+            floatPrecision: 1  // More aggressive rounding for speed
+          }
+        },
+        {
+          name: 'convertPathData',
+          params: {
+            floatPrecision: 1,
+            transformPrecision: 1
           }
         }
-      ]
+      ],
+      multipass: false  // Single pass for speed
     })
 
     svgString = optimized.data
