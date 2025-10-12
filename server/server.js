@@ -1306,71 +1306,88 @@ app.post('/api/logos/:id/upscale', async (req, res) => {
       return res.status(503).json({ error: 'Replicate service not configured' })
     }
 
-    // Call Replicate Real-ESRGAN for 8K upscaling
-    const output = await replicate.run(
-      "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
-      {
-        input: {
-          image: logoUrl,
-          scale: 8, // 8x upscaling for 8K resolution
-          face_enhance: false
+    // Call Replicate Real-ESRGAN for BOTH 8K and 4K upscaling in parallel
+    console.log('🚀 Starting parallel upscaling: 8K and 4K...')
+
+    const [output8k, output4k] = await Promise.all([
+      replicate.run(
+        "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
+        {
+          input: {
+            image: logoUrl,
+            scale: 8, // 8x upscaling for 8K resolution
+            face_enhance: false
+          }
         }
-      }
-    )
+      ),
+      replicate.run(
+        "nightmareai/real-esrgan:42fed1c4974146d4d2414e2be2c5277c7fcf05fcc3a73abf41610695738c1d7b",
+        {
+          input: {
+            image: logoUrl,
+            scale: 4, // 4x upscaling for 4K resolution
+            face_enhance: false
+          }
+        }
+      )
+    ])
 
-    console.log('✅ 8K upscaling completed')
-    console.log('🔍 Replicate output type:', typeof output)
+    console.log('✅ Both upscaling operations completed')
 
-    // Handle different output types from Replicate
-    let upscaledUrl
+    // Helper function to handle Replicate output
+    const handleReplicateOutput = async (output, resolution, scale) => {
+      if (typeof output === 'string') {
+        console.log(`✅ Got ${resolution} URL from Replicate:`, output)
+        return output
+      } else if (output && typeof output === 'object') {
+        console.log(`📥 Reading ${resolution} stream from Replicate...`)
+        const chunks = []
+        for await (const chunk of output) {
+          chunks.push(chunk)
+        }
+        const buffer = Buffer.concat(chunks)
+        console.log(`✅ ${resolution} stream read, size: ${buffer.length} bytes`)
 
-    if (typeof output === 'string') {
-      // Output is already a URL
-      upscaledUrl = output
-      console.log('✅ Got URL from Replicate:', upscaledUrl)
-    } else if (output && typeof output === 'object') {
-      // Output is a stream or file - need to read it and upload to Blob
-      console.log('📥 Reading stream from Replicate...')
+        const timestamp = Date.now()
+        const filename = `logo-${id}-${scale}k-${timestamp}.png`
 
-      // Convert stream to buffer
-      const chunks = []
-      for await (const chunk of output) {
-        chunks.push(chunk)
-      }
-      const buffer = Buffer.concat(chunks)
-      console.log(`✅ Stream read, size: ${buffer.length} bytes`)
-
-      // Upload to Vercel Blob
-      const timestamp = Date.now()
-      const filename = `logo-${id}-8k-${timestamp}.png`
-
-      if (process.env.BLOB_READ_WRITE_TOKEN) {
-        console.log(`📤 Uploading 8K image to Vercel Blob: ${filename}`)
-        const blob = await put(filename, buffer, {
-          access: 'public',
-          contentType: 'image/png',
-        })
-        upscaledUrl = blob.url
-        console.log(`✅ 8K image uploaded to Vercel Blob: ${upscaledUrl}`)
+        if (process.env.BLOB_READ_WRITE_TOKEN) {
+          console.log(`📤 Uploading ${resolution} image to Vercel Blob: ${filename}`)
+          const blob = await put(filename, buffer, {
+            access: 'public',
+            contentType: 'image/png',
+          })
+          console.log(`✅ ${resolution} image uploaded to Vercel Blob: ${blob.url}`)
+          return blob.url
+        } else {
+          throw new Error('Blob storage not configured')
+        }
       } else {
-        throw new Error('Blob storage not configured')
+        throw new Error(`Unexpected output format from Replicate for ${resolution}`)
       }
-    } else {
-      throw new Error('Unexpected output format from Replicate')
     }
+
+    const upscaledUrl = await handleReplicateOutput(output8k, '8K', 8)
+    const upscaled4kUrl = await handleReplicateOutput(output4k, '4K', 4)
 
     // Track analytics
     await sql`
       INSERT INTO usage_analytics (action, clerk_user_id, metadata)
-      VALUES ('logo_upscaled_8k', ${clerkUserId}, ${JSON.stringify({ logo_id: id, original_url: logoUrl, upscaled_url: upscaledUrl })})
+      VALUES ('logo_upscaled_8k_4k', ${clerkUserId}, ${JSON.stringify({
+        logo_id: id,
+        original_url: logoUrl,
+        upscaled_8k_url: upscaledUrl,
+        upscaled_4k_url: upscaled4kUrl
+      })})
     `
 
     res.json({
       success: true,
       originalUrl: logoUrl,
       upscaledUrl: upscaledUrl,
+      upscaled4kUrl: upscaled4kUrl,
       scale: 8,
-      resolution: '8K'
+      resolution: '8K + 4K'
     })
 
   } catch (error) {
@@ -1437,47 +1454,7 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
       return res.status(500).json({ error: 'FreeConvert API key not configured' })
     }
 
-    // Preprocess: Resize to 4096x4096 to reduce SVG file size
-    console.log('🔄 Preprocessing: Resizing to max 4096x4096...')
-    let processedImageUrl = imageUrl
-
-    try {
-      // Download the original image
-      const imageResponse = await fetch(imageUrl)
-      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
-
-      // Get original dimensions
-      const metadata = await sharp(imageBuffer).metadata()
-      console.log(`📏 Original dimensions: ${metadata.width}x${metadata.height}`)
-
-      // Resize if larger than 4096x4096
-      if (metadata.width > 4096 || metadata.height > 4096) {
-        const resized = await sharp(imageBuffer)
-          .resize(4096, 4096, {
-            fit: 'inside', // Maintain aspect ratio
-            withoutEnlargement: true
-          })
-          .png() // Ensure PNG format with transparency
-          .toBuffer()
-
-        const resizedMetadata = await sharp(resized).metadata()
-        console.log(`📐 After resize: ${resizedMetadata.width}x${resizedMetadata.height}`)
-
-        // Upload resized image to Vercel Blob
-        const filename = `logo-${id}-4k-${Date.now()}.png`
-        const { url: uploadedUrl } = await put(filename, resized, {
-          access: 'public',
-          contentType: 'image/png'
-        })
-
-        processedImageUrl = uploadedUrl
-        console.log('✅ Resized image uploaded:', processedImageUrl)
-      } else {
-        console.log('✅ Image already ≤4096, using original')
-      }
-    } catch (preprocessError) {
-      console.error('⚠️ Preprocessing failed, using original image:', preprocessError)
-    }
+    console.log('🔄 Using 4K upscaled + bg-removed version for SVG conversion...')
 
     // Create FreeConvert job
     const jobResponse = await fetch('https://api.freeconvert.com/v1/process/jobs', {
@@ -1490,7 +1467,7 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
         tasks: {
           'import-1': {
             operation: 'import/url',
-            url: processedImageUrl,
+            url: imageUrl,
             filename: 'logo.png'
           },
           'convert-1': {

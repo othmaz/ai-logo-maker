@@ -185,6 +185,13 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
             const result = await response.json()
             if (result.success) {
               bestQualityUrl = result.upscaledUrl // Update to use 8K for subsequent operations
+              const best4kUrl = result.upscaled4kUrl // Store 4K URL for SVG
+
+              // Save 4K URL for later SVG use
+              if (best4kUrl) {
+                window._logo4kUrl = best4kUrl
+              }
+
               const imageResponse = await fetch(result.upscaledUrl)
               const blob = await imageResponse.blob()
               folder.file(`${safeBusinessName}-8k.png`, blob)
@@ -255,27 +262,33 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
             }
           } else if (formatId === 'svg') {
             // ALWAYS generate background-removed version for SVG (better vectorization)
+            // Use 4K version for SVG to reduce file size while maintaining quality
             let svgSourceUrl = backgroundRemovedUrl
 
             if (!svgSourceUrl) {
               // Background removal not done yet - do it now for SVG
-              console.log('🔄 Generating background-removed version for SVG...')
+              console.log('🔄 Generating background-removed 4K version for SVG...')
+
+              // Use 4K URL if available, otherwise fall back to 8K
+              const sourceUrl = (window as any)._logo4kUrl || bestQualityUrl
+              console.log('📐 Using source for SVG:', sourceUrl.includes('4k') ? '4K' : '8K')
+
               const bgRemovalResponse = await fetch(`/api/logos/${logo.id}/remove-background`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   clerkUserId: user.id,
-                  logoUrl: bestQualityUrl // Use 8K version
+                  logoUrl: sourceUrl // Use 4K version for SVG
                 })
               })
 
               const bgRemovalResult = await bgRemovalResponse.json()
               if (bgRemovalResult.success) {
                 svgSourceUrl = bgRemovalResult.processedUrl
-                console.log('✅ Background removed for SVG vectorization')
+                console.log('✅ Background removed for SVG vectorization (4K)')
               } else {
-                console.warn('⚠️ Background removal failed, using 8K with background')
-                svgSourceUrl = bestQualityUrl
+                console.warn('⚠️ Background removal failed, using source with background')
+                svgSourceUrl = sourceUrl
               }
             }
 
