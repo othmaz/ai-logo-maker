@@ -1437,6 +1437,48 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
       return res.status(500).json({ error: 'FreeConvert API key not configured' })
     }
 
+    // Preprocess: Resize to 4096x4096 to reduce SVG file size
+    console.log('🔄 Preprocessing: Resizing to max 4096x4096...')
+    let processedImageUrl = imageUrl
+
+    try {
+      // Download the original image
+      const imageResponse = await fetch(imageUrl)
+      const imageBuffer = Buffer.from(await imageResponse.arrayBuffer())
+
+      // Get original dimensions
+      const metadata = await sharp(imageBuffer).metadata()
+      console.log(`📏 Original dimensions: ${metadata.width}x${metadata.height}`)
+
+      // Resize if larger than 4096x4096
+      if (metadata.width > 4096 || metadata.height > 4096) {
+        const resized = await sharp(imageBuffer)
+          .resize(4096, 4096, {
+            fit: 'inside', // Maintain aspect ratio
+            withoutEnlargement: true
+          })
+          .png() // Ensure PNG format with transparency
+          .toBuffer()
+
+        const resizedMetadata = await sharp(resized).metadata()
+        console.log(`📐 After resize: ${resizedMetadata.width}x${resizedMetadata.height}`)
+
+        // Upload resized image to Vercel Blob
+        const filename = `logo-${id}-4k-${Date.now()}.png`
+        const { url: uploadedUrl } = await put(filename, resized, {
+          access: 'public',
+          contentType: 'image/png'
+        })
+
+        processedImageUrl = uploadedUrl
+        console.log('✅ Resized image uploaded:', processedImageUrl)
+      } else {
+        console.log('✅ Image already ≤4096, using original')
+      }
+    } catch (preprocessError) {
+      console.error('⚠️ Preprocessing failed, using original image:', preprocessError)
+    }
+
     // Create FreeConvert job
     const jobResponse = await fetch('https://api.freeconvert.com/v1/process/jobs', {
       method: 'POST',
@@ -1448,7 +1490,7 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
         tasks: {
           'import-1': {
             operation: 'import/url',
-            url: imageUrl,
+            url: processedImageUrl,
             filename: 'logo.png'
           },
           'convert-1': {
