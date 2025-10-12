@@ -261,35 +261,31 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               throw new Error(result.error || 'Background removal failed')
             }
           } else if (formatId === 'svg') {
-            // ALWAYS generate background-removed version for SVG (better vectorization)
-            // Use 4K version for SVG to reduce file size while maintaining quality
-            let svgSourceUrl = backgroundRemovedUrl
+            // ALWAYS generate background-removed 4K version for SVG (better vectorization + smaller file)
+            // IMPORTANT: Don't reuse backgroundRemovedUrl as it may be 8K, always generate fresh 4K version
+            console.log('🔄 Generating background-removed 4K version for SVG...')
 
-            if (!svgSourceUrl) {
-              // Background removal not done yet - do it now for SVG
-              console.log('🔄 Generating background-removed 4K version for SVG...')
+            // Use 4K URL if available, otherwise fall back to 8K
+            const sourceUrl = (window as any)._logo4kUrl || bestQualityUrl
+            console.log('📐 Using source for SVG:', sourceUrl.includes('4k') ? '4K' : '8K')
 
-              // Use 4K URL if available, otherwise fall back to 8K
-              const sourceUrl = (window as any)._logo4kUrl || bestQualityUrl
-              console.log('📐 Using source for SVG:', sourceUrl.includes('4k') ? '4K' : '8K')
-
-              const bgRemovalResponse = await fetch(`/api/logos/${logo.id}/remove-background`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  clerkUserId: user.id,
-                  logoUrl: sourceUrl // Use 4K version for SVG
-                })
+            const bgRemovalResponse = await fetch(`/api/logos/${logo.id}/remove-background`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                clerkUserId: user.id,
+                logoUrl: sourceUrl // Use 4K version for SVG
               })
+            })
 
-              const bgRemovalResult = await bgRemovalResponse.json()
-              if (bgRemovalResult.success) {
-                svgSourceUrl = bgRemovalResult.processedUrl
-                console.log('✅ Background removed for SVG vectorization (4K)')
-              } else {
-                console.warn('⚠️ Background removal failed, using source with background')
-                svgSourceUrl = sourceUrl
-              }
+            const bgRemovalResult = await bgRemovalResponse.json()
+            let svgSourceUrl
+            if (bgRemovalResult.success) {
+              svgSourceUrl = bgRemovalResult.processedUrl
+              console.log('✅ Background removed for SVG vectorization (4K)')
+            } else {
+              console.warn('⚠️ Background removal failed, using source with background')
+              svgSourceUrl = sourceUrl
             }
 
             // Generate polygon version only (cost optimization: €1 per conversion)
