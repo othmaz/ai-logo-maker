@@ -13,6 +13,7 @@ const { connectToDatabase, sql } = require('./lib/db')
 const { migrateFromLocalStorage } = require('./lib/migrate')
 const { Resend } = require('resend')
 const { optimize } = require('svgo')
+const { verifyToken } = require('@clerk/backend')
 
 dotenv.config({ path: path.join(__dirname, '../.env') })
 
@@ -36,7 +37,41 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 const app = express()
 const port = process.env.PORT || 3001
 
-app.use(cors())
+const configuredOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+
+const defaultOrigins = [
+  'https://craftyourlogo.com',
+  'https://www.craftyourlogo.com',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+]
+
+const allowedOrigins = new Set([...defaultOrigins, ...configuredOrigins])
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin)) {
+      callback(null, true)
+      return
+    }
+
+    callback(new Error(`CORS blocked for origin: ${origin}`))
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Stripe-Signature'],
+}))
+
+app.use((error, _req, res, next) => {
+  if (error?.message?.startsWith('CORS blocked')) {
+    return res.status(403).json({ error: error.message })
+  }
+
+  return next(error)
+})
 
 // Stripe webhook must come BEFORE express.json() to receive raw body
 // (will be added later in the file before other routes)
@@ -50,6 +85,83 @@ app.use((req, res, next) => {
   }
 })
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
+
+const extractBearerToken = (req) => {
+  const authHeader = req.headers.authorization || ''
+  if (!authHeader.startsWith('Bearer ')) return null
+  return authHeader.slice(7).trim()
+}
+
+const requireAuth = async (req, res, next) => {
+  try {
+    if (!process.env.CLERK_SECRET_KEY) {
+      return res.status(500).json({ error: 'Server auth misconfigured: CLERK_SECRET_KEY missing' })
+    }
+
+    const token = extractBearerToken(req)
+    if (!token) {
+      return res.status(401).json({ error: 'Unauthorized: missing bearer token' })
+    }
+
+    const verifiedToken = await verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY,
+    })
+
+    const userId = verifiedToken.sub || verifiedToken.userId
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized: invalid token subject' })
+    }
+
+    req.auth = { userId }
+    next()
+  } catch (error) {
+    console.error('❌ Auth verification failed:', error?.message || error)
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+}
+
+const createRateLimiter = ({ windowMs, max, name, keyFn }) => {
+  const counters = new Map()
+
+  return (req, res, next) => {
+    const now = Date.now()
+    const key = keyFn(req)
+
+    const current = counters.get(key)
+    const active = current && current.resetAt > now
+      ? current
+      : { count: 0, resetAt: now + windowMs }
+
+    active.count += 1
+    counters.set(key, active)
+
+    res.setHeader('X-RateLimit-Limit', String(max))
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(max - active.count, 0)))
+    res.setHeader('X-RateLimit-Reset', String(Math.ceil(active.resetAt / 1000)))
+
+    if (active.count > max) {
+      return res.status(429).json({
+        error: `Too many requests (${name}). Please retry later.`,
+      })
+    }
+
+    next()
+  }
+}
+
+const generationLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 20,
+  name: 'generation',
+  keyFn: (req) => req.ip || 'anonymous',
+})
+
+const expensiveOperationLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 15,
+  name: 'premium-format',
+  keyFn: (req) => req.auth?.userId || req.ip || 'anonymous',
+})
 
 // Verify DB connectivity on boot (non-blocking)
 connectToDatabase().then(ok => {
@@ -178,7 +290,6 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
 
   try {
     console.log('🔄 Initializing Gemini client...')
-    console.log('🔑 API Key first/last 5 chars:', apiKey ? `${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 5)}` : 'NONE')
     const ai = new GoogleGenAI({ apiKey: apiKey })
     
     // Use the prompt exactly as-is from the client - NO server modifications
@@ -194,21 +305,23 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
 
     console.log('📡 Calling ai.models.generateContent()...')
 
-    // Construct contents array EXACTLY like documentation
+    let contents
+
+    // Construct contents array with text + all selected reference images
     if (referenceImages && referenceImages.length > 0) {
-      console.log('🖼️ Using image + text format exactly like documentation')
-      // This is the EXACT format from documentation
-      const prompt = [
-        { text: enhancedPrompt },
-        {
+      console.log(`🖼️ Using multimodal refinement with ${referenceImages.length} reference image(s)`)
+
+      const imageParts = referenceImages
+        .filter((image) => image?.data)
+        .map((image) => ({
           inlineData: {
-            mimeType: referenceImages[0].mimeType,
-            data: referenceImages[0].data,
+            mimeType: image.mimeType || 'image/png',
+            data: image.data,
           },
-        },
-      ]
-      contents = prompt
-      console.log('📝 Sending to Gemini: documentation format - array with text + image')
+        }))
+
+      contents = [{ text: enhancedPrompt }, ...imageParts]
+      console.log('📝 Sending to Gemini: text + all reference images')
     } else {
       contents = enhancedPrompt
       console.log('📝 Sending to Gemini: text-only prompt')
@@ -312,8 +425,12 @@ const generateEnhancedPlaceholder = (prompt, errorType = 'demo') => {
   return placeholderUrl
 }
 
+app.get('/api/health', (_req, res) => {
+  res.json({ ok: true, service: 'ai-logo-maker-api' })
+})
+
 // Simple logo generation endpoint - NO IP TRACKING
-app.post('/api/generate-multiple', async (req, res) => {
+app.post('/api/generate-multiple', generationLimiter, async (req, res) => {
   console.log('📨 Received multiple logo generation request')
   console.log('📦 Request body keys:', Object.keys(req.body))
   console.log('📏 Request body size:', JSON.stringify(req.body).length, 'characters')
@@ -407,7 +524,7 @@ app.post('/api/generate-multiple', async (req, res) => {
 })
 
 // Image upscaling endpoint using Replicate Real-ESRGAN
-app.post('/api/upscale', async (req, res) => {
+app.post('/api/upscale', generationLimiter, async (req, res) => {
   console.log('🔍 Received upscaling request')
   console.log('📦 Request body keys:', Object.keys(req.body))
 
@@ -490,8 +607,6 @@ app.post('/api/upscale', async (req, res) => {
 app.post('/api/create-payment-intent', async (req, res) => {
   console.log('🔍 create-payment-intent endpoint called');
   console.log('🔑 STRIPE_SECRET_KEY present:', !!process.env.STRIPE_SECRET_KEY);
-  console.log('🔑 STRIPE_SECRET_KEY length:', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.length : 'undefined');
-  console.log('🔑 STRIPE_SECRET_KEY starts with:', process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.substring(0, 10) : 'undefined');
 
   if (!stripe) {
     return res.status(503).json({ error: 'Payment service unavailable - Stripe not configured' });
@@ -689,7 +804,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 });
 
 // Enhanced payment intent creation with user metadata
-app.post('/api/create-payment-intent-with-user', async (req, res) => {
+app.post('/api/create-payment-intent-with-user', requireAuth, async (req, res) => {
   console.log('🔍 create-payment-intent-with-user endpoint called');
 
   if (!stripe) {
@@ -697,13 +812,10 @@ app.post('/api/create-payment-intent-with-user', async (req, res) => {
   }
 
   try {
-    const { userId, userEmail } = req.body;
+    const { userEmail } = req.body;
+    const userId = req.auth.userId
 
-    if (!userId) {
-      return res.status(400).json({ error: 'User ID is required' });
-    }
-
-    console.log('💳 Creating payment intent for user:', userId);
+    console.log('💳 Creating payment intent for authenticated user:', userId);
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: 999, // €9.99 in cents
@@ -742,7 +854,7 @@ app.post('/api/create-payment-intent-with-user', async (req, res) => {
 });
 
 // Payment verification endpoint (fallback for client-side verification)
-app.get('/api/verify-payment/:paymentIntentId', async (req, res) => {
+app.get('/api/verify-payment/:paymentIntentId', requireAuth, async (req, res) => {
   console.log('🔍 verify-payment endpoint called');
 
   if (!stripe) {
@@ -752,6 +864,10 @@ app.get('/api/verify-payment/:paymentIntentId', async (req, res) => {
   try {
     const { paymentIntentId } = req.params;
     const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+    if (paymentIntent.metadata?.userId && paymentIntent.metadata.userId !== req.auth.userId) {
+      return res.status(403).json({ error: 'Forbidden: payment intent does not belong to authenticated user' })
+    }
 
     console.log('💳 Payment intent status:', paymentIntent.status);
 
@@ -941,10 +1057,10 @@ app.listen(port, () => {
 // User Management APIs
 // ============================
 
-app.post('/api/users/sync', async (req, res) => {
+app.post('/api/users/sync', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId, email, firstName } = req.body
-    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const { email, firstName } = req.body
+    const clerkUserId = req.auth.userId
 
     await connectToDatabase()
 
@@ -1038,10 +1154,9 @@ app.post('/api/users/sync', async (req, res) => {
   }
 })
 
-app.get('/api/users/profile', async (req, res) => {
+app.get('/api/users/profile', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId } = req.query
-    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const clerkUserId = req.auth.userId
 
     await connectToDatabase()
     const { rows } = await sql`
@@ -1059,10 +1174,10 @@ app.get('/api/users/profile', async (req, res) => {
   }
 })
 
-app.put('/api/users/subscription', async (req, res) => {
+app.put('/api/users/subscription', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId, status } = req.body
-    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const { status } = req.body
+    const clerkUserId = req.auth.userId
 
     await connectToDatabase()
 
@@ -1085,10 +1200,10 @@ app.put('/api/users/subscription', async (req, res) => {
 })
 
 // Migration API
-app.post('/api/users/migrate', async (req, res) => {
+app.post('/api/users/migrate', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId, email, localStorageData } = req.body
-    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const { email, localStorageData } = req.body
+    const clerkUserId = req.auth.userId
 
     const result = await migrateFromLocalStorage(clerkUserId, localStorageData, email)
     res.json(result)
@@ -1102,10 +1217,9 @@ app.post('/api/users/migrate', async (req, res) => {
 // Logo Management APIs
 // ============================
 
-app.get('/api/logos/saved', async (req, res) => {
+app.get('/api/logos/saved', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId } = req.query
-    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const clerkUserId = req.auth.userId
 
     await connectToDatabase()
     const { rows } = await sql`
@@ -1120,10 +1234,11 @@ app.get('/api/logos/saved', async (req, res) => {
   }
 })
 
-app.post('/api/logos/save', async (req, res) => {
+app.post('/api/logos/save', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId, logo } = req.body
-    if (!clerkUserId || !logo?.url) return res.status(400).json({ error: 'clerkUserId and logo.url required' })
+    const { logo } = req.body
+    const clerkUserId = req.auth.userId
+    if (!logo?.url) return res.status(400).json({ error: 'logo.url required' })
 
     await connectToDatabase()
     const { rows } = await sql`SELECT id FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1`
@@ -1138,11 +1253,10 @@ app.post('/api/logos/save', async (req, res) => {
   }
 })
 
-app.delete('/api/logos/:id', async (req, res) => {
+app.delete('/api/logos/:id', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId } = req.query
+    const clerkUserId = req.auth.userId
     const { id } = req.params
-    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
 
     await connectToDatabase()
     await sql`DELETE FROM saved_logos WHERE id = ${id} AND clerk_user_id = ${clerkUserId}`
@@ -1152,10 +1266,9 @@ app.delete('/api/logos/:id', async (req, res) => {
   }
 })
 
-app.delete('/api/logos/clear', async (req, res) => {
+app.delete('/api/logos/clear', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId } = req.query
-    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const clerkUserId = req.auth.userId
 
     await connectToDatabase()
     await sql`DELETE FROM saved_logos WHERE clerk_user_id = ${clerkUserId}`
@@ -1169,10 +1282,11 @@ app.delete('/api/logos/clear', async (req, res) => {
 // Generation Tracking APIs
 // ============================
 
-app.post('/api/generations/track', async (req, res) => {
+app.post('/api/generations/track', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId, prompt, logosGenerated = 1, isPremium = false } = req.body
-    if (!clerkUserId || !prompt) return res.status(400).json({ error: 'clerkUserId and prompt required' })
+    const { prompt, logosGenerated = 1, isPremium = false } = req.body
+    const clerkUserId = req.auth.userId
+    if (!prompt) return res.status(400).json({ error: 'prompt required' })
 
     await connectToDatabase()
     await sql`INSERT INTO generation_history (clerk_user_id, prompt, logos_generated, is_premium) VALUES (${clerkUserId}, ${prompt}, ${logosGenerated}, ${isPremium})`
@@ -1182,10 +1296,9 @@ app.post('/api/generations/track', async (req, res) => {
   }
 })
 
-app.get('/api/generations/usage', async (req, res) => {
+app.get('/api/generations/usage', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId } = req.query
-    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const clerkUserId = req.auth.userId
 
     await connectToDatabase()
     const { rows } = await sql`SELECT credits_used, credits_limit, subscription_status FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1`
@@ -1195,10 +1308,10 @@ app.get('/api/generations/usage', async (req, res) => {
   }
 })
 
-app.post('/api/generations/increment', async (req, res) => {
+app.post('/api/generations/increment', requireAuth, async (req, res) => {
   try {
-    const { clerkUserId, by = 1 } = req.body
-    if (!clerkUserId) return res.status(400).json({ error: 'clerkUserId is required' })
+    const { by = 1 } = req.body
+    const clerkUserId = req.auth.userId
 
     await connectToDatabase()
     await sql`UPDATE users SET credits_used = credits_used + ${by} WHERE clerk_user_id = ${clerkUserId}`
@@ -1212,9 +1325,10 @@ app.post('/api/generations/increment', async (req, res) => {
 // Analytics APIs
 // ============================
 
-app.post('/api/analytics/track', async (req, res) => {
+app.post('/api/analytics/track', requireAuth, async (req, res) => {
   try {
-    const { event, clerkUserId, meta } = req.body
+    const { event, meta } = req.body
+    const clerkUserId = req.auth.userId
     if (!event) return res.status(400).json({ error: 'event is required' })
 
     await connectToDatabase()
@@ -1225,10 +1339,17 @@ app.post('/api/analytics/track', async (req, res) => {
   }
 })
 
-app.get('/api/analytics/dashboard', async (req, res) => {
+app.get('/api/analytics/dashboard', requireAuth, async (req, res) => {
   try {
+    const clerkUserId = req.auth.userId
     await connectToDatabase()
-    const { rows } = await sql`SELECT action, COUNT(*) as count FROM usage_analytics GROUP BY action ORDER BY count DESC`
+    const { rows } = await sql`
+      SELECT action, COUNT(*) as count
+      FROM usage_analytics
+      WHERE clerk_user_id = ${clerkUserId}
+      GROUP BY action
+      ORDER BY count DESC
+    `
     res.json({ events: rows })
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -1259,16 +1380,13 @@ const fetchImageBuffer = async (imageUrl) => {
 }
 
 // 8K Upscale Endpoint
-app.post('/api/logos/:id/upscale', async (req, res) => {
+app.post('/api/logos/:id/upscale', requireAuth, expensiveOperationLimiter, async (req, res) => {
   console.log('🔍 8K upscale endpoint called')
 
   try {
     const { id } = req.params
-    const { clerkUserId, logoUrl: providedLogoUrl } = req.body
-
-    if (!clerkUserId) {
-      return res.status(400).json({ error: 'clerkUserId is required' })
-    }
+    const { logoUrl: providedLogoUrl } = req.body
+    const clerkUserId = req.auth.userId
 
     // Verify premium status
     const isPremium = await verifyPremiumUser(clerkUserId)
@@ -1399,16 +1517,13 @@ app.post('/api/logos/:id/upscale', async (req, res) => {
 })
 
 // SVG Conversion Endpoint
-app.post('/api/logos/:id/vectorize', async (req, res) => {
+app.post('/api/logos/:id/vectorize', requireAuth, expensiveOperationLimiter, async (req, res) => {
   console.log('🔍 SVG vectorization endpoint called')
 
   try {
     const { id } = req.params
-    const { clerkUserId, logoUrl: providedLogoUrl, curveFitting } = req.body
-
-    if (!clerkUserId) {
-      return res.status(400).json({ error: 'clerkUserId is required' })
-    }
+    const { logoUrl: providedLogoUrl, curveFitting } = req.body
+    const clerkUserId = req.auth.userId
 
     // Default to spline if not specified
     const curveMode = curveFitting || 'spline'
@@ -1616,18 +1731,15 @@ app.post('/api/logos/:id/vectorize', async (req, res) => {
 })
 
 // Background Removal Endpoint
-app.post('/api/logos/:id/remove-background', async (req, res) => {
+app.post('/api/logos/:id/remove-background', requireAuth, expensiveOperationLimiter, async (req, res) => {
   console.log('🎨 Background removal endpoint called')
   console.log('📋 Request params:', req.params)
   console.log('📋 Request body:', req.body)
 
   try {
     const { id } = req.params
-    const { clerkUserId, logoUrl } = req.body
-
-    if (!clerkUserId) {
-      return res.status(400).json({ error: 'clerkUserId is required' })
-    }
+    const { logoUrl } = req.body
+    const clerkUserId = req.auth.userId
 
     // Check if user is premium (or debug force premium is enabled)
     const isPremium = await verifyPremiumUser(clerkUserId)
@@ -1642,17 +1754,17 @@ app.post('/api/logos/:id/remove-background', async (req, res) => {
       console.log(`🔍 Looking up logo ${id} in database...`)
 
       // Get logo from database as fallback
-      const logoResult = await sql`
-        SELECT * FROM saved_logos
+      const { rows } = await sql`
+        SELECT logo_url FROM saved_logos
         WHERE id = ${id} AND clerk_user_id = ${clerkUserId}
+        LIMIT 1
       `
 
-      if (logoResult.length === 0) {
+      if (!rows[0]) {
         return res.status(404).json({ error: 'Logo not found and no logoUrl provided' })
       }
 
-      const logo = logoResult[0]
-      imageUrl = logo.logo_url || logo.url
+      imageUrl = rows[0].logo_url
     }
 
     if (!imageUrl) {
@@ -1763,16 +1875,13 @@ app.post('/api/logos/:id/remove-background', async (req, res) => {
 })
 
 // Additional Formats Endpoint (Favicon & Profile Picture)
-app.post('/api/logos/:id/formats', async (req, res) => {
+app.post('/api/logos/:id/formats', requireAuth, expensiveOperationLimiter, async (req, res) => {
   console.log('🔍 Additional formats endpoint called')
 
   try {
     const { id } = req.params
-    const { clerkUserId, formats, logoUrl: providedLogoUrl } = req.body
-
-    if (!clerkUserId) {
-      return res.status(400).json({ error: 'clerkUserId is required' })
-    }
+    const { formats, logoUrl: providedLogoUrl } = req.body
+    const clerkUserId = req.auth.userId
 
     if (!formats || !Array.isArray(formats)) {
       return res.status(400).json({ error: 'formats array is required' })

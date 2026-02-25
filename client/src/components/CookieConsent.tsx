@@ -15,6 +15,8 @@ const CookieConsent: React.FC = () => {
   const handleAccept = () => {
     localStorage.setItem('cookieConsent', 'accepted')
     setIsVisible(false)
+    // Reload to load analytics scripts
+    window.location.reload()
   }
 
   const handleDecline = () => {

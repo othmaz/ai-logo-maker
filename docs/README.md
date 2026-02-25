@@ -1,118 +1,225 @@
-# Free AI Logo Maker
+# Craft Your Logo - AI Logo Maker
 
-A simple React application that generates logos using AI. This is a testing version designed to validate the concept and user experience.
+AI-powered logo generation platform with iterative refinement, premium downloads, and multi-format export.
+
+## Architecture Overview
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   React Client  │────▶│  Express API    │────▶│  External APIs  │
+│  (Vite + TS)    │     │  (Node.js)      │     │  (Gemini, etc)  │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+        │                       │
+        ▼                       ▼
+┌─────────────────┐     ┌─────────────────┐
+│  Clerk Auth     │     │  Vercel Postgres│
+│  Stripe Payments│     │  Vercel Blob    │
+└─────────────────┘     └─────────────────┘
+```
+
+## Tech Stack
+
+### Frontend
+- **React 19** + **TypeScript**
+- **Vite** (build tool)
+- **Tailwind CSS** (styling)
+- **Clerk** (authentication)
+- **Stripe React** (payments)
+
+### Backend
+- **Express.js** (API server)
+- **Google Gemini 2.5 Flash** (AI image generation)
+- **Replicate** (4K/8K upscaling)
+- **Sharp** + **Potrace** (image processing, SVG conversion)
+- **FreeConvert** (format conversion)
+
+### Infrastructure
+- **Vercel** (hosting + serverless functions)
+- **Neon Postgres** (database via Vercel)
+- **Vercel Blob** (file storage)
+- **Resend** (transactional emails)
 
 ## Features
 
-- Single page application with form-based logo generation
-- Collects business details for better logo generation
-- Style and color preferences
-- Direct logo download
-- Easy regeneration of new logos
+### Core Flow
+1. **Anonymous Generation**: 15 free credits (5 logos per generation)
+2. **Iterative Refinement**: Select favorites + feedback → refined generations
+3. **Auth & Persistence**: Sign up to save logos to personal collection
+4. **Premium Upgrade**: €9.99 for unlimited generations + high-res downloads
+5. **Multi-format Export**: PNG (8K), SVG, favicon, profile pic, background removal
 
-## Setup Instructions
+### Free Tier
+- 15 credits (3 rounds of 5 logos each)
+- Standard resolution (1024x1024)
+- Save logos to collection (requires sign up)
+
+### Premium Tier
+- Unlimited generations
+- 8K upscaling via Replicate
+- Vector SVG export
+- Transparent background removal
+- Favicon package
+- Commercial rights
+
+## Local Development Setup
 
 ### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
+- Node.js v18+
+- npm
 
-### Installation
+### 1. Install Dependencies
 
-1. Clone or download this project
-2. Navigate to the project directory:
-   ```bash
-   cd logo-maker-app
-   ```
+```bash
+# Root (for build scripts)
+npm install
 
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
+# Client
+cd client && npm install
 
-4. Set up environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` and add your Gemini API key:
-   ```
-   GEMINI_API_KEY=your_actual_api_key_here
-   ```
+# Server
+cd server && npm install
+```
 
-### Running the Application
+### 2. Environment Variables
 
-The application requires both the React frontend and the Express backend to be running:
+```bash
+# Copy the example file
+cp .env.example .env
 
-1. Start the backend server (in one terminal):
-   ```bash
-   npm run server
-   ```
-   This starts the API server on http://localhost:3001
+# Edit with your actual keys from:
+# - https://aistudio.google.com/app/apikey (Gemini)
+# - https://dashboard.clerk.com (Auth)
+# - https://dashboard.stripe.com/apikeys (Payments)
+# - https://neon.tech or Vercel dashboard (Database)
+# - https://replicate.com/account/api-tokens (Upscaling)
+# - https://www.freeconvert.com/api (Format conversion)
+# - https://resend.com/api-keys (Email)
+```
 
-2. Start the frontend development server (in another terminal):
-   ```bash
-   npm run dev
-   ```
-   This starts the React app on http://localhost:5173
+### 3. Database Setup
 
-3. Open your browser and navigate to http://localhost:5173
+```bash
+cd server
+node lib/initDB.js
+```
 
-## How It Works
+### 4. Run Development Servers
 
-1. **Form Input**: User fills out business details including:
-   - Business name (required)
-   - Industry selection
-   - Business description
-   - Style preference (modern, minimalist, vintage, etc.)
-   - Color preferences
+```bash
+# Terminal 1 - Backend
+cd server
+node server.js
+# Runs on http://localhost:3001
 
-2. **Logo Generation**: Click "Generate Logo" to create a logo based on the provided information
+# Terminal 2 - Frontend
+cd client
+npm run dev
+# Runs on http://localhost:5173
+```
 
-3. **Download**: Generated logos can be downloaded directly as PNG files
+### 5. Stripe Webhook (for local payment testing)
 
-4. **Regeneration**: Users can generate multiple versions until they find one they like
+```bash
+# Install Stripe CLI: https://stripe.com/docs/stripe-cli
+stripe login
+stripe listen --forward-to localhost:3001/api/stripe/webhook
+```
 
 ## Project Structure
 
 ```
-src/
-  App.tsx          # Main React component with form and logo display
-  index.css        # Tailwind CSS imports
-  main.tsx         # React app entry point
-
-server.js          # Express API server
-.env.example       # Environment variables template
+├── client/                 # React frontend
+│   ├── src/
+│   │   ├── App.tsx        # Main app component
+│   │   ├── components/    # Reusable UI components
+│   │   ├── contexts/      # React contexts (auth, db, modal)
+│   │   ├── hooks/         # Custom React hooks
+│   │   ├── pages/         # Route pages
+│   │   ├── services/      # API client services
+│   │   ├── types/         # TypeScript types
+│   │   └── utils/         # Utility functions
+│   ├── .env               # Client env vars (VITE_*)
+│   └── index.html         # Entry HTML
+│
+├── server/                # Express API
+│   ├── server.js          # Main server bootstrap
+│   ├── routes/            # Route modules
+│   │   ├── generation.js
+│   │   ├── users.js
+│   │   ├── payments.js
+│   │   ├── logos.js
+│   │   └── analytics.js
+│   ├── lib/               # Shared utilities
+│   │   ├── db.js          # Database connection
+│   │   ├── migrate.js     # Data migration
+│   │   └── schema.sql     # DB schema
+│   └── .env               # Server env vars
+│
+├── scripts/               # Build/deployment scripts
+├── docs/                  # Documentation
+└── .env.example           # All required env vars
 ```
 
-## API Integration
+## API Endpoints
 
-The application uses **Google Gemini 2.5 Flash Image Preview** for actual AI logo generation! This provides:
+### Generation
+- `POST /api/generate-multiple` - Generate logos (requires credits or premium)
+- `POST /api/upscale` - Upscale image to 4K/8K (premium only)
 
-- **Real AI-generated logos** based on business details
-- **High-quality text rendering** perfect for logo text
-- **Professional design capabilities** with style control
-- **Automatic SynthID watermarking** for generated content
+### Users
+- `POST /api/users/sync` - Sync Clerk user to DB
+- `GET /api/users/profile` - Get user profile
+- `PUT /api/users/subscription` - Update subscription status
+- `POST /api/users/migrate` - Migrate anonymous data
 
-The integration uses the latest `@google/genai` SDK with the `gemini-2.5-flash-image-preview` model for optimal logo generation.
+### Logos
+- `GET /api/logos/saved` - List saved logos
+- `POST /api/logos/save` - Save a logo
+- `DELETE /api/logos/:id` - Delete saved logo
+- `POST /api/logos/:id/upscale` - Upscale specific logo
+- `POST /api/logos/:id/vectorize` - Convert to SVG
+- `POST /api/logos/:id/remove-background` - Remove background
 
-## Development
+### Payments
+- `POST /api/create-payment-intent-with-user` - Create Stripe payment
+- `GET /api/verify-payment/:id` - Verify payment status
+- `POST /api/stripe/webhook` - Stripe webhook handler
 
-- Built with React 19 + TypeScript
-- Styled with Tailwind CSS
-- Backend API with Express.js
-- Vite for fast development and building
+## Deployment
 
-## Next Steps
+### Vercel (Recommended)
 
-🚀 **LIVE at:** https://ai-logo-maker-hpflpyx0o-othmazs-projects.vercel.app/
+1. Push to GitHub
+2. Import project in [Vercel Dashboard](https://vercel.com)
+3. Add all environment variables from `.env.example`
+4. Deploy
 
-This is a testing version to validate:
-- User experience and interface
-- Logo generation prompts effectiveness
-- User engagement and feedback
+The `vercel.json` configures:
+- Static build for client
+- Serverless function for API
+- Rewrite rules for SPA routing
 
-Once validated, consider adding:
-- Payment integration
-- User accounts
-- Logo history
-- Advanced customization options
-- Multiple file format exports
+### Validation Before Deploy
+
+```bash
+npm run validate-deployment
+```
+
+## Business Model
+
+| Feature | Free | Premium (€9.99) |
+|---------|------|-----------------|
+| Generations | 15 credits | Unlimited |
+| Resolution | 1024x1024 | Up to 8K |
+| Refinement | 3 rounds | Unlimited |
+| Save Collection | ✅ | ✅ |
+| PNG HD Download | ❌ | ✅ |
+| PNG 8K Download | ❌ | ✅ |
+| SVG Vector | ❌ | ✅ |
+| Background Remove | ❌ | ✅ |
+| Favicon Pack | ❌ | ✅ |
+| Commercial Rights | ❌ | ✅ |
+
+## License
+
+MIT - See LICENSE file for details.

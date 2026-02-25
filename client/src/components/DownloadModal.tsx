@@ -87,7 +87,8 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
     )
   }
 
-  const downloadFile = (data: string, filename: string, mimeType: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _downloadFile = (data: string, filename: string, mimeType: string) => {
     const byteCharacters = atob(data)
     const byteNumbers = new Array(byteCharacters.length)
     for (let i = 0; i < byteCharacters.length; i++) {
@@ -107,7 +108,8 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
     document.body.removeChild(a)
   }
 
-  const downloadSVG = (svgData: string, filename: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _downloadSVG = (svgData: string, filename: string) => {
     const blob = new Blob([svgData], { type: 'image/svg+xml' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -160,7 +162,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
       // Store the highest quality image URL - start with original, upgrade to 8K if available
       let bestQualityUrl = logo.logo_url || logo.url
-      let backgroundRemovedUrl = null // Track background-removed URL for SVG
+      let best4kQualityUrl: string | null = null
 
       // PHASE 1: Process 8K and Full HD in PARALLEL
       // Full HD should complete instantly, 8K takes 5-10 seconds
@@ -173,11 +175,14 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
         const upscalePromise = (async () => {
           try {
+            const token = await user.getToken()
             const response = await fetch(`/api/logos/${logo.id}/upscale`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              },
               body: JSON.stringify({
-                clerkUserId: user.id,
                 logoUrl: logo.logo_url || logo.url
               })
             })
@@ -187,9 +192,8 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               bestQualityUrl = result.upscaledUrl // Update to use 8K for subsequent operations
               const best4kUrl = result.upscaled4kUrl // Store 4K URL for SVG
 
-              // Save 4K URL for later SVG use
               if (best4kUrl) {
-                window._logo4kUrl = best4kUrl
+                best4kQualityUrl = best4kUrl
               }
 
               const imageResponse = await fetch(result.upscaledUrl)
@@ -241,18 +245,20 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
         try {
           if (formatId === 'png-no-bg') {
+            const token = await user.getToken()
             const response = await fetch(`/api/logos/${logo.id}/remove-background`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              },
               body: JSON.stringify({
-                clerkUserId: user.id,
                 logoUrl: bestQualityUrl // Use 8K version if available
               })
             })
 
             const result = await response.json()
             if (result.success) {
-              backgroundRemovedUrl = result.processedUrl // Save for SVG use
               const imageResponse = await fetch(result.processedUrl)
               const blob = await imageResponse.blob()
               folder.file(`${safeBusinessName}-no-background.png`, blob)
@@ -266,14 +272,17 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
             console.log('🔄 Generating background-removed 4K version for SVG...')
 
             // Use 4K URL if available, otherwise fall back to 8K
-            const sourceUrl = (window as any)._logo4kUrl || bestQualityUrl
+            const sourceUrl = best4kQualityUrl || bestQualityUrl
             console.log('📐 Using source for SVG:', sourceUrl.includes('4k') ? '4K' : '8K')
 
+            const token = await user.getToken()
             const bgRemovalResponse = await fetch(`/api/logos/${logo.id}/remove-background`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              },
               body: JSON.stringify({
-                clerkUserId: user.id,
                 logoUrl: sourceUrl // Use 4K version for SVG
               })
             })
@@ -310,9 +319,11 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
             console.log('🔺 Generating SVG - Polygon version...')
             const polygonResponse = await fetch(`/api/logos/${logo.id}/vectorize`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              },
               body: JSON.stringify({
-                clerkUserId: user.id,
                 logoUrl: svgSourceUrl,
                 curveFitting: 'polygon' // Geometric edges
               })
@@ -326,11 +337,14 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               throw new Error('SVG vectorization failed')
             }
           } else if (formatId === 'favicon') {
+            const token = await user.getToken()
             const response = await fetch(`/api/logos/${logo.id}/formats`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              },
               body: JSON.stringify({
-                clerkUserId: user.id,
                 formats: [formatId],
                 logoUrl: bestQualityUrl // Use 8K version if available
               })
@@ -351,11 +365,14 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               throw new Error(result.error || 'Favicon generation failed')
             }
           } else if (formatId === 'profile') {
+            const token = await user.getToken()
             const response = await fetch(`/api/logos/${logo.id}/formats`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+              },
               body: JSON.stringify({
-                clerkUserId: user.id,
                 formats: [formatId],
                 logoUrl: bestQualityUrl // Use 8K version if available
               })

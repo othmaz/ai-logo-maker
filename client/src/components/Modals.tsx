@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useUser, SignUpButton } from '@clerk/clerk-react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
@@ -15,7 +14,6 @@ interface Toast {
 }
 
 const Modals: React.FC = () => {
-  const navigate = useNavigate()
   const { isSignedIn, user } = useUser()
   const { activeModal, setActiveModal, confirmModal } = useModal()
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -47,11 +45,14 @@ const Modals: React.FC = () => {
       setIsLoadingPayment(true)
       showToast('Creating payment...', 'info')
 
+      const token = await user.getToken()
       const response = await fetch('/api/create-payment-intent-with-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
-          userId: user.id,
           userEmail: user.primaryEmailAddress?.emailAddress || user.emailAddresses[0]?.emailAddress
         }),
       })
@@ -120,7 +121,7 @@ const Modals: React.FC = () => {
                     <h3 className="text-xl font-semibold mb-3">2. Service Description</h3>
                     <p>AI Logo Maker provides AI-powered logo generation services with both free and premium tiers:</p>
                     <ul className="list-disc ml-6 mt-2">
-                      <li><strong>Free Service:</strong> Up to 3 logo generations at standard resolution</li>
+                      <li><strong>Free Service:</strong> Up to 15 credits (5 logos generated per round) at standard resolution</li>
                       <li><strong>Premium Service:</strong> Unlimited logo generations with 8K high-resolution downloads for a one-time fee of €9.99</li>
                     </ul>
                   </div>
@@ -343,7 +344,7 @@ const Modals: React.FC = () => {
                             <div className="space-y-2">
                               <div className="flex items-center space-x-3">
                                 <span className="text-red-400 retro-mono">✗</span>
-                                <span className="text-gray-400 retro-mono text-sm">3 GENERATIONS ONLY</span>
+                                <span className="text-gray-400 retro-mono text-sm">15 FREE CREDITS</span>
                               </div>
                               <div className="flex items-center space-x-3">
                                 <span className="text-red-400 retro-mono">✗</span>

@@ -8,7 +8,8 @@ interface NavBarProps {
 }
 
 const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
-  const { isSignedIn } = useUser()
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { isSignedIn: _isSignedIn } = useUser()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { pathname } = useLocation()
 

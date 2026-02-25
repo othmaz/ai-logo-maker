@@ -1,7 +1,9 @@
 {
   "type": "commonjs",
   "dependencies": {
+    "@clerk/backend": "^2.16.1",
     "@google/genai": "^1.16.0",
+    "@vercel/blob": "^2.3.0",
     "@vercel/postgres": "0.10.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",

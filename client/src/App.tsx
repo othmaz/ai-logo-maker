@@ -10,6 +10,7 @@ import {
   SignInButton,
   SignUpButton,
   UserButton,
+  useClerk,
   useUser
 } from '@clerk/clerk-react'
 import './animations.css'
@@ -20,12 +21,9 @@ import DownloadModal from './components/DownloadModal';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 
-// Declare gtag for TypeScript
-declare global {
-  interface Window {
-    gtag: (...args: unknown[]) => void
-  }
-}
+import type { ApiResult, ApiError } from './types/api'
+
+// Extend Window for debug utilities (declared in types/api.ts)
 
 interface Toast {
   id: string
@@ -237,7 +235,9 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
 function App() {
   const navigate = useNavigate()
   const { isSignedIn, user, isLoaded } = useUser()
-  const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadingLogos, userProfile, updateUserSubscription, refreshUserProfile, trackLogoGeneration, isPremiumUser } = useDbContext()
+  const { openSignUp } = useClerk()
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadingLogos: _isLoadingLogos, userProfile, updateUserSubscription, refreshUserProfile, trackLogoGeneration, isPremiumUser } = useDbContext()
 
   const [formData, setFormData] = useState<FormData>({
     businessName: '',
@@ -277,10 +277,9 @@ function App() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [paymentAmount, setPaymentAmount] = useState<string>('€9.99');
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [showDashboard, setShowDashboard] = useState(false);
+  // Legacy branch flags: route-based pages now handle payment success and dashboard.
+  const showPaymentSuccess = false
+  const showDashboard = false
   const [tosAccepted, setTosAccepted] = useState(false);
   const [refinementMode, setRefinementMode] = useState<'batch' | 'single'>('batch');
   const [focusedLogo, setFocusedLogo] = useState<Logo | null>(null);
@@ -454,12 +453,15 @@ function App() {
 
       showToast('Redirecting to payment...', 'info')
 
-      // Create PaymentIntent with user metadata for webhook processing
+      // Create PaymentIntent with authenticated user metadata for webhook processing
+      const token = await user.getToken()
       const response = await fetch('/api/create-payment-intent-with-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
-          userId: user.id,
           userEmail: user.primaryEmailAddress?.emailAddress || user.emailAddresses[0]?.emailAddress
         }),
       });
@@ -539,7 +541,10 @@ function App() {
           console.log('🎉 Payment success detected, verifying payment...')
 
           // First, verify payment status with Stripe (server-side verification)
-          const verificationResponse = await fetch(`/api/verify-payment/${paymentIntent}`)
+          const token = await user.getToken()
+          const verificationResponse = await fetch(`/api/verify-payment/${paymentIntent}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          })
           if (!verificationResponse.ok) {
             throw new Error('Failed to verify payment')
           }
@@ -606,7 +611,10 @@ function App() {
         try {
           console.log('🔄 Checking payment recovery for:', paymentIntentId)
 
-          const verificationResponse = await fetch(`/api/verify-payment/${paymentIntentId}`)
+          const token = await user.getToken()
+          const verificationResponse = await fetch(`/api/verify-payment/${paymentIntentId}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          })
           if (verificationResponse.ok) {
             const paymentData = await verificationResponse.json()
 
@@ -646,7 +654,7 @@ function App() {
   // Setup debug utilities
   useEffect(() => {
     // DEBUG: Function to manually test usage limits (call from browser console)
-    (window as any).debugUsageLimits = {
+    window.debugUsageLimits = {
       setAnonymousUsage: (count: number) => {
         localStorage.setItem('anonymousCreditsUsed', count.toString());
         console.log(`Set anonymous usage to ${count}, call debugUsageLimits.recheckUsage() to update state`);
@@ -706,8 +714,8 @@ function App() {
       setUsage({ remaining: 999, total: 999, used: 0 })
     } else {
       // Signed in but not paid users get 15 free credits
-      // Use database generations_used (single source of truth)
-      const dbCredits = userProfile?.generations_used || 0;
+      // Use database credits_used (single source of truth)
+      const dbCredits = userProfile?.credits_used || 0;
       const userCredits = debugUsageOverride !== null ? debugUsageOverride : dbCredits;
 
       const totalCreditsForFree = 15; // 3 initial + 2 bonus
@@ -723,9 +731,10 @@ function App() {
 
   // Save logo to database
   const saveLogo = (logo: Logo) => {
-    // If user is not signed in, show upgrade modal to prompt sign up
+    // If user is not signed in, prompt sign-up (saving logos is free)
     if (!isSignedIn) {
-      setActiveModal('upgrade')
+      saveFormDataToLocalStorage(false)
+      openSignUp()
       showToast('Sign up to save logos to your collection!', 'info')
       return
     }
@@ -745,12 +754,12 @@ function App() {
       prompt: logo.prompt,
       is_premium: false,
       file_format: 'png'
-    }).then((result: any) => {
+    }).then((result: ApiResult) => {
       // Only show error if save fails (success already shown)
       if (!result.success) {
         showToast('Save failed: ' + result.error, 'error')
       }
-    }).catch((error: any) => {
+    }).catch((error: ApiError) => {
       console.error('Save logo error:', error)
       showToast('Save failed - please try again', 'error')
     })
@@ -762,12 +771,12 @@ function App() {
     showToast('Logo removed from collection', 'success')
 
     // Perform database removal in background (non-blocking)
-    removeLogoFromDB(logoId).then((result: any) => {
+    removeLogoFromDB(logoId).then((result: ApiResult) => {
       // Only show error if removal fails (success already shown)
       if (!result.success) {
         showToast('Remove failed: ' + result.error, 'error')
       }
-    }).catch((error: any) => {
+    }).catch((error: ApiError) => {
       console.error('Remove logo error:', error)
       showToast('Remove failed - please try again', 'error')
     })
@@ -1011,7 +1020,7 @@ function App() {
 
                 resolve({
                   data: base64Data,
-                  mimeType: 'image/jpeg'
+                  mimeType: 'image/png'
                 })
               }
 
@@ -1959,7 +1968,7 @@ function App() {
                   <h3 className="text-xl font-bold text-cyan-400 font-mono">LOGOS CREATED</h3>
                 </div>
                 <p className="text-3xl font-bold text-white font-mono">
-                  {userProfile?.generations_used || 0}
+                  {userProfile?.credits_used || 0}
                 </p>
                 <p className="text-gray-400 font-mono text-sm">Total generated</p>
               </div>
@@ -3378,7 +3387,7 @@ function App() {
                             <div className="space-y-3">
                               <div className="flex items-center space-x-3">
                                 <span className="text-red-400 text-lg">✗</span>
-                                <span className="text-gray-400 text-base">3 GENERATIONS ONLY</span>
+                                <span className="text-gray-400 text-base">15 FREE CREDITS</span>
                               </div>
                               <div className="flex items-center space-x-3">
                                 <span className="text-red-400 text-lg">✗</span>

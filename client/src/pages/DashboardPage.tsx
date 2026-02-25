@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/clerk-react'
+import React, { useState } from 'react'
+import { SignInButton, SignUpButton, useUser } from '@clerk/clerk-react'
 import { useNavigate } from 'react-router-dom'
 import { useModal } from '../contexts/ModalContext'
 import { useDbContext } from '../contexts/DatabaseContext'
@@ -19,7 +19,8 @@ const DashboardPage: React.FC = () => {
     isInitialized,
     removeLogoFromDB,
     clearAllLogosFromDB,
-    isLoading,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    isLoading: _isLoading,
     isLoadingLogos,
     isPremiumUser
   } = useDbContext()
@@ -129,7 +130,7 @@ const DashboardPage: React.FC = () => {
                   </div>
                   <h3 className="text-xl font-bold text-cyan-400 font-mono">LOGOS CREATED</h3>
                 </div>
-                <p className="text-3xl font-bold text-white font-mono">{userProfile?.generations_used || 0}</p>
+                <p className="text-3xl font-bold text-white font-mono">{userProfile?.credits_used || 0}</p>
                 <p className="text-gray-400 font-mono text-sm">Total generated</p>
               </div>
 

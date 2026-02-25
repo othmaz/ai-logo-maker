@@ -46,14 +46,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&family=IBM+Plex+Mono:wght@400;500;600&family=Anton&family=Black+Ops+One&family=Fredoka+One&display=swap" rel="stylesheet">
     
-    <!-- Google Analytics 4 & Google Ads -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-111NVW2J85"></script>
+    <!-- Google Analytics 4 & Google Ads - loaded only after cookie consent -->
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-111NVW2J85');
-      gtag('config', 'AW-17520231228');
+      // Check cookie consent before loading analytics
+      (function() {
+        const consent = localStorage.getItem('cookieConsent');
+        if (consent === 'accepted') {
+          // Load GA4
+          const gaScript = document.createElement('script');
+          gaScript.async = true;
+          gaScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-111NVW2J85';
+          document.head.appendChild(gaScript);
+          
+          // Initialize gtag
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', 'G-111NVW2J85');
+          gtag('config', 'AW-17520231228');
+        }
+      })();
     </script>
   </head>
   <body>

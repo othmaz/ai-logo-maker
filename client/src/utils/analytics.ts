@@ -1,9 +1,11 @@
 // Google Analytics & Ads Event Tracking
 
+type GtagArg = string | number | boolean | Record<string, unknown> | undefined
+
 declare global {
   interface Window {
-    gtag: (...args: any[]) => void;
-    dataLayer: any[];
+    gtag: (...args: GtagArg[]) => void;
+    dataLayer: unknown[];
   }
 }
 

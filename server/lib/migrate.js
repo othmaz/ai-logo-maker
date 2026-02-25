@@ -20,9 +20,9 @@ async function migrateSavedLogos(userId, savedLogos) {
   }
 }
 
-async function migrateUsageData(userId, generationsUsed) {
+async function migrateUsageData(userId, creditsUsed) {
   await sql`
-    UPDATE users SET generations_used = ${generationsUsed}
+    UPDATE users SET credits_used = ${creditsUsed}
     WHERE id = ${userId}
   `
 }
@@ -33,8 +33,12 @@ async function migrateFromLocalStorage(clerkUserId, localStorageData, email = nu
     if (localStorageData.savedLogos) {
       await migrateSavedLogos(user.id, localStorageData.savedLogos)
     }
-    if (localStorageData.generationsUsed) {
-      await migrateUsageData(user.id, localStorageData.generationsUsed)
+    const creditsToMigrate = Number(
+      localStorageData?.creditsUsed ?? localStorageData?.generationsUsed ?? 0
+    )
+
+    if (creditsToMigrate > 0) {
+      await migrateUsageData(user.id, creditsToMigrate)
     }
     return { success: true, message: 'Migration completed' }
   } catch (error) {

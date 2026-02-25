@@ -8,7 +8,8 @@ const PaymentSuccessPage: React.FC = () => {
   const [searchParams] = useSearchParams()
   const { isSignedIn, user } = useUser()
   const { updateUserSubscription, refreshUserProfile } = useDbContext()
-  const [isProcessing, setIsProcessing] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [isProcessing, _setIsProcessing] = useState(true)
   const [redirectCountdown, setRedirectCountdown] = useState<number | null>(null)
   const hasProcessed = useRef(false)
 
@@ -56,7 +57,10 @@ const PaymentSuccessPage: React.FC = () => {
           console.log('🎉 Payment success detected, verifying payment...')
 
           // Verify payment status with Stripe
-          const verificationResponse = await fetch(`/api/verify-payment/${paymentIntent}`)
+          const token = await user.getToken()
+          const verificationResponse = await fetch(`/api/verify-payment/${paymentIntent}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          })
           if (!verificationResponse.ok) {
             throw new Error('Failed to verify payment')
           }

@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
 
 export function useDatabase() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -14,9 +15,14 @@ export function useDatabase() {
   const apiCall = useCallback(async (endpoint, options = {}) => {
     try {
       setError(null);
+
+      const token = await getToken();
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
       const response = await fetch(`/api/${endpoint}`, {
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders,
           ...options.headers
         },
         ...options
@@ -31,7 +37,7 @@ export function useDatabase() {
       setError(err.message);
       throw err;
     }
-  }, []);
+  }, [getToken]);
 
   // User Management
   const syncUser = useCallback(async () => {
@@ -42,7 +48,6 @@ export function useDatabase() {
       const result = await apiCall('users/sync', {
         method: 'POST',
         body: JSON.stringify({
-          clerkUserId: user.id,
           email: user.emailAddresses[0]?.emailAddress,
           firstName: user.firstName
         })
@@ -56,7 +61,7 @@ export function useDatabase() {
   const getUserProfile = useCallback(async () => {
     if (!user) return null;
 
-    return await apiCall(`users/profile?clerkUserId=${user.id}`);
+    return await apiCall('users/profile');
   }, [user, apiCall]);
 
   const updateSubscription = useCallback(async (subscriptionStatus) => {
@@ -65,7 +70,6 @@ export function useDatabase() {
     return await apiCall('users/subscription', {
       method: 'PUT',
       body: JSON.stringify({
-        clerkUserId: user.id,
         status: subscriptionStatus
       })
     });
@@ -82,7 +86,7 @@ export function useDatabase() {
       return logoCache;
     }
 
-    const result = await apiCall(`logos/saved?clerkUserId=${user.id}`);
+    const result = await apiCall('logos/saved');
     const logos = result.logos || [];
 
     // Update cache
@@ -98,7 +102,6 @@ export function useDatabase() {
     const result = await apiCall('logos/save', {
       method: 'POST',
       body: JSON.stringify({
-        clerkUserId: user.id,
         logo: {
           url: logoData.url,
           prompt: logoData.prompt || '',
@@ -118,7 +121,7 @@ export function useDatabase() {
   const removeLogo = useCallback(async (logoId) => {
     if (!user) return null;
 
-    const result = await apiCall(`logos/${logoId}?clerkUserId=${user.id}`, {
+    const result = await apiCall(`logos/${logoId}`, {
       method: 'DELETE'
     });
 
@@ -132,7 +135,7 @@ export function useDatabase() {
   const clearAllLogos = useCallback(async () => {
     if (!user) return null;
 
-    const result = await apiCall(`logos/clear?clerkUserId=${user.id}`, {
+    const result = await apiCall('logos/clear', {
       method: 'DELETE'
     });
 
@@ -150,7 +153,6 @@ export function useDatabase() {
     return await apiCall('generations/track', {
       method: 'POST',
       body: JSON.stringify({
-        clerkUserId: user.id,
         prompt,
         logosGenerated,
         isPremium
@@ -161,7 +163,7 @@ export function useDatabase() {
   const getUsageStats = useCallback(async () => {
     if (!user) return null;
 
-    return await apiCall(`generations/usage?clerkUserId=${user.id}`);
+    return await apiCall('generations/usage');
   }, [user, apiCall]);
 
   const incrementUsage = useCallback(async (count = 1) => {
@@ -170,7 +172,6 @@ export function useDatabase() {
     return await apiCall('generations/increment', {
       method: 'POST',
       body: JSON.stringify({
-        clerkUserId: user.id,
         by: count
       })
     });
@@ -184,7 +185,6 @@ export function useDatabase() {
       method: 'POST',
       body: JSON.stringify({
         event: action,        // Server expects "event", not "action"
-        clerkUserId: user.id,
         meta: metadata        // Server expects "meta", not "metadata"
       })
     });
@@ -193,7 +193,7 @@ export function useDatabase() {
   const getDashboardAnalytics = useCallback(async () => {
     if (!user) return null;
 
-    return await apiCall(`analytics/dashboard?clerkUserId=${user.id}`);
+    return await apiCall('analytics/dashboard');
   }, [user, apiCall]);
 
   // Migration Helper
@@ -203,11 +203,12 @@ export function useDatabase() {
     // Get localStorage data
     const localStorageData = {
       savedLogos: JSON.parse(localStorage.getItem('savedLogos') || '[]'),
+      creditsUsed: parseInt(localStorage.getItem('creditsUsed') || localStorage.getItem('generationsUsed') || '0'),
       generationsUsed: parseInt(localStorage.getItem('generationsUsed') || '0')
     };
 
     // Only migrate if there's data to migrate
-    if (localStorageData.savedLogos.length === 0 && localStorageData.generationsUsed === 0) {
+    if (localStorageData.savedLogos.length === 0 && localStorageData.creditsUsed === 0 && localStorageData.generationsUsed === 0) {
       return { success: true, message: 'No data to migrate' };
     }
 
@@ -216,7 +217,6 @@ export function useDatabase() {
       const result = await apiCall('users/migrate', {
         method: 'POST',
         body: JSON.stringify({
-          clerkUserId: user.id,
           email: user.emailAddresses[0]?.emailAddress,
           localStorageData
         })
@@ -225,6 +225,7 @@ export function useDatabase() {
       // Clear localStorage after successful migration
       if (result.success) {
         localStorage.removeItem('savedLogos');
+        localStorage.removeItem('creditsUsed');
         localStorage.removeItem('generationsUsed');
         console.log('✅ Migration completed, localStorage cleared');
       }

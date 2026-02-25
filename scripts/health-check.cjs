@@ -87,19 +87,18 @@ async function testApiEndpoints() {
   console.log('🔍 Testing API endpoints...');
   
   try {
-    // Test that API endpoint is accessible 
-    const response = await makeRequest(`${DEPLOYMENT_URL}/api/generate`);
+    const response = await makeRequest(`${DEPLOYMENT_URL}/api/health`);
     
-    // API should return 405 (Method Not Allowed) for GET, 400 (Bad Request), or 500 (Server Error - missing API key is OK)
-    if (response.statusCode !== 405 && response.statusCode !== 400 && response.statusCode !== 500) {
-      throw new Error(`API endpoint returned unexpected status ${response.statusCode}`);
+    if (response.statusCode !== 200) {
+      throw new Error(`Health endpoint returned ${response.statusCode}`);
     }
-    
-    if (response.statusCode === 500) {
-      console.log('✅ API endpoints are accessible (500 likely due to missing API key - OK for deployment test)');
-    } else {
-      console.log('✅ API endpoints are accessible');
+
+    const payload = JSON.parse(response.data || '{}');
+    if (!payload.ok) {
+      throw new Error('Health endpoint payload missing ok=true');
     }
+
+    console.log('✅ API health endpoint is accessible');
     return true;
     
   } catch (error) {
