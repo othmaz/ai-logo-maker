@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import JSZip from 'jszip'
 
 interface DownloadModalProps {
@@ -25,6 +25,7 @@ interface FormatOption {
 
 const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser, businessName = 'logo', onSave }) => {
   const { user } = useUser()
+  const { getToken } = useAuth()
   const [selectedFormats, setSelectedFormats] = useState<string[]>(['png-hd', 'png'])
   const [isDownloading, setIsDownloading] = useState(false)
   const [downloadProgress, setDownloadProgress] = useState<Record<string, 'pending' | 'waiting' | 'processing' | 'completed' | 'error'>>({})
@@ -175,7 +176,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
         const upscalePromise = (async () => {
           try {
-            const token = await user.getToken()
+            const token = await getToken()
             const response = await fetch(`/api/logos/${logo.id}/upscale`, {
               method: 'POST',
               headers: {
@@ -245,7 +246,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
 
         try {
           if (formatId === 'png-no-bg') {
-            const token = await user.getToken()
+            const token = await getToken()
             const response = await fetch(`/api/logos/${logo.id}/remove-background`, {
               method: 'POST',
               headers: {
@@ -275,7 +276,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
             const sourceUrl = best4kQualityUrl || bestQualityUrl
             console.log('📐 Using source for SVG:', sourceUrl.includes('4k') ? '4K' : '8K')
 
-            const token = await user.getToken()
+            const token = await getToken()
             const bgRemovalResponse = await fetch(`/api/logos/${logo.id}/remove-background`, {
               method: 'POST',
               headers: {
@@ -337,7 +338,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               throw new Error('SVG vectorization failed')
             }
           } else if (formatId === 'favicon') {
-            const token = await user.getToken()
+            const token = await getToken()
             const response = await fetch(`/api/logos/${logo.id}/formats`, {
               method: 'POST',
               headers: {
@@ -365,7 +366,7 @@ const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, is
               throw new Error(result.error || 'Favicon generation failed')
             }
           } else if (formatId === 'profile') {
-            const token = await user.getToken()
+            const token = await getToken()
             const response = await fetch(`/api/logos/${logo.id}/formats`, {
               method: 'POST',
               headers: {

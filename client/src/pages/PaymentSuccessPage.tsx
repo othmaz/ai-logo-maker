@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useUser, useAuth } from '@clerk/clerk-react'
 import { useDbContext } from '../contexts/DatabaseContext'
 
 const PaymentSuccessPage: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { isSignedIn, user } = useUser()
+  const { getToken } = useAuth()
   const { updateUserSubscription, refreshUserProfile } = useDbContext()
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isProcessing, _setIsProcessing] = useState(true)
@@ -57,7 +58,7 @@ const PaymentSuccessPage: React.FC = () => {
           console.log('🎉 Payment success detected, verifying payment...')
 
           // Verify payment status with Stripe
-          const token = await user.getToken()
+          const token = await getToken()
           const verificationResponse = await fetch(`/api/verify-payment/${paymentIntent}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {}
           })

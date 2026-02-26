@@ -11,7 +11,8 @@ import {
   SignUpButton,
   UserButton,
   useClerk,
-  useUser
+  useUser,
+  useAuth
 } from '@clerk/clerk-react'
 import './animations.css'
 import CheckoutForm from './CheckoutForm';
@@ -235,6 +236,7 @@ const refinePromptFromSelection = (_selectedLogos: Logo[], formData: FormData, f
 function App() {
   const navigate = useNavigate()
   const { isSignedIn, user, isLoaded } = useUser()
+  const { getToken } = useAuth()
   const { openSignUp } = useClerk()
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadingLogos: _isLoadingLogos, userProfile, updateUserSubscription, refreshUserProfile, trackLogoGeneration, isPremiumUser } = useDbContext()
@@ -454,7 +456,7 @@ const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadi
       showToast('Redirecting to payment...', 'info')
 
       // Create PaymentIntent with authenticated user metadata for webhook processing
-      const token = await user.getToken()
+      const token = await getToken()
       const response = await fetch('/api/create-payment-intent-with-user', {
         method: 'POST',
         headers: {
@@ -541,7 +543,7 @@ const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadi
           console.log('🎉 Payment success detected, verifying payment...')
 
           // First, verify payment status with Stripe (server-side verification)
-          const token = await user.getToken()
+          const token = await getToken()
           const verificationResponse = await fetch(`/api/verify-payment/${paymentIntent}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {}
           })
@@ -611,7 +613,7 @@ const { savedLogos, saveLogoToDB, removeLogoFromDB, clearAllLogosFromDB, isLoadi
         try {
           console.log('🔄 Checking payment recovery for:', paymentIntentId)
 
-          const token = await user.getToken()
+          const token = await getToken()
           const verificationResponse = await fetch(`/api/verify-payment/${paymentIntentId}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {}
           })

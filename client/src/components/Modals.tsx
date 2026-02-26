@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useUser, SignUpButton } from '@clerk/clerk-react'
+import { useUser, useAuth, SignUpButton } from '@clerk/clerk-react'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements } from '@stripe/react-stripe-js'
 import CheckoutForm from '../CheckoutForm'
@@ -15,6 +15,7 @@ interface Toast {
 
 const Modals: React.FC = () => {
   const { isSignedIn, user } = useUser()
+  const { getToken } = useAuth()
   const { activeModal, setActiveModal, confirmModal } = useModal()
   const [toasts, setToasts] = useState<Toast[]>([])
   const [clientSecret, setClientSecret] = useState<string | null>(null)
@@ -45,7 +46,7 @@ const Modals: React.FC = () => {
       setIsLoadingPayment(true)
       showToast('Creating payment...', 'info')
 
-      const token = await user.getToken()
+      const token = await getToken()
       const response = await fetch('/api/create-payment-intent-with-user', {
         method: 'POST',
         headers: {
