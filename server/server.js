@@ -1139,6 +1139,7 @@ app.post('/api/interpret-brief', async (req, res) => {
     delta: incomingDelta = null,
     variationCount: rawVariationCount = null,
     referenceImages = [],
+    referenceContext = null,
   } = req.body
 
   if (!formData) {
@@ -1173,6 +1174,7 @@ INPUT FIELDS:
 - feedback (latest)
 - refineHistory (oldest→newest)
 - referenceImages (optional uploaded logo references)
+- referenceContext (selection state metadata from client)
 
 RULES:
 1) Output VALID JSON only.
@@ -1215,6 +1217,9 @@ OUTPUT JSON SCHEMA:
   "composition": "string or null",
   "reference_role": "preserve | context | reject",
   "edit_scope": "text_only | icon_only | both",
+  "reference_target": "current_selection | previous_selected | explicit_round | uploaded_anchor | latest_round | none",
+  "reference_round": "number|null (1-based round index when reference_target=explicit_round)",
+  "reference_logo": "number|null (1-based logo index inside that round, optional)",
   "detected_logo_type": "wordmark | lettermark | combination | pictorial | abstract | null",
   "mutable_overrides": {
     "colors": "string (optional)",
@@ -1242,6 +1247,13 @@ IMPORTANT:
 - If latest feedback asks for change, do not leave must_change empty.
 - Set edit_scope=text_only when user explicitly says keep icon/symbol unchanged and change text/typography only.
 - Set edit_scope=icon_only when user explicitly says keep text/wording unchanged and change icon/symbol only.
+- reference_target intent mapping:
+  - "same as before", "same logo as before", "iterate on previous selected" => previous_selected
+  - explicit "round X" (or "first/second round") => explicit_round with reference_round set
+  - explicit "logo N" with round mention => set reference_logo too
+  - "selected logo(s)" in current round => current_selection
+  - uploaded logo edit mode => uploaded_anchor
+  - restart/new direction with no anchor intent => none
 - When referenceImages are provided, infer detected_logo_type from the uploaded logo visual structure. Keep null only if uncertain.
 - Use mutable_directives for intent classification:
   - keep/exact/preserve/don't change => action: lock, mode: persistent
@@ -1345,6 +1357,7 @@ Requested variants this round: ${variationCount}
 Existing specCore (if any): ${incomingSpecCore ? JSON.stringify(incomingSpecCore) : 'none'}
 Previous delta (if any): ${incomingDelta ? JSON.stringify(incomingDelta) : 'none'}
 Uploaded reference images in this request: ${Array.isArray(referenceImages) ? referenceImages.length : 0}
+Reference context metadata: ${referenceContext ? JSON.stringify(referenceContext) : 'none'}
 
 Produce the structured design brief JSON now.`
 
@@ -1416,6 +1429,32 @@ Produce the structured design brief JSON now.`
       description: formData?.description,
       modelEditScope: brief?.edit_scope || brief?.editScope,
     })
+
+    const normalizePositiveIntOrNull = (value) => {
+      if (value === null || value === undefined || value === '') return null
+      const n = Number(value)
+      if (!Number.isFinite(n) || n < 1) return null
+      return Math.floor(n)
+    }
+
+    const normalizeReferenceTarget = (value) => {
+      const normalized = String(value || '').toLowerCase()
+      return ['current_selection', 'previous_selected', 'explicit_round', 'uploaded_anchor', 'latest_round', 'none'].includes(normalized)
+        ? normalized
+        : null
+    }
+
+    const normalizedReferenceTarget = normalizeReferenceTarget(
+      brief?.reference_target || brief?.referenceTarget
+    ) || (normalizedReferenceRole === 'reject' ? 'none' : 'current_selection')
+
+    const normalizedReferenceRound = normalizePositiveIntOrNull(
+      brief?.reference_round ?? brief?.referenceRound
+    )
+
+    const normalizedReferenceLogo = normalizePositiveIntOrNull(
+      brief?.reference_logo ?? brief?.referenceLogo
+    )
 
     const normalizedDetectedLogoType = normalizeLogoTypeValue(
       brief?.detected_logo_type || brief?.detectedLogoType
@@ -1591,6 +1630,9 @@ Produce the structured design brief JSON now.`
       ...brief,
       reference_role: normalizedReferenceRole,
       edit_scope: normalizedEditScope || undefined,
+      reference_target: normalizedReferenceTarget,
+      reference_round: normalizedReferenceTarget === 'explicit_round' ? normalizedReferenceRound : null,
+      reference_logo: normalizedReferenceTarget === 'explicit_round' ? normalizedReferenceLogo : null,
       detected_logo_type: normalizedDetectedLogoType || undefined,
       must_change: normalizedMustChange,
       mutable_overrides: mergedMutableOverrides,
@@ -1612,6 +1654,7 @@ Produce the structured design brief JSON now.`
     console.log(`   Detected : ${normalizedBrief.detected_logo_type || 'unknown'}`)
     console.log(`   Metaphors: ${(normalizedBrief.visual_metaphors || []).join(', ') || '—'}`)
     console.log(`   Reference: ${normalizedReferenceRole} (${{ preserve: 'keep base', context: 'use as context', reject: 'ignore' }[normalizedReferenceRole]})`)
+    console.log(`   RefTarget: ${normalizedReferenceTarget}${normalizedReferenceTarget === 'explicit_round' ? ` (round=${normalizedReferenceRound || 'n/a'}, logo=${normalizedReferenceLogo || 'auto'})` : ''}`)
     console.log(`   Overrides: ${Object.keys(mergedMutableOverrides).length ? JSON.stringify(mergedMutableOverrides) : 'none'}`)
     console.log(`   Locks    : ${Object.keys(specCore.mutableLocks || {}).length ? JSON.stringify(specCore.mutableLocks) : 'none'}`)
     console.log(`   Hints    : ${roundHints.length ? JSON.stringify(roundHints) : 'none'}`)
@@ -1624,6 +1667,9 @@ Produce the structured design brief JSON now.`
       delta,
       roundHints,
       referenceRole: normalizedReferenceRole,
+      referenceTarget: normalizedReferenceTarget,
+      referenceRound: normalizedReferenceTarget === 'explicit_round' ? normalizedReferenceRound : null,
+      referenceLogo: normalizedReferenceTarget === 'explicit_round' ? normalizedReferenceLogo : null,
       editScope: normalizedEditScope || null,
       detectedLogoType: normalizedDetectedLogoType || null,
       variantPlans,

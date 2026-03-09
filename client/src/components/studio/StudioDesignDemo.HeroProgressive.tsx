@@ -1655,6 +1655,9 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       const token = await safeGetToken();
       const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
 
+      const latestRoundBeforeRefine = logoRounds[logoRounds.length - 1] ?? [];
+      const latestRoundAvailableCount = latestRoundBeforeRefine.filter(Boolean).length;
+
       const uploadedAnchorRefsForDirector: ReferenceImagePayload[] = uploadedImages.length > 0
         ? (await Promise.all(uploadedImages.map(fileToBase64)))
         : [];
@@ -1673,13 +1676,20 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           delta: latestDelta || undefined,
           variationCount: refineCount,
           referenceImages: uploadedAnchorRefsForDirector.length > 0 ? uploadedAnchorRefsForDirector : undefined,
+          referenceContext: {
+            currentRoundIndex: logoRounds.length,
+            currentRoundSelectionCount: selectedIdxs.size,
+            currentRoundAvailableCount: latestRoundAvailableCount,
+            previousSelectedReferenceCount: stickySelectedRefUrls.length,
+            hasUploadedAnchors: uploadedAnchorRefsForDirector.length > 0,
+          },
         }),
       });
       if (!briefRes.ok) {
         const err = await briefRes.json().catch(() => ({ error: 'Brief failed' }));
         throw new Error(err.error || 'Failed to interpret design brief');
       }
-      const briefPayload: { brief: DesignBrief; specCore?: any; delta?: any; variantPlans?: any[]; detectedLogoType?: string | null } = await briefRes.json();
+      const briefPayload: { brief: DesignBrief; specCore?: any; delta?: any; variantPlans?: any[]; detectedLogoType?: string | null; referenceTarget?: string | null; referenceRound?: number | null; referenceLogo?: number | null } = await briefRes.json();
       const brief = briefPayload.brief;
       console.log('✅ Director Agent brief received:', brief);
       if (briefPayload.detectedLogoType) {
@@ -1714,103 +1724,91 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       let effectiveSelectedIndices = Array.from(selectedIdxs)
         .filter(i => i >= 0 && i < latestRound.length && Boolean(latestRound[i]))
 
-      const parseExplicitRoundReference = (feedbackText: string): { roundNumber: number; logoNumber?: number } | null => {
-        const text = String(feedbackText || '').toLowerCase();
-        if (!text) return null;
-
-        const ordinalMap: Record<string, number> = {
-          first: 1,
-          second: 2,
-          third: 3,
-          fourth: 4,
-          fifth: 5,
-          sixth: 6,
-        };
-
-        let roundNumber: number | null = null;
-
-        const numericRoundMatch = text.match(/\bround\s*(\d{1,2})\b/i) || text.match(/\br\s*(\d{1,2})\b/i);
-        if (numericRoundMatch) {
-          roundNumber = Number(numericRoundMatch[1]);
-        }
-
-        if (!roundNumber) {
-          const ordinalRoundMatch = text.match(/\b(first|second|third|fourth|fifth|sixth)\s+round\b/i);
-          if (ordinalRoundMatch) {
-            roundNumber = ordinalMap[ordinalRoundMatch[1].toLowerCase()] || null;
-          }
-        }
-
-        if (!roundNumber || !Number.isFinite(roundNumber) || roundNumber < 1) return null;
-
-        let logoNumber: number | undefined;
-        const numericLogoMatch = text.match(/\blogo\s*(\d{1,2})\b/i) || text.match(/#\s*(\d{1,2})\b/);
-        if (numericLogoMatch) {
-          const parsed = Number(numericLogoMatch[1]);
-          if (Number.isFinite(parsed) && parsed > 0) {
-            logoNumber = parsed;
-          }
-        } else {
-          const ordinalLogoMatch = text.match(/\b(first|second|third|fourth|fifth|sixth)\s+logo\b/i);
-          if (ordinalLogoMatch) {
-            const parsed = ordinalMap[ordinalLogoMatch[1].toLowerCase()];
-            if (parsed) logoNumber = parsed;
-          }
-        }
-
-        return { roundNumber, logoNumber };
+      const toPositiveInt = (value: unknown): number | null => {
+        if (value === null || value === undefined || value === '') return null;
+        const n = Number(value);
+        if (!Number.isFinite(n) || n < 1) return null;
+        return Math.floor(n);
       };
 
-      const explicitRoundReference = parseExplicitRoundReference(refineFeedback);
-      if (explicitRoundReference && wantsReference && uploadedAnchorRefs.length === 0) {
-        const targetRoundIndex = explicitRoundReference.roundNumber - 1;
-        const targetRound = logoRounds[targetRoundIndex] ?? [];
-        const targetRoundUrls = targetRound.filter(Boolean) as string[];
+      const directorReferenceTarget = String(
+        (briefPayload as any)?.referenceTarget
+        || (brief as any)?.reference_target
+        || (brief as any)?.referenceTarget
+        || ''
+      ).toLowerCase();
 
-        if (targetRoundUrls.length > 0) {
-          let chosenUrls: string[] = [];
+      const directorReferenceRound = toPositiveInt(
+        (briefPayload as any)?.referenceRound
+        ?? (brief as any)?.reference_round
+        ?? (brief as any)?.referenceRound
+      );
 
-          const requestedLogoIdx = typeof explicitRoundReference.logoNumber === 'number'
-            ? explicitRoundReference.logoNumber - 1
-            : -1;
+      const directorReferenceLogo = toPositiveInt(
+        (briefPayload as any)?.referenceLogo
+        ?? (brief as any)?.reference_logo
+        ?? (brief as any)?.referenceLogo
+      );
 
-          if (
-            requestedLogoIdx >= 0
-            && requestedLogoIdx < targetRound.length
-            && Boolean(targetRound[requestedLogoIdx])
-          ) {
-            chosenUrls = [targetRound[requestedLogoIdx] as string];
-          } else {
-            const stickyInTargetRound = stickySelectedRefUrls.filter(url => targetRoundUrls.includes(url));
-            if (stickyInTargetRound.length > 0) {
-              chosenUrls = stickyInTargetRound.slice(0, MAX_REFERENCE_IMAGES);
+      // LLM-driven reference target selection from Director Agent.
+      if (wantsReference && uploadedAnchorRefs.length === 0) {
+        if (directorReferenceTarget === 'explicit_round' && directorReferenceRound) {
+          const targetRoundIndex = directorReferenceRound - 1;
+          const targetRound = logoRounds[targetRoundIndex] ?? [];
+          const targetRoundUrls = targetRound.filter(Boolean) as string[];
+
+          if (targetRoundUrls.length > 0) {
+            let chosenUrls: string[] = [];
+            const requestedLogoIdx = typeof directorReferenceLogo === 'number'
+              ? directorReferenceLogo - 1
+              : -1;
+
+            if (
+              requestedLogoIdx >= 0
+              && requestedLogoIdx < targetRound.length
+              && Boolean(targetRound[requestedLogoIdx])
+            ) {
+              chosenUrls = [targetRound[requestedLogoIdx] as string];
             } else {
-              chosenUrls = [targetRoundUrls[0]];
+              const stickyInTargetRound = stickySelectedRefUrls.filter(url => targetRoundUrls.includes(url));
+              chosenUrls = stickyInTargetRound.length > 0
+                ? stickyInTargetRound.slice(0, MAX_REFERENCE_IMAGES)
+                : [targetRoundUrls[0]];
             }
-          }
 
-          const explicitRefs = (await Promise.all(
-            chosenUrls.map(url => urlToRef(url, 'selected'))
+            const explicitRefs = (await Promise.all(
+              chosenUrls.map(url => urlToRef(url, 'selected'))
+            )).filter(Boolean) as ReferenceImagePayload[];
+
+            if (explicitRefs.length > 0) {
+              selectedRefs = explicitRefs.slice(0, MAX_REFERENCE_IMAGES);
+              setStickySelectedRefUrls(Array.from(new Set(chosenUrls)).slice(0, MAX_REFERENCE_IMAGES));
+
+              const logoMsg = directorReferenceLogo ? ` logo ${directorReferenceLogo}` : '';
+              showToast(`Using${logoMsg} from round ${directorReferenceRound} as reference.`, 'info');
+              console.log(`🎯 Director reference_target=explicit_round → round ${directorReferenceRound}${logoMsg}`);
+            }
+          } else {
+            showToast(`Could not find logos in round ${directorReferenceRound}; using normal reference logic.`, 'warning');
+            console.log(`⚠️ Director requested explicit round not found (round ${directorReferenceRound})`);
+          }
+        } else if (directorReferenceTarget === 'previous_selected' && stickySelectedRefUrls.length > 0) {
+          const stickyRefs = (await Promise.all(
+            stickySelectedRefUrls.map(url => urlToRef(url, 'selected'))
           )).filter(Boolean) as ReferenceImagePayload[];
 
-          if (explicitRefs.length > 0) {
-            selectedRefs = explicitRefs.slice(0, MAX_REFERENCE_IMAGES);
-            setStickySelectedRefUrls(Array.from(new Set(chosenUrls)).slice(0, MAX_REFERENCE_IMAGES));
-
-            const logoMsg = explicitRoundReference.logoNumber ? ` logo ${explicitRoundReference.logoNumber}` : '';
-            showToast(`Using${logoMsg} from round ${explicitRoundReference.roundNumber} as reference.`, 'info');
-            console.log(`🎯 Explicit round reference detected in feedback → round ${explicitRoundReference.roundNumber}${logoMsg}`);
+          if (stickyRefs.length > 0) {
+            selectedRefs = stickyRefs.slice(0, MAX_REFERENCE_IMAGES);
+            showToast('Using your previously selected reference logo.', 'info');
+            console.log(`♻️ Director reference_target=previous_selected → reusing ${selectedRefs.length} sticky ref(s)`);
           }
-        } else {
-          showToast(`Could not find logos in round ${explicitRoundReference.roundNumber}; using normal reference logic.`, 'warning');
-          console.log(`⚠️ Explicit round reference not found (round ${explicitRoundReference.roundNumber})`);
         }
       }
 
       // If user uploaded anchors, allow refinement to proceed without forcing a selected generated logo.
       // If no uploaded anchors exist and Director wants preserve/context, we try this order:
       // 1) explicit selection in current round
-      // 2) explicit round reference in feedback
+      // 2) Director LLM reference_target override (explicit_round / previous_selected)
       // 3) sticky refs from previously selected round
       // 4) auto-select only available logo
       // 5) ask user to select one
