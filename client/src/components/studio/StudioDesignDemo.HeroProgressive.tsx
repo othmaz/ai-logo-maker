@@ -367,6 +367,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
   const [refineError,    setRefineError]    = useState('');
   const [refineSelectionModal, setRefineSelectionModal] = useState<RefineSelectionModalState>(null);
   const [selectedIdxs,   setSelectedIdxs]   = useState<Set<number>>(new Set());
+  const [stickySelectedRefUrls, setStickySelectedRefUrls] = useState<string[]>([]);
   const [likedUrls,      setLikedUrls]      = useState<Set<string>>(new Set());
   const latestRoundRef = useRef<HTMLDivElement>(null);
   const [authModal,      setAuthModal]      = useState<'save'|'upgrade'|'variations'|null>(null);
@@ -933,6 +934,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
 
     setLogoRounds([[logoUrl]]);
     setSelectedIdxs(new Set());
+    setStickySelectedRefUrls([]);
     setRefineFeedback('');
     setGenError('');
     setRefineError('');
@@ -1220,6 +1222,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       // Render placeholders immediately, then fill each slot as soon as each request finishes.
       setLogoRounds([Array.from({ length: INITIAL_GENERATION_COUNT }, () => LOADING_LOGO_SLOT)]);
       setSelectedIdxs(new Set());
+      setStickySelectedRefUrls([]);
       // First generation: align summary card to top under header.
       setTimeout(() => scrollToEl(doneRef.current, 96), 80);
 
@@ -1712,31 +1715,53 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
         .filter(i => i >= 0 && i < latestRound.length && Boolean(latestRound[i]))
 
       // If user uploaded anchors, allow refinement to proceed without forcing a selected generated logo.
-      // If no uploaded anchors exist, preserve old safety behavior.
+      // If no uploaded anchors exist and Director wants preserve/context, we try this order:
+      // 1) explicit selection in current round
+      // 2) sticky refs from previously selected round
+      // 3) auto-select only available logo
+      // 4) ask user to select one
       if (effectiveSelectedIndices.length === 0 && wantsReference && uploadedAnchorRefs.length === 0) {
-        if (availableIndices.length === 1) {
-          effectiveSelectedIndices = [availableIndices[0]]
-          setSelectedIdxs(new Set(effectiveSelectedIndices))
-          showToast('Using your only previous logo as reference.', 'info')
-          console.log('📌 Auto-selected the only available logo as reference')
-        } else if (availableIndices.length > 1) {
-          const rawFeedback = refineFeedback.trim();
-          const compactFeedback = rawFeedback.length > 90
-            ? `${rawFeedback.slice(0, 87).trim()}…`
-            : rawFeedback;
+        if (stickySelectedRefUrls.length > 0) {
+          const stickyRefs = (await Promise.all(
+            stickySelectedRefUrls.map(url => urlToRef(url, 'selected'))
+          )).filter(Boolean) as ReferenceImagePayload[]
 
-          const message = compactFeedback
-            ? `You asked to “${compactFeedback}”. Select one or more logos first so I refine the right direction.`
-            : 'Select one or more logos first so I refine the right direction.';
+          if (stickyRefs.length > 0) {
+            selectedRefs = stickyRefs.slice(0, MAX_REFERENCE_IMAGES)
+            showToast('No logo selected this round — reusing your previous selected reference.', 'info')
+            console.log(`♻️ Reusing ${selectedRefs.length} previously selected reference logo(s)`)
+          } else {
+            setStickySelectedRefUrls([])
+          }
+        }
 
-          setRefineSelectionModal({ message });
-          setRefineError('');
-          return
+        if (selectedRefs.length === 0) {
+          if (availableIndices.length === 1) {
+            effectiveSelectedIndices = [availableIndices[0]]
+            setSelectedIdxs(new Set(effectiveSelectedIndices))
+            showToast('Using your only previous logo as reference.', 'info')
+            console.log('📌 Auto-selected the only available logo as reference')
+          } else if (availableIndices.length > 1) {
+            const rawFeedback = refineFeedback.trim();
+            const compactFeedback = rawFeedback.length > 90
+              ? `${rawFeedback.slice(0, 87).trim()}…`
+              : rawFeedback;
+
+            const message = compactFeedback
+              ? `You asked to “${compactFeedback}”. Select one or more logos first so I refine the right direction.`
+              : 'Select one or more logos first so I refine the right direction.';
+
+            setRefineSelectionModal({ message });
+            setRefineError('');
+            return
+          }
         }
       }
 
       if (effectiveSelectedIndices.length === 0) {
-        if (uploadedAnchorRefs.length > 0) {
+        if (selectedRefs.length > 0) {
+          console.log('♻️ No current logo selected — using previous selected reference(s)')
+        } else if (uploadedAnchorRefs.length > 0) {
           console.log('🧷 No generated logo selected — using uploaded anchor reference(s) only')
         } else {
           console.log('🗑️  No references selected — treating as fresh start (reference_role: reject)')
@@ -1753,6 +1778,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
 
         // Keep selected references strict: only the logo(s) selected for this round.
         selectedRefs = refImgs.slice(0, MAX_REFERENCE_IMAGES)
+        setStickySelectedRefUrls(Array.from(new Set(refUrls)).slice(0, MAX_REFERENCE_IMAGES))
 
         if (selectedRefs.length === 0) {
           selectedRefs = (await Promise.all(
@@ -1853,7 +1879,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
     setBusinessName(''); setIndustry(''); setStyle(''); setLogoType(''); setDimension('');
     setPrimaryColor(''); setPrimaryHex(''); setShowSecondary(false); setSecondaryColor(''); setSecondaryHex(''); setShowTertiary(false); setTertiaryColor(''); setTertiaryHex('');
     setColorMode(''); setGuidedPalette(''); setGuidedVibe(''); setGuidedTemp(''); setGuidedContrast(''); setGuidedAvoid([]); setColorUsageRules('');
-    setBackground(''); setTaglineChoice(''); setTaglineText(''); setDescription(''); setGenerating(false); setLogoRounds([]); setGenError(''); setRefineFeedback(''); setRefineHistory([]); setSpecCore(null); setLatestDelta(null); setRefineError(''); setRefineSelectionModal(null); setIsRefining(false); setSelectedIdxs(new Set()); setLikedUrls(new Set()); setUploadedImages([]); setImgPreviews([]); setTutorialStepIndex(-1); setTutorialHighlight(null); setIsTutorialStarting(false); setTutorialDismissedThisFlow(false); setHasSeenTutorial(false);
+    setBackground(''); setTaglineChoice(''); setTaglineText(''); setDescription(''); setGenerating(false); setLogoRounds([]); setGenError(''); setRefineFeedback(''); setRefineHistory([]); setSpecCore(null); setLatestDelta(null); setRefineError(''); setRefineSelectionModal(null); setIsRefining(false); setSelectedIdxs(new Set()); setStickySelectedRefUrls([]); setLikedUrls(new Set()); setUploadedImages([]); setImgPreviews([]); setTutorialStepIndex(-1); setTutorialHighlight(null); setIsTutorialStarting(false); setTutorialDismissedThisFlow(false); setHasSeenTutorial(false);
     setTimeout(() => nameRef.current?.focus(), 100);
   };
 
