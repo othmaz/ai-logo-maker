@@ -5,668 +5,151 @@ import JSZip from 'jszip'
 interface DownloadModalProps {
   isOpen: boolean
   onClose: () => void
-  logo: {
-    id: string
-    url: string
-    logo_url?: string
-    prompt?: string
-  }
+  logo: { id: string; url: string; logo_url?: string; prompt?: string }
   isPremiumUser: boolean
   businessName?: string
   onSave?: (logo: { id: string; url: string; prompt: string }) => void
 }
 
-interface FormatOption {
-  id: string
-  name: string
-  description: string
-  enabled: boolean
-}
+type PS = 'pending' | 'waiting' | 'processing' | 'completed' | 'error'
 
-const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser, businessName = 'logo', onSave }) => {
+const glass = { background:'rgba(5,5,8,0.92)', backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)' } as const
+
+const FORMATS = [
+  { id:'png-hd',    name:'PNG Standard',     desc:'1024×1024 · digital use' },
+  { id:'png',       name:'PNG 8K',            desc:'Upscaled · print & professional' },
+  { id:'png-no-bg', name:'PNG Transparent',   desc:'Background removed' },
+  { id:'svg',       name:'SVG Vector',        desc:'Infinite scalability' },
+  { id:'favicon',   name:'Favicon',           desc:'32×32 · browser tab' },
+  { id:'profile',   name:'Profile Picture',   desc:'512×512 · social media' },
+]
+
+const DownloadModal: React.FC<DownloadModalProps> = ({ isOpen, onClose, logo, isPremiumUser, businessName='logo', onSave }) => {
   const { user } = useUser()
   const { getToken } = useAuth()
-  const [selectedFormats, setSelectedFormats] = useState<string[]>(['png-hd', 'png'])
-  const [isDownloading, setIsDownloading] = useState(false)
-  const [downloadProgress, setDownloadProgress] = useState<Record<string, 'pending' | 'waiting' | 'processing' | 'completed' | 'error'>>({})
-  const [showUnzipInstructions, setShowUnzipInstructions] = useState(false)
+  const [sel, setSel] = useState<string[]>(['png-hd','png'])
+  const [loading, setLoading] = useState(false)
+  const [prog, setProg] = useState<Record<string,PS>>({})
+  const safe = (businessName||'logo').replace(/[^a-z0-9]/gi,'-').toLowerCase()
 
-  // Sanitize business name for file system
-  const sanitizeFilename = (name: string) => {
-    return name.replace(/[^a-z0-9]/gi, '-').toLowerCase()
-  }
-
-  const safeBusinessName = sanitizeFilename(businessName)
-
-  const formatOptions: FormatOption[] = [
-    {
-      id: 'png-hd',
-      name: 'PNG (Standard, 1024x1024)',
-      description: 'Standard resolution for digital use',
-      enabled: isPremiumUser
-    },
-    {
-      id: 'png',
-      name: 'PNG (8K, High-Resolution)',
-      description: 'Premium upscaled version for print and professional use',
-      enabled: isPremiumUser
-    },
-    {
-      id: 'png-no-bg',
-      name: 'PNG (Background Removed)',
-      description: 'Transparent background for versatile use',
-      enabled: isPremiumUser
-    },
-    {
-      id: 'svg',
-      name: 'SVG (Vector, Scalable)',
-      description: 'Infinite scalability for any size application',
-      enabled: isPremiumUser
-    },
-    {
-      id: 'favicon',
-      name: 'Favicon (.ico for website tab)',
-      description: '32x32 optimized for browser tabs',
-      enabled: isPremiumUser
-    },
-    {
-      id: 'profile',
-      name: 'Profile Picture (Rounded PNG)',
-      description: '512x512 circular format for social media',
-      enabled: isPremiumUser
-    }
-  ]
-
-  const toggleFormat = (formatId: string) => {
-    const format = formatOptions.find(f => f.id === formatId)
-    if (!format?.enabled) return
-
-    setSelectedFormats(prev =>
-      prev.includes(formatId)
-        ? prev.filter(id => id !== formatId)
-        : [...prev, formatId]
-    )
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _downloadFile = (data: string, filename: string, mimeType: string) => {
-    const byteCharacters = atob(data)
-    const byteNumbers = new Array(byteCharacters.length)
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i)
-    }
-    const byteArray = new Uint8Array(byteNumbers)
-    const blob = new Blob([byteArray], { type: mimeType })
-
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.style.display = 'none'
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _downloadSVG = (svgData: string, filename: string) => {
-    const blob = new Blob([svgData], { type: 'image/svg+xml' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.style.display = 'none'
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
+  const toggle = (id: string) => {
+    if (!isPremiumUser) return
+    setSel(p => p.includes(id) ? p.filter(x=>x!==id) : [...p,id])
   }
 
   const handleDownload = async () => {
-    if (!user || selectedFormats.length === 0) return
-
-    setIsDownloading(true)
-    const newProgress: Record<string, 'pending' | 'waiting' | 'processing' | 'completed' | 'error'> = {}
-    const has8K = selectedFormats.includes('png')
-
-    selectedFormats.forEach(format => {
-      // Phase 1: 8K and Full HD run in parallel - no waiting
-      if (format === 'png' || format === 'png-hd') {
-        newProgress[format] = 'pending'
-      }
-      // Phase 2: Background removal, favicon, profile wait for 8K
-      else if (has8K && (format === 'png-no-bg' || format === 'favicon' || format === 'profile')) {
-        newProgress[format] = 'waiting'
-      }
-      // SVG waits for background removal (if selected), otherwise waits for 8K
-      else if (format === 'svg') {
-        if (selectedFormats.includes('png-no-bg') || has8K) {
-          newProgress[format] = 'waiting'
-        } else {
-          newProgress[format] = 'pending'
-        }
-      }
-      else {
-        newProgress[format] = 'pending'
-      }
-    })
-    setDownloadProgress(newProgress)
-
+    if (!user || sel.length===0) return
+    setLoading(true)
+    const has8K = sel.includes('png')
+    const initProg: Record<string,PS> = {}
+    sel.forEach(f => { initProg[f] = (f==='png'||f==='png-hd') ? 'pending' : has8K ? 'waiting' : 'pending' })
+    setProg(initProg)
     try {
-      const zip = new JSZip()
-      const folder = zip.folder(safeBusinessName)
-
-      if (!folder) {
-        throw new Error('Failed to create ZIP folder')
+      const zip = new JSZip(); const folder = zip.folder(safe)!
+      let bestUrl = logo.logo_url||logo.url; let best4k: string|null = null
+      const p1: Promise<void>[] = []
+      if (sel.includes('png')) {
+        setProg(p=>({...p,png:'processing'}))
+        p1.push((async()=>{ try {
+          const token = await getToken()
+          const r = await fetch(`/api/logos/${logo.id}/upscale`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({logoUrl:logo.logo_url||logo.url})})
+          const d = await r.json()
+          if(d.success){bestUrl=d.upscaledUrl;if(d.upscaled4kUrl)best4k=d.upscaled4kUrl;folder.file(`${safe}-8k.png`,await fetch(d.upscaledUrl).then(r=>r.blob()));setProg(p=>({...p,png:'completed'}))}
+          else setProg(p=>({...p,png:'error'}))
+        } catch{setProg(p=>({...p,png:'error'}))}}
+        )())
       }
-
-      // Store the highest quality image URL - start with original, upgrade to 8K if available
-      let bestQualityUrl = logo.logo_url || logo.url
-      let best4kQualityUrl: string | null = null
-
-      // PHASE 1: Process 8K and Full HD in PARALLEL
-      // Full HD should complete instantly, 8K takes 5-10 seconds
-      const phase1Promises = []
-
-      // 8K upscale (slow, 5-10 seconds)
-      if (selectedFormats.includes('png')) {
-        const formatId = 'png'
-        setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
-
-        const upscalePromise = (async () => {
-          try {
-            const token = await getToken()
-            const response = await fetch(`/api/logos/${logo.id}/upscale`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-              },
-              body: JSON.stringify({
-                logoUrl: logo.logo_url || logo.url
-              })
-            })
-
-            const result = await response.json()
-            if (result.success) {
-              bestQualityUrl = result.upscaledUrl // Update to use 8K for subsequent operations
-              const best4kUrl = result.upscaled4kUrl // Store 4K URL for SVG
-
-              if (best4kUrl) {
-                best4kQualityUrl = best4kUrl
-              }
-
-              const imageResponse = await fetch(result.upscaledUrl)
-              const blob = await imageResponse.blob()
-              folder.file(`${safeBusinessName}-8k.png`, blob)
-              setDownloadProgress(prev => ({ ...prev, [formatId]: 'completed' }))
-            } else {
-              console.error('❌ 8K upscale failed:', result.error)
-              setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
-              throw new Error(result.error || '8K upscale failed')
-            }
-          } catch (error) {
-            console.error(`Error downloading ${formatId}:`, error)
-            setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
-          }
-        })()
-
-        phase1Promises.push(upscalePromise)
+      if (sel.includes('png-hd')) {
+        setProg(p=>({...p,'png-hd':'processing'}))
+        p1.push((async()=>{ try { folder.file(`${safe}-standard.png`,await fetch(logo.logo_url||logo.url).then(r=>r.blob()));setProg(p=>({...p,'png-hd':'completed'})) } catch{setProg(p=>({...p,'png-hd':'error'}))} })())
       }
-
-      // Full HD download (instant - just fetch the original)
-      if (selectedFormats.includes('png-hd')) {
-        setDownloadProgress(prev => ({ ...prev, 'png-hd': 'processing' }))
-
-        const fullHdPromise = (async () => {
-          try {
-            const imageResponse = await fetch(logo.logo_url || logo.url)
-            const blob = await imageResponse.blob()
-            folder.file(`${safeBusinessName}-fullhd.png`, blob)
-            setDownloadProgress(prev => ({ ...prev, 'png-hd': 'completed' }))
-          } catch (error) {
-            console.error('Error downloading png-hd:', error)
-            setDownloadProgress(prev => ({ ...prev, 'png-hd': 'error' }))
-          }
-        })()
-
-        phase1Promises.push(fullHdPromise)
-      }
-
-      // Wait for Phase 1 to complete (both 8K and Full HD)
-      await Promise.all(phase1Promises)
-
-      // PHASE 2: Process remaining formats (using bestQualityUrl which is 8K if available)
-      for (const formatId of selectedFormats) {
-        // Skip formats we already processed
-        if (formatId === 'png' || formatId === 'png-hd') continue
-
-        setDownloadProgress(prev => ({ ...prev, [formatId]: 'processing' }))
-
+      await Promise.all(p1)
+      for (const fid of sel) {
+        if(fid==='png'||fid==='png-hd') continue
+        setProg(p=>({...p,[fid]:'processing'}))
         try {
-          if (formatId === 'png-no-bg') {
-            const token = await getToken()
-            const response = await fetch(`/api/logos/${logo.id}/remove-background`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-              },
-              body: JSON.stringify({
-                logoUrl: bestQualityUrl // Use 8K version if available
-              })
-            })
-
-            const result = await response.json()
-            if (result.success) {
-              const imageResponse = await fetch(result.processedUrl)
-              const blob = await imageResponse.blob()
-              folder.file(`${safeBusinessName}-no-background.png`, blob)
-            } else {
-              console.error('❌ Background removal failed:', result.error)
-              throw new Error(result.error || 'Background removal failed')
-            }
-          } else if (formatId === 'svg') {
-            // ALWAYS generate background-removed 4K version for SVG (better vectorization + smaller file)
-            // IMPORTANT: Don't reuse backgroundRemovedUrl as it may be 8K, always generate fresh 4K version
-            console.log('🔄 Generating background-removed 4K version for SVG...')
-
-            // Use 4K URL if available, otherwise fall back to 8K
-            const sourceUrl = best4kQualityUrl || bestQualityUrl
-            console.log('📐 Using source for SVG:', sourceUrl.includes('4k') ? '4K' : '8K')
-
-            const token = await getToken()
-            const bgRemovalResponse = await fetch(`/api/logos/${logo.id}/remove-background`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-              },
-              body: JSON.stringify({
-                logoUrl: sourceUrl // Use 4K version for SVG
-              })
-            })
-
-            const bgRemovalResult = await bgRemovalResponse.json()
-            let svgSourceUrl
-            if (bgRemovalResult.success) {
-              svgSourceUrl = bgRemovalResult.processedUrl
-              console.log('✅ Background removed for SVG vectorization (4K)')
-            } else {
-              console.warn('⚠️ Background removal failed, using source with background')
-              svgSourceUrl = sourceUrl
-            }
-
-            // Generate polygon version only (cost optimization: €1 per conversion)
-            // Spline version disabled to save costs - backend code kept for future use
-
-            // DISABLED: Spline version (smooth curves)
-            // console.log('🔺 Generating SVG - Spline version...')
-            // const splineResponse = await fetch(`/api/logos/${logo.id}/vectorize`, {
-            //   method: 'POST',
-            //   headers: { 'Content-Type': 'application/json' },
-            //   body: JSON.stringify({
-            //     clerkUserId: user.id,
-            //     logoUrl: svgSourceUrl,
-            //     curveFitting: 'spline'
-            //   })
-            // })
-            // const splineResult = await splineResponse.json()
-            // if (splineResult.success) {
-            //   folder.file(`${safeBusinessName}-vector-spline.svg`, splineResult.svgData)
-            // }
-
-            console.log('🔺 Generating SVG - Polygon version...')
-            const polygonResponse = await fetch(`/api/logos/${logo.id}/vectorize`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-              },
-              body: JSON.stringify({
-                logoUrl: svgSourceUrl,
-                curveFitting: 'polygon' // Geometric edges
-              })
-            })
-
-            const polygonResult = await polygonResponse.json()
-            if (polygonResult.success) {
-              folder.file(`${safeBusinessName}-vector.svg`, polygonResult.svgData)
-            } else {
-              console.error('❌ SVG vectorization failed')
-              throw new Error('SVG vectorization failed')
-            }
-          } else if (formatId === 'favicon') {
-            const token = await getToken()
-            const response = await fetch(`/api/logos/${logo.id}/formats`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-              },
-              body: JSON.stringify({
-                formats: [formatId],
-                logoUrl: bestQualityUrl // Use 8K version if available
-              })
-            })
-
-            const result = await response.json()
-            if (result.success && result.formats[formatId]) {
-              const format = result.formats[formatId]
-              const byteCharacters = atob(format.data)
-              const byteNumbers = new Array(byteCharacters.length)
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i)
-              }
-              const byteArray = new Uint8Array(byteNumbers)
-              folder.file(`${safeBusinessName}-favicon.ico`, byteArray)
-            } else {
-              console.error('❌ Favicon generation failed:', result.error)
-              throw new Error(result.error || 'Favicon generation failed')
-            }
-          } else if (formatId === 'profile') {
-            const token = await getToken()
-            const response = await fetch(`/api/logos/${logo.id}/formats`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-              },
-              body: JSON.stringify({
-                formats: [formatId],
-                logoUrl: bestQualityUrl // Use 8K version if available
-              })
-            })
-
-            const result = await response.json()
-            if (result.success && result.formats[formatId]) {
-              const format = result.formats[formatId]
-              const byteCharacters = atob(format.data)
-              const byteNumbers = new Array(byteCharacters.length)
-              for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i)
-              }
-              const byteArray = new Uint8Array(byteNumbers)
-              folder.file(`${safeBusinessName}-profile.png`, byteArray)
-            } else {
-              console.error('❌ Profile picture generation failed:', result.error)
-              throw new Error(result.error || 'Profile picture generation failed')
-            }
+          const token = await getToken()
+          if(fid==='png-no-bg'){
+            const d=(await (await fetch(`/api/logos/${logo.id}/remove-background`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({logoUrl:bestUrl})})).json())
+            if(d.success)folder.file(`${safe}-no-bg.png`,await fetch(d.processedUrl).then(r=>r.blob()));else throw new Error()
+          } else if(fid==='svg'){
+            const bgD=(await (await fetch(`/api/logos/${logo.id}/remove-background`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({logoUrl:best4k||bestUrl})})).json())
+            const vD=(await (await fetch(`/api/logos/${logo.id}/vectorize`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({logoUrl:bgD.success?bgD.processedUrl:(best4k||bestUrl),curveFitting:'polygon'})})).json())
+            if(vD.success)folder.file(`${safe}-vector.svg`,vD.svgData);else throw new Error()
+          } else {
+            const d=(await (await fetch(`/api/logos/${logo.id}/formats`,{method:'POST',headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`}:{})},body:JSON.stringify({formats:[fid],logoUrl:bestUrl})})).json())
+            if(d.success&&d.formats[fid]){const f=d.formats[fid];folder.file(`${safe}-${fid}.${fid==='favicon'?'ico':'png'}`,Uint8Array.from(atob(f.data),c=>c.charCodeAt(0)))}else throw new Error()
           }
-
-          setDownloadProgress(prev => ({ ...prev, [formatId]: 'completed' }))
-        } catch (error) {
-          console.error(`Error downloading ${formatId}:`, error)
-          setDownloadProgress(prev => ({ ...prev, [formatId]: 'error' }))
-        }
+          setProg(p=>({...p,[fid]:'completed'}))
+        } catch{setProg(p=>({...p,[fid]:'error'}))}
       }
-
-      // Generate and download ZIP file
-      const zipBlob = await zip.generateAsync({ type: 'blob' })
-      const url = window.URL.createObjectURL(zipBlob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${safeBusinessName}-logos.zip`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      // Auto-save logo to collection after successful download
-      if (onSave && logo.prompt) {
-        onSave({
-          id: logo.id,
-          url: logo.logo_url || logo.url,
-          prompt: logo.prompt
-        })
-      }
-
-      // Show unzip instructions
-      setShowUnzipInstructions(true)
-
-    } catch (error) {
-      console.error('Download error:', error)
-    } finally {
-      setIsDownloading(false)
-    }
+      const blob = await zip.generateAsync({type:'blob'})
+      const a = document.createElement('a'); a.style.display='none'; a.href=URL.createObjectURL(blob); a.download=`${safe}-logos.zip`
+      document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(a.href)},100)
+      if(onSave&&logo.prompt) onSave({id:logo.id,url:logo.logo_url||logo.url,prompt:logo.prompt})
+    } catch(e){console.error(e)} finally{setLoading(false)}
   }
 
   if (!isOpen) return null
 
+  const icon = (s:PS) => s==='completed'?<span style={{color:'#6ee7b7'}}>✓</span>:s==='error'?<span style={{color:'#f87171'}}>✕</span>:s==='processing'?<span style={{color:'#fcd34d',display:'inline-block',animation:'dmSpin 1s linear infinite'}}>◌</span>:s==='waiting'?<span style={{color:'#4b5563'}}>◌</span>:null
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-[100] p-4 animate-fadeIn">
-      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl border-2 border-cyan-400/50 shadow-[0_0_50px_rgba(34,211,238,0.3)] max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col animate-slideUp">
-        <div className="p-6 overflow-y-auto flex-1">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h2 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent font-mono">DOWNLOAD CENTER</h2>
-              <div className="h-1 w-24 bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full mt-2"></div>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-cyan-400 text-3xl transition-all hover:rotate-90 duration-300"
-            >
-              ×
-            </button>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      style={{background:'rgba(0,0,0,0.8)',backdropFilter:'blur(8px)'}} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-3xl flex flex-col overflow-hidden"
+        style={{...glass,border:'1px solid rgba(255,255,255,0.08)',maxHeight:'88vh'}} onClick={e=>e.stopPropagation()}>
+
+        <div className="flex items-center justify-between px-6 pt-6 pb-4" style={{borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+          <div>
+            <h2 className="text-sm font-black tracking-[0.2em] uppercase text-white">Download Center</h2>
+            <p className="text-xs mt-0.5" style={{color:'#374151'}}>{safe}</p>
           </div>
+          <button onClick={onClose} className="hover:text-gray-400 transition-colors" style={{color:'#4b5563'}}>✕</button>
+        </div>
 
-          {/* Logo Preview */}
-          <div className="mb-6">
-            <div className="bg-gray-700/50 rounded-lg p-4 text-center">
-              <img
-                src={logo.logo_url || logo.url}
-                alt="Logo Preview"
-                className="max-w-full max-h-32 mx-auto rounded"
-              />
-            </div>
-          </div>
-
-          {/* Premium Status */}
-          {!isPremiumUser && (
-            <div className="mb-6 p-4 bg-orange-500/20 border border-orange-500/50 rounded-lg">
-              <p className="text-orange-400 font-mono text-sm">
-                🚀 Premium subscription required for advanced download formats
-              </p>
-            </div>
-          )}
-
-          {/* Format Selection */}
-          <div className="mb-6">
-            <h3 className="text-lg font-bold text-white font-mono mb-4">SELECT FORMATS:</h3>
-            <div className="space-y-3">
-              {formatOptions.map(format => (
-                <div
-                  key={format.id}
-                  className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                    format.enabled
-                      ? selectedFormats.includes(format.id)
-                        ? 'border-cyan-400 bg-cyan-400/10'
-                        : 'border-gray-600 hover:border-gray-500'
-                      : 'border-yellow-500/70 bg-gray-700/30 cursor-not-allowed opacity-50 shadow-[0_0_10px_rgba(234,179,8,0.3)]'
-                  }`}
-                  onClick={() => toggleFormat(format.id)}
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className={`w-5 h-5 border-2 rounded mt-0.5 flex items-center justify-center ${
-                      format.enabled && selectedFormats.includes(format.id)
-                        ? 'border-cyan-400 bg-cyan-400'
-                        : 'border-gray-500'
-                    }`}>
-                      {format.enabled && selectedFormats.includes(format.id) && (
-                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <p className={`font-medium ${format.enabled ? 'text-white' : 'text-gray-500'}`}>
-                        {format.name}
-                      </p>
-                      <p className={`text-sm ${format.enabled ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {format.description}
-                      </p>
-                      {downloadProgress[format.id] && (
-                        <div className="mt-3">
-                          {downloadProgress[format.id] === 'waiting' && (
-                            <div className="flex items-center space-x-3 animate-fadeIn">
-                              <div className="relative w-5 h-5">
-                                <div className="absolute inset-0 border-3 border-gray-500/30 rounded-full"></div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-                                </div>
-                              </div>
-                              <span className="text-gray-400 text-sm tracking-wide">
-                                Waiting for 8K...
-                              </span>
-                            </div>
-                          )}
-                          {downloadProgress[format.id] === 'processing' && (
-                            <div className="space-y-2 animate-fadeIn">
-                              <div className="flex items-center space-x-3">
-                                <div className="relative w-5 h-5">
-                                  <div className="absolute inset-0 border-3 border-yellow-400/20 rounded-full"></div>
-                                  <div className="absolute inset-0 border-3 border-transparent border-t-yellow-400 border-r-yellow-400 rounded-full animate-spin"></div>
-                                </div>
-                                <span className="text-yellow-400 text-sm font-bold tracking-wide">
-                                  {format.id === 'png' ? 'AI UPSCALING TO 8K...' : 'PROCESSING...'}
-                                </span>
-                              </div>
-                              <div className="relative w-full h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
-                                <div className="absolute inset-0 bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400 animate-[shimmer_1.5s_ease-in-out_infinite]" style={{backgroundSize: '200% 100%'}}></div>
-                              </div>
-                              {format.id === 'png' && (
-                                <div className="flex items-center space-x-1.5">
-                                  <svg className="w-3 h-3 text-yellow-400/70" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                                  </svg>
-                                  <span className="text-yellow-400/70 text-xs">5-10 seconds</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {downloadProgress[format.id] === 'completed' && (
-                            <div className="flex items-center space-x-3 animate-fadeIn">
-                              <div className="relative w-5 h-5">
-                                <div className="absolute inset-0 bg-green-500 rounded-full animate-[pulse_0.5s_ease-out]"></div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                </div>
-                              </div>
-                              <span className="text-green-400 text-sm font-bold tracking-wide">COMPLETE</span>
-                            </div>
-                          )}
-                          {downloadProgress[format.id] === 'error' && (
-                            <div className="flex items-center space-x-3 animate-shake">
-                              <div className="relative w-5 h-5">
-                                <div className="absolute inset-0 bg-red-500 rounded-full"></div>
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <span className="text-white text-sm font-bold">!</span>
-                                </div>
-                              </div>
-                              <span className="text-red-400 text-sm font-bold tracking-wide">FAILED</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+        <div className="px-6 py-4 flex justify-center">
+          <div className="w-20 h-20 rounded-2xl overflow-hidden" style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)'}}>
+            <img src={logo.logo_url||logo.url} alt="Logo" className="w-full h-full object-contain p-2" />
           </div>
         </div>
 
-        {/* Floating Download Button */}
-        <div className="sticky bottom-0 p-4 bg-gradient-to-t from-gray-900 via-gray-900 to-transparent border-t border-cyan-400/30">
-          <button
-            onClick={handleDownload}
-            disabled={selectedFormats.length === 0 || isDownloading}
-            className={`relative w-full py-4 px-8 rounded-2xl font-bold font-mono text-lg transition-all duration-300 overflow-hidden group ${
-              selectedFormats.length === 0 || isDownloading
-                ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:scale-105 hover:shadow-[0_0_30px_rgba(34,211,238,0.6)] active:scale-95'
-            }`}
-          >
-            {/* Animated background shine */}
-            {!isDownloading && selectedFormats.length > 0 && (
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-            )}
+        {!isPremiumUser && (
+          <p className="text-xs text-center pb-2 px-6" style={{color:'#f472b6'}}>Premium required · upgrade to download</p>
+        )}
 
-            <div className="relative flex items-center justify-center space-x-3">
-              {isDownloading ? (
-                <>
-                  <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span className="animate-pulse">CREATING YOUR FILES...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-6 h-6 animate-bounce" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                  <span>DOWNLOAD {selectedFormats.length} FORMAT{selectedFormats.length !== 1 ? 'S' : ''}</span>
-                  <svg className="w-6 h-6 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </>
-              )}
-            </div>
-          </button>
+        <div className="flex-1 overflow-y-auto px-6 flex flex-col gap-2 pb-4">
+          {FORMATS.map(f => {
+            const selected = sel.includes(f.id)
+            const p = prog[f.id]
+            return (
+              <div key={f.id} onClick={()=>toggle(f.id)}
+                className="flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-150"
+                style={{cursor:isPremiumUser?'pointer':'not-allowed',background:selected?'rgba(99,102,241,0.1)':'rgba(255,255,255,0.03)',border:`1px solid ${selected?'rgba(99,102,241,0.35)':'rgba(255,255,255,0.06)'}`,opacity:isPremiumUser?1:0.4}}>
+                <div className="w-5 h-5 rounded-md flex items-center justify-center text-xs shrink-0"
+                  style={{background:selected?'rgba(99,102,241,0.25)':'rgba(255,255,255,0.04)',border:`1px solid ${selected?'rgba(99,102,241,0.5)':'rgba(255,255,255,0.08)'}`}}>
+                  {selected && <span style={{color:'#a5b4fc',fontSize:'10px'}}>✓</span>}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white">{f.name}</p>
+                  <p className="text-xs" style={{color:'#374151'}}>{f.desc}</p>
+                </div>
+                {p && <div className="text-sm shrink-0">{icon(p)}</div>}
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="px-6 py-4" style={{borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+          <div className="capsule-wrap w-full">
+            <button onClick={handleDownload} disabled={sel.length===0||loading||!user} className="capsule-btn w-full"
+              style={{color:sel.length>0&&!loading?'#9ca3af':'#4b5563',cursor:sel.length>0&&!loading?'pointer':'not-allowed',fontSize:'0.8rem',fontWeight:700,letterSpacing:'0.1em'}}>
+              {loading?'◈ Preparing…':`Download ${sel.length} format${sel.length!==1?'s':''} →`}
+            </button>
+          </div>
         </div>
       </div>
-
-      {/* Unzip Instructions Modal */}
-      {showUnzipInstructions && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[110] p-4">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border-2 border-cyan-400 max-w-lg w-full p-8 shadow-2xl">
-            <div className="text-center mb-6">
-              <div className="text-6xl mb-4">📦</div>
-              <h2 className="text-3xl font-bold text-white font-mono mb-2">DOWNLOAD COMPLETE!</h2>
-              <p className="text-cyan-400 font-mono">Your files are ready in: {safeBusinessName}-logos.zip</p>
-            </div>
-
-            <div className="bg-gray-700/50 rounded-lg p-6 mb-6">
-              <h3 className="text-lg font-bold text-white font-mono mb-4">📂 HOW TO ACCESS YOUR FILES:</h3>
-              <div className="space-y-3 text-gray-300">
-                <div className="flex items-start space-x-3">
-                  <span className="text-cyan-400 font-bold">1.</span>
-                  <p>Find the downloaded <span className="text-white font-mono">{safeBusinessName}-logos.zip</span> file (usually in your Downloads folder)</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-cyan-400 font-bold">2.</span>
-                  <p><span className="text-white font-bold">Double-click</span> the ZIP file to extract it</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-cyan-400 font-bold">3.</span>
-                  <p>Open the <span className="text-white font-mono">{safeBusinessName}</span> folder</p>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-cyan-400 font-bold">4.</span>
-                  <p>All your logo files are inside with the business name prefix!</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-cyan-400/10 border border-cyan-400/30 rounded-lg p-4 mb-6">
-              <p className="text-cyan-300 text-sm">
-                💡 <span className="font-bold">Tip:</span> Each file is named <span className="font-mono">{safeBusinessName}-[format].png</span> for easy organization!
-              </p>
-            </div>
-
-            <button
-              onClick={() => {
-                setShowUnzipInstructions(false)
-                onClose()
-              }}
-              className="w-full py-3 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg font-bold font-mono hover:from-cyan-600 hover:to-blue-700 transition-all"
-            >
-              GOT IT! ✓
-            </button>
-          </div>
-        </div>
-      )}
+      <style>{`@keyframes dmSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

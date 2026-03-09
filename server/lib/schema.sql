@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS saved_logos (
   logo_prompt TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   is_premium BOOLEAN DEFAULT FALSE,
-  file_format VARCHAR(10) DEFAULT 'png'
+  file_format VARCHAR(10) DEFAULT 'png',
+  editor_state JSONB
 );
 
 -- Generation history table

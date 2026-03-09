@@ -1,3 +1,9 @@
+/**
+ * ENTRYPOINT (ACTIVE)
+ *
+ * This file boots the production app via AppRouter.
+ * See docs/CODEBASE-STATUS.md for active-vs-legacy map.
+ */
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
@@ -14,281 +20,71 @@ if (!CLERK_PUBLISHABLE_KEY) {
 
 // Retro 80s theme for Clerk authentication
 const clerkAppearance = {
-  baseTheme: undefined,
   variables: {
-    colorPrimary: '#00ffff', // Electric cyan
-    colorBackground: '#1f2937', // Match website dark background
-    colorInputBackground: '#374151', // Darker gray for inputs
-    colorInputText: '#ffffff', // White text
-    colorText: '#ffffff', // White text
-    colorTextSecondary: '#00ffff', // Cyan secondary text
-    colorTextOnPrimaryBackground: '#000000', // Black text on cyan
-    colorDanger: '#ff10f0', // Electric pink for errors
-    colorSuccess: '#39ff14', // Neon green for success
-    colorWarning: '#ffff00', // Electric yellow for warnings
-    borderRadius: '0px', // Sharp corners like retro buttons
-    fontFamily: '"VT323", "Press Start 2P", monospace', // Retro monospace
+    colorPrimary: '#6366f1',
+    colorBackground: '#050508',
+    colorInputBackground: 'rgba(5,5,8,0.72)',
+    colorInputText: '#ffffff',
+    colorText: '#e5e7eb',
+    colorTextSecondary: '#9ca3af',
+    colorTextOnPrimaryBackground: '#ffffff',
+    colorDanger: '#f87171',
+    colorSuccess: '#6ee7b7',
+    colorWarning: '#fcd34d',
+    borderRadius: '12px',
+    fontFamily: 'Inter, system-ui, sans-serif',
     spacingUnit: '1rem',
   },
   elements: {
-    rootBox: {
-      backgroundColor: 'rgba(31, 41, 55, 0.95)', // Semi-transparent dark
-      backdropFilter: 'blur(10px)', // Glass effect
-    },
+    rootBox: { backgroundColor: 'transparent' },
     card: {
-      backgroundColor: '#1f2937',
-      border: '2px solid #00ffff',
-      boxShadow: '4px 4px 0px #000000, 0 0 30px rgba(0, 255, 255, 0.4)',
-      borderRadius: '0px', // Sharp retro corners
+      backgroundColor: 'rgba(5,5,8,0.88)',
+      backdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+      borderRadius: '20px',
     },
-    headerTitle: {
-      color: '#00ffff',
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '1.2rem',
-      textTransform: 'uppercase',
-      letterSpacing: '2px',
-      textShadow: '0 0 10px rgba(0, 255, 255, 0.6)',
-    },
-    headerSubtitle: {
-      color: '#e5e7eb',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-    },
+    headerTitle: { color: '#ffffff', fontWeight: '800', letterSpacing: '-0.02em' },
+    headerSubtitle: { color: '#9ca3af' },
     formButtonPrimary: {
-      backgroundColor: '#00ffff',
-      color: '#000000',
-      border: '2px solid #00ffff',
-      fontFamily: '"Press Start 2P", monospace',
-      textTransform: 'uppercase',
-      fontSize: '1rem',
-      borderRadius: '0px',
-      fontWeight: 'bold',
-      boxShadow: '4px 4px 0px #000000, 0 0 20px rgba(0, 255, 255, 0.3)',
-      transition: 'all 0.1s ease',
-      '&:hover': {
-        backgroundColor: '#39ff14',
-        borderColor: '#39ff14',
-        color: '#000000',
-        boxShadow: '2px 2px 0px #000000, 0 0 30px rgba(57, 255, 20, 0.5)',
-        transform: 'translate(2px, 2px)',
-      },
-      '&:active': {
-        transform: 'translate(4px, 4px)',
-        boxShadow: '0px 0px 0px #000000, 0 0 15px rgba(0, 255, 255, 0.5)',
-      },
+      backgroundColor: 'rgba(99,102,241,0.2)',
+      border: '1px solid rgba(99,102,241,0.5)',
+      color: '#a5b4fc',
+      borderRadius: '12px',
+      fontWeight: '700',
+      letterSpacing: '0.05em',
+      boxShadow: 'none',
     },
     formFieldInput: {
-      backgroundColor: '#374151',
-      borderColor: '#00ffff',
+      backgroundColor: 'rgba(255,255,255,0.04)',
+      borderColor: 'rgba(255,255,255,0.08)',
       color: '#ffffff',
-      borderRadius: '0px',
-      border: '2px solid #00ffff',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-      '&:focus': {
-        borderColor: '#39ff14',
-        boxShadow: '0 0 15px rgba(57, 255, 20, 0.4)',
-        backgroundColor: '#374151',
-      },
+      borderRadius: '12px',
     },
-    formFieldLabel: {
-      color: '#00ffff',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-      textTransform: 'uppercase',
-      letterSpacing: '1px',
-    },
-    identityPreviewText: {
-      color: '#00ffff',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.1rem',
-    },
-    identityPreviewEditButton: {
-      color: '#00ffff',
-    },
-    footerActionText: {
-      color: '#e5e7eb',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.1rem',
-    },
-    footerActionLink: {
-      color: '#00ffff',
-      fontSize: '1.1rem',
-    },
+    formFieldLabel: { color: '#9ca3af', fontSize: '0.8rem', letterSpacing: '0.1em', textTransform: 'uppercase' },
+    footerActionLink: { color: '#a5b4fc' },
+    footerActionText: { color: '#6b7280' },
     socialButtonsBlockButton: {
-      border: '2px solid #8b5cf6',
-      backgroundColor: '#1f2937',
-      color: '#ffffff',
-      borderRadius: '0px',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-      '&:hover': {
-        borderColor: '#a855f7',
-        backgroundColor: '#8b5cf6',
-        boxShadow: '0 0 15px rgba(139, 92, 246, 0.4)',
-      },
+      backgroundColor: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      color: '#e5e7eb',
+      borderRadius: '12px',
     },
-    dividerLine: {
-      backgroundColor: '#00ffff',
-      height: '2px',
-    },
-    dividerText: {
-      color: '#00ffff',
-      fontFamily: '"VT323", monospace',
-      textTransform: 'uppercase',
-    },
+    dividerLine: { backgroundColor: 'rgba(255,255,255,0.06)' },
+    dividerText: { color: '#6b7280' },
+    identityPreviewText: { color: '#9ca3af' },
     userButtonPopoverCard: {
-      backgroundColor: '#1f2937',
-      border: '2px solid #22d3ee',
-      boxShadow: '4px 4px 0px #000000, 0 0 20px rgba(34, 211, 238, 0.3)',
+      backgroundColor: 'rgba(5,5,8,0.95)',
+      backdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '16px',
+      boxShadow: '0 24px 60px rgba(0,0,0,0.6)',
     },
-    userButtonPopoverActionButton: {
-      color: '#ffffff',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-    },
-    userButtonPopoverActionButtonText: {
-      color: '#ffffff',
-      fontSize: '1.2rem',
-    },
-    userButtonPopoverActionButtonIcon: {
-      color: '#22d3ee',
-    },
-    userButtonPopoverFooter: {
-      backgroundColor: '#1f2937',
-      borderTop: '1px solid #22d3ee',
-    },
-    userButtonAvatarBox: {
-      width: '32px',
-      height: '32px',
-      borderRadius: '50%',
-      border: '2px solid #22d3ee',
-      boxShadow: '0 0 10px rgba(34, 211, 238, 0.3)',
-    },
-    userButtonAvatarImage: {
-      borderRadius: '50%',
-    },
-    userButtonTrigger: {
-      backgroundColor: 'transparent',
-      border: 'none',
-      padding: '0',
-      borderRadius: '50%',
-      '&:hover': {
-        backgroundColor: 'transparent',
-      },
-      '&:focus': {
-        backgroundColor: 'transparent',
-        boxShadow: '0 0 0 2px #22d3ee',
-      },
-    },
-    // User Profile Management Pages
-    userProfileModal: {
-      backgroundColor: '#1f2937',
-      border: '2px solid #22d3ee',
-      boxShadow: '4px 4px 0px #000000, 0 0 30px rgba(34, 211, 238, 0.3)',
-    },
-    userProfileSection: {
-      backgroundColor: '#1f2937',
-    },
-    userProfileSectionTitle: {
-      color: '#22d3ee',
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '1.3rem',
-      textTransform: 'uppercase',
-      letterSpacing: '2px',
-    },
-    userProfileSectionDescription: {
-      color: '#e5e7eb',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-    },
-    userProfileFieldLabel: {
-      color: '#22d3ee',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-      textTransform: 'uppercase',
-    },
-    userProfileFieldInput: {
-      backgroundColor: '#374151',
-      borderColor: '#22d3ee',
-      color: '#ffffff',
-      borderRadius: '0px',
-      border: '2px solid #22d3ee',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-    },
-    userProfileButton: {
-      backgroundColor: '#22d3ee',
-      color: '#000000',
-      border: '2px solid #22d3ee',
-      fontFamily: '"Press Start 2P", monospace',
-      textTransform: 'uppercase',
-      fontSize: '1rem',
-      borderRadius: '0px',
-      '&:hover': {
-        backgroundColor: '#39ff14',
-        borderColor: '#39ff14',
-      },
-    },
-    userProfileText: {
-      color: '#ffffff',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-    },
-    userProfileSecondaryText: {
-      color: '#e5e7eb',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.1rem',
-    },
-    navbar: {
-      backgroundColor: '#1f2937',
-    },
-    navbarTitle: {
-      color: '#22d3ee',
-      fontFamily: '"Press Start 2P", monospace',
-      fontSize: '1.4rem',
-      textTransform: 'uppercase',
-    },
-    navbarButton: {
-      color: '#22d3ee',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-    },
-    // Specific profile page elements that were still small
-    profileSection: {
-      backgroundColor: '#1f2937',
-    },
-    profileSectionTitle: {
-      color: '#22d3ee',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.4rem',
-      textTransform: 'uppercase',
-    },
-    profileSectionContent: {
-      color: '#ffffff',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.3rem',
-    },
-    profileEmailAddress: {
-      color: '#e5e7eb',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-    },
-    profileConnectionTitle: {
-      color: '#22d3ee',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.3rem',
-    },
-    profileConnectionText: {
-      color: '#ffffff',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.2rem',
-    },
-    profileBadge: {
-      color: '#39ff14',
-      fontFamily: '"VT323", monospace',
-      fontSize: '1.1rem',
-    },
+    userButtonPopoverActionButton: { color: '#e5e7eb', borderRadius: '8px' },
+    userButtonPopoverActionButtonText: { color: '#e5e7eb' },
+    userButtonPopoverActionButtonIcon: { color: '#6366f1' },
+    userButtonAvatarBox: { borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' },
+    userButtonTrigger: { backgroundColor: 'transparent', border: 'none', padding: '0' },
   },
 }
 

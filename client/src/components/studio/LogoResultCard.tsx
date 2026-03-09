@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Heart, Download, Wand2 } from 'lucide-react';
 import { StudioCard } from './StudioCard';
 import { StudioButton } from './StudioButton';
 
@@ -57,17 +56,17 @@ export const LogoResultCard: React.FC<LogoResultCardProps> = ({
           ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}
         `}>
           <StudioButton variant="secondary" size="sm" onClick={onLike}>
-            <Heart className={`h-4 w-4 ${isLiked ? 'fill-cyan-500 text-cyan-500' : ''}`} />
+            <span className={`${isLiked ? 'text-cyan-500' : ''}`}>♡</span>
           </StudioButton>
 
           {isPremium && (
             <StudioButton variant="secondary" size="sm" onClick={onDownload}>
-              <Download className="h-4 w-4" />
+              <span>↓</span>
             </StudioButton>
           )}
 
           <StudioButton variant="primary" size="sm" onClick={onRefine}>
-            <Wand2 className="h-4 w-4 mr-1" />
+            <span className="mr-1">✦</span>
             Refine
           </StudioButton>
         </div>
@@ -82,7 +81,7 @@ export const LogoResultCard: React.FC<LogoResultCardProps> = ({
             <div className="flex items-center gap-2">
               {isPremium && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/10 px-2 py-0.5 text-xs font-medium text-cyan-400">
-                  <Download className="h-3 w-3" />
+                  <span>↓</span>
                   HD Available
                 </span>
               )}
@@ -99,7 +98,7 @@ export const LogoResultCard: React.FC<LogoResultCardProps> = ({
                 }
               `}
             >
-              <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+              <span>{isLiked ? '♥' : '♡'}</span>
             </button>
           </div>
         </div>

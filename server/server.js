@@ -4,18 +4,21 @@ const dotenv = require('dotenv')
 const { GoogleGenAI } = require('@google/genai')
 const fs = require('fs')
 const path = require('path')
+const crypto = require('crypto')
 const Replicate = require('replicate')
 const Stripe = require('stripe')
 const sharp = require('sharp')
 const potrace = require('potrace')
 const { put } = require('@vercel/blob')
 const { connectToDatabase, sql } = require('./lib/db')
+const { buildBriefedRefinementPrompts: buildServerBriefedPrompts, generateVariantPlans } = require('./lib/promptBuilder')
 const { migrateFromLocalStorage } = require('./lib/migrate')
 const { Resend } = require('resend')
 const { optimize } = require('svgo')
 const { verifyToken } = require('@clerk/backend')
 
-dotenv.config({ path: path.join(__dirname, '../.env') })
+dotenv.config({ path: path.join(__dirname, '.env') })       // server/.env (API keys)
+dotenv.config({ path: path.join(__dirname, '../.env') })    // root .env (Clerk, fallbacks)
 
 // Initialize Replicate client
 const replicate = new Replicate({
@@ -36,6 +39,12 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 
 const app = express()
 const port = process.env.PORT || 3001
+
+const GEMINI_IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview'
+const FREE_IMAGE_SIZE = process.env.GEMINI_IMAGE_SIZE_FREE || '0.5K'
+const PAID_IMAGE_SIZE = process.env.GEMINI_IMAGE_SIZE_PAID || '1K'
+const MAX_ANON_INITIAL_VARIATIONS = Number(process.env.MAX_ANON_INITIAL_VARIATIONS || 3)
+const MAX_ANON_REFINE_VARIATIONS = Number(process.env.MAX_ANON_REFINE_VARIATIONS || 1)
 
 const configuredOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
@@ -90,6 +99,114 @@ const extractBearerToken = (req) => {
   const authHeader = req.headers.authorization || ''
   if (!authHeader.startsWith('Bearer ')) return null
   return authHeader.slice(7).trim()
+}
+
+const getSubscriptionStatus = async (clerkUserId) => {
+  if (!clerkUserId) return 'free'
+
+  try {
+    await connectToDatabase()
+    const { rows } = await sql`
+      SELECT subscription_status
+      FROM users
+      WHERE clerk_user_id = ${clerkUserId}
+      LIMIT 1
+    `
+    return rows[0]?.subscription_status || 'free'
+  } catch (error) {
+    console.warn('⚠️ Failed to fetch subscription status, defaulting to free:', error?.message || error)
+    return 'free'
+  }
+}
+
+const resolveRequestUserContext = async (req) => {
+  const token = extractBearerToken(req)
+  if (!token || !process.env.CLERK_SECRET_KEY) {
+    return { isAuthenticated: false, clerkUserId: null, subscriptionStatus: 'free', isPremium: false }
+  }
+
+  try {
+    const verifiedToken = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY })
+    const clerkUserId = verifiedToken.sub || verifiedToken.userId || null
+
+    if (!clerkUserId) {
+      return { isAuthenticated: false, clerkUserId: null, subscriptionStatus: 'free', isPremium: false }
+    }
+
+    const subscriptionStatus = await getSubscriptionStatus(clerkUserId)
+    const isPremium = subscriptionStatus === 'premium'
+
+    return { isAuthenticated: true, clerkUserId, subscriptionStatus, isPremium }
+  } catch (error) {
+    console.warn('⚠️ Failed to verify bearer token in optional auth path; treating as anonymous:', error?.message || error)
+    return { isAuthenticated: false, clerkUserId: null, subscriptionStatus: 'free', isPremium: false }
+  }
+}
+
+const consumeSignedUserCredits = async ({ clerkUserId, requestedCount }) => {
+  const amount = Math.max(1, Number(requestedCount) || 1)
+
+  await connectToDatabase()
+
+  const { rows: currentRows } = await sql`
+    SELECT subscription_status, credits_used, credits_limit
+    FROM users
+    WHERE clerk_user_id = ${clerkUserId}
+    LIMIT 1
+  `
+
+  const current = currentRows[0]
+  if (!current) {
+    return {
+      ok: false,
+      reason: 'USER_NOT_FOUND',
+      message: 'User profile not initialized. Please refresh and try again.',
+    }
+  }
+
+  if (current.subscription_status === 'premium') {
+    return { ok: true, isPremium: true, remaining: Infinity }
+  }
+
+  const { rows: updatedRows } = await sql`
+    UPDATE users
+    SET credits_used = credits_used + ${amount}
+    WHERE clerk_user_id = ${clerkUserId}
+      AND subscription_status <> 'premium'
+      AND (credits_used + ${amount}) <= credits_limit
+    RETURNING subscription_status, credits_used, credits_limit
+  `
+
+  if (updatedRows[0]) {
+    const updated = updatedRows[0]
+    return {
+      ok: true,
+      isPremium: updated.subscription_status === 'premium',
+      remaining: Math.max(0, (updated.credits_limit || 0) - (updated.credits_used || 0)),
+    }
+  }
+
+  const { rows: latestRows } = await sql`
+    SELECT subscription_status, credits_used, credits_limit
+    FROM users
+    WHERE clerk_user_id = ${clerkUserId}
+    LIMIT 1
+  `
+
+  const latest = latestRows[0]
+
+  if (latest?.subscription_status === 'premium') {
+    return { ok: true, isPremium: true, remaining: Infinity }
+  }
+
+  return {
+    ok: false,
+    reason: 'INSUFFICIENT_CREDITS',
+    remaining: Math.max(0, (latest?.credits_limit || 0) - (latest?.credits_used || 0)),
+    creditsUsed: latest?.credits_used || 0,
+    creditsLimit: latest?.credits_limit || 0,
+    message: 'Not enough credits for this generation request.',
+  }
 }
 
 const requireAuth = async (req, res, next) => {
@@ -162,6 +279,524 @@ const expensiveOperationLimiter = createRateLimiter({
   name: 'premium-format',
   keyFn: (req) => req.auth?.userId || req.ip || 'anonymous',
 })
+
+let ensureGenerationRequestTablePromise = null
+let ensureSavedLogosEditorStateColumnPromise = null
+
+const ensureGenerationRequestTable = async () => {
+  if (ensureGenerationRequestTablePromise) {
+    return ensureGenerationRequestTablePromise
+  }
+
+  ensureGenerationRequestTablePromise = (async () => {
+    await connectToDatabase()
+    await sql`
+      CREATE TABLE IF NOT EXISTS generation_request_cache (
+        request_id VARCHAR(128) PRIMARY KEY,
+        actor_key VARCHAR(255) NOT NULL,
+        clerk_user_id VARCHAR(255),
+        generation_stage VARCHAR(32) NOT NULL DEFAULT 'initial',
+        payload_hash VARCHAR(64) NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'processing',
+        response_code INTEGER,
+        response_json JSONB,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `
+    await sql`CREATE INDEX IF NOT EXISTS idx_generation_request_cache_actor_key ON generation_request_cache(actor_key)`
+  })().catch((error) => {
+    ensureGenerationRequestTablePromise = null
+    throw error
+  })
+
+  return ensureGenerationRequestTablePromise
+}
+
+const ensureSavedLogosEditorStateColumn = async () => {
+  if (ensureSavedLogosEditorStateColumnPromise) {
+    return ensureSavedLogosEditorStateColumnPromise
+  }
+
+  ensureSavedLogosEditorStateColumnPromise = (async () => {
+    await connectToDatabase()
+    await sql`ALTER TABLE saved_logos ADD COLUMN IF NOT EXISTS editor_state JSONB`
+  })().catch((error) => {
+    ensureSavedLogosEditorStateColumnPromise = null
+    throw error
+  })
+
+  return ensureSavedLogosEditorStateColumnPromise
+}
+
+const normalizeEditorStatePayload = (rawState) => {
+  if (!rawState) return null
+
+  let state = rawState
+  if (typeof rawState === 'string') {
+    try {
+      state = JSON.parse(rawState)
+    } catch {
+      return null
+    }
+  }
+
+  if (typeof state !== 'object' || Array.isArray(state)) {
+    return null
+  }
+
+  try {
+    const serialized = JSON.stringify(state)
+    if (!serialized || serialized.length > 30000) {
+      return null
+    }
+    return state
+  } catch {
+    return null
+  }
+}
+
+const normalizeRequestId = (requestId) => {
+  if (requestId === undefined || requestId === null) return null
+  const normalized = String(requestId).trim()
+  if (!normalized) return null
+  return normalized.slice(0, 128)
+}
+
+const resolveActorKey = (req, clerkUserId) => {
+  if (clerkUserId) {
+    return `user:${clerkUserId}`
+  }
+
+  const forwarded = String(req.headers['x-forwarded-for'] || '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean)[0]
+
+  const ip = forwarded || req.ip || 'anonymous'
+  return `anon:${ip}`
+}
+
+const buildGenerationPayloadHash = ({ prompts, formData, brief, specCore, delta, variationCount, variantPlans, referenceImages, generationStage }) => {
+  const payload = {
+    prompts,
+    formData,
+    brief,
+    specCore,
+    delta,
+    variationCount,
+    variantPlans,
+    generationStage,
+    referenceImageCount: Array.isArray(referenceImages) ? referenceImages.length : 0,
+  }
+
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify(payload))
+    .digest('hex')
+}
+
+const normalizeMutableOverrides = (rawOverrides) => {
+  if (!rawOverrides || typeof rawOverrides !== 'object') {
+    return {}
+  }
+
+  const overrides = {}
+
+  if (typeof rawOverrides.colors === 'string' && rawOverrides.colors.trim()) {
+    overrides.colors = rawOverrides.colors.trim()
+  }
+
+  if (typeof rawOverrides.backgroundValue === 'string' && rawOverrides.backgroundValue.trim()) {
+    overrides.backgroundValue = rawOverrides.backgroundValue.trim()
+  }
+
+  if (typeof rawOverrides.style === 'string' && rawOverrides.style.trim()) {
+    overrides.style = rawOverrides.style.trim()
+  }
+
+  if (typeof rawOverrides.colorUsageRules === 'string') {
+    overrides.colorUsageRules = rawOverrides.colorUsageRules.trim()
+  } else if (typeof rawOverrides.colorNotes === 'string') {
+    // legacy key
+    overrides.colorUsageRules = rawOverrides.colorNotes.trim()
+  }
+
+  if (typeof rawOverrides.tagline === 'string') {
+    overrides.tagline = rawOverrides.tagline.trim()
+  }
+
+  if (typeof rawOverrides.hasBackground === 'boolean') {
+    overrides.hasBackground = rawOverrides.hasBackground
+  }
+
+  return overrides
+}
+
+const MUTABLE_FIELDS = ['colors', 'colorUsageRules', 'style', 'hasBackground', 'backgroundValue', 'tagline']
+
+const normalizeMutableFieldName = (field) => {
+  const raw = String(field || '').trim()
+  const key = raw.replace(/[-_\s]/g, '').toLowerCase()
+
+  const aliases = {
+    color: 'colors',
+    colors: 'colors',
+    colornotes: 'colorUsageRules',
+    colorusagerules: 'colorUsageRules',
+    style: 'style',
+    hasbackground: 'hasBackground',
+    background: 'backgroundValue',
+    backgroundvalue: 'backgroundValue',
+    tagline: 'tagline',
+  }
+
+  return aliases[key] || null
+}
+
+const normalizeMutableFieldValue = (field, value) => {
+  const key = normalizeMutableFieldName(field)
+  if (!key) return undefined
+
+  if (key === 'hasBackground') {
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase()
+      if (['true', '1', 'yes', 'on'].includes(normalized)) return true
+      if (['false', '0', 'no', 'off'].includes(normalized)) return false
+    }
+    return undefined
+  }
+
+  if (key === 'backgroundValue') {
+    const normalized = String(value || '').trim()
+    return normalized || 'white'
+  }
+
+  return String(value || '').trim()
+}
+
+const getMutableSnapshotFromFormData = (formData = {}) => ({
+  colors: normalizeMutableFieldValue('colors', formData?.colors) || '',
+  colorUsageRules: normalizeMutableFieldValue('colorUsageRules', formData?.colorUsageRules || formData?.colorNotes) || '',
+  style: normalizeMutableFieldValue('style', formData?.style) || '',
+  hasBackground: typeof formData?.hasBackground === 'boolean' ? formData.hasBackground : false,
+  backgroundValue: normalizeMutableFieldValue('backgroundValue', formData?.backgroundValue) || 'white',
+  tagline: normalizeMutableFieldValue('tagline', formData?.tagline) || '',
+})
+
+const getPreviousMutableSnapshotFromSpecCore = (specCore) => {
+  if (!specCore || typeof specCore !== 'object') return null
+
+  const snapshot = specCore?.meta?.lastFormInput?.mutable
+  if (snapshot && typeof snapshot === 'object') {
+    return {
+      colors: normalizeMutableFieldValue('colors', snapshot.colors) || '',
+      colorUsageRules: normalizeMutableFieldValue('colorUsageRules', snapshot.colorUsageRules) || '',
+      style: normalizeMutableFieldValue('style', snapshot.style) || '',
+      hasBackground: typeof snapshot.hasBackground === 'boolean' ? snapshot.hasBackground : false,
+      backgroundValue: normalizeMutableFieldValue('backgroundValue', snapshot.backgroundValue) || 'white',
+      tagline: normalizeMutableFieldValue('tagline', snapshot.tagline) || '',
+    }
+  }
+
+  // Legacy fallback (older snapshots only persisted color)
+  const legacyColorSnapshot = specCore?.meta?.lastFormInput?.color
+  if (!legacyColorSnapshot || typeof legacyColorSnapshot !== 'object') {
+    return null
+  }
+
+  return {
+    colors: normalizeMutableFieldValue('colors', legacyColorSnapshot.colors) || '',
+    colorUsageRules: normalizeMutableFieldValue('colorUsageRules', legacyColorSnapshot.colorUsageRules) || '',
+    style: normalizeMutableFieldValue('style', specCore?.mutableDefaults?.style) || '',
+    hasBackground: typeof specCore?.mutableDefaults?.hasBackground === 'boolean'
+      ? specCore.mutableDefaults.hasBackground
+      : false,
+    backgroundValue: normalizeMutableFieldValue('backgroundValue', specCore?.mutableDefaults?.backgroundValue) || 'white',
+    tagline: normalizeMutableFieldValue('tagline', specCore?.mutableDefaults?.tagline) || '',
+  }
+}
+
+const getDirtyMutableFields = ({ previousSnapshot, currentSnapshot, existingSpecCore }) => {
+  const dirty = new Set()
+
+  if (previousSnapshot) {
+    MUTABLE_FIELDS.forEach((field) => {
+      if (previousSnapshot[field] !== currentSnapshot[field]) {
+        dirty.add(field)
+      }
+    })
+    return dirty
+  }
+
+  // Fallback for old payloads without snapshot metadata: compare against specCore defaults.
+  const previousDefaults = normalizeMutableOverrides(existingSpecCore?.mutableDefaults || {})
+  MUTABLE_FIELDS.forEach((field) => {
+    const normalizedDefault = normalizeMutableFieldValue(field, previousDefaults[field])
+    const fallbackDefault = field === 'backgroundValue'
+      ? 'white'
+      : (field === 'hasBackground' ? false : '')
+
+    const previousValue = normalizedDefault == null ? fallbackDefault : normalizedDefault
+    if (previousValue !== currentSnapshot[field]) {
+      dirty.add(field)
+    }
+  })
+
+  return dirty
+}
+
+const normalizeMutableLocks = (specCore) => {
+  const sourceLocks = (specCore && typeof specCore === 'object' && specCore.mutableLocks && typeof specCore.mutableLocks === 'object')
+    ? specCore.mutableLocks
+    : {}
+
+  const normalized = {}
+
+  for (const [rawField, rawValue] of Object.entries(sourceLocks)) {
+    // Legacy compatibility: mutableLocks.color = { colors, colorUsageRules }
+    if (rawField === 'color' && rawValue && typeof rawValue === 'object') {
+      const legacyColors = normalizeMutableFieldValue('colors', rawValue.colors)
+      const legacyRules = normalizeMutableFieldValue('colorUsageRules', rawValue.colorUsageRules)
+      if (legacyColors) normalized.colors = { value: legacyColors }
+      if (legacyRules != null) normalized.colorUsageRules = { value: legacyRules }
+      continue
+    }
+
+    const field = normalizeMutableFieldName(rawField)
+    if (!field) continue
+
+    if (rawValue && typeof rawValue === 'object' && Object.prototype.hasOwnProperty.call(rawValue, 'value')) {
+      const value = normalizeMutableFieldValue(field, rawValue.value)
+      if (value !== undefined) normalized[field] = { value }
+      continue
+    }
+
+    const value = normalizeMutableFieldValue(field, rawValue)
+    if (value !== undefined) normalized[field] = { value }
+  }
+
+  return normalized
+}
+
+const getLockedMutableValue = (locks, field) => {
+  const key = normalizeMutableFieldName(field)
+  if (!key || !locks || typeof locks !== 'object') return undefined
+  const lockEntry = locks[key]
+  if (!lockEntry || typeof lockEntry !== 'object') return undefined
+  if (!Object.prototype.hasOwnProperty.call(lockEntry, 'value')) return undefined
+  return normalizeMutableFieldValue(key, lockEntry.value)
+}
+
+const hasPersistentCue = (feedback = '') => {
+  const text = String(feedback || '').toLowerCase()
+  if (!text) return false
+  return /(keep|don't\s+change|do\s+not\s+change|preserve|maintain|exact|same\s+as|leave\s+as\s+is)/i.test(text)
+}
+
+const hasTemporaryCue = (feedback = '') => {
+  const text = String(feedback || '').toLowerCase()
+  if (!text) return false
+  return /(try|test|for\s+this\s+one|maybe|slightly|explore|version|option)/i.test(text)
+}
+
+const normalizeLogoTypeValue = (value) => {
+  const normalized = String(value || '').toLowerCase().trim()
+  if (['wordmark', 'lettermark', 'combination', 'pictorial', 'abstract'].includes(normalized)) {
+    return normalized
+  }
+  return null
+}
+
+const normalizeEditScopeValue = (value) => {
+  const normalized = String(value || '').toLowerCase().trim()
+  if (['text_only', 'icon_only', 'both'].includes(normalized)) return normalized
+  return null
+}
+
+const inferEditScope = ({ modelEditScope = null }) => {
+  const explicitModelScope = normalizeEditScopeValue(modelEditScope)
+  return explicitModelScope || null
+}
+
+const normalizeMutableDirectives = (input) => {
+  if (!Array.isArray(input)) return []
+
+  const directives = []
+
+  for (const raw of input) {
+    if (!raw || typeof raw !== 'object') continue
+
+    const field = normalizeMutableFieldName(raw.field)
+    if (!field) continue
+
+    const action = ['set', 'lock', 'unlock'].includes(String(raw.action || '').toLowerCase())
+      ? String(raw.action).toLowerCase()
+      : 'set'
+
+    const mode = ['persistent', 'temporary'].includes(String(raw.mode || '').toLowerCase())
+      ? String(raw.mode).toLowerCase()
+      : 'temporary'
+
+    const normalizedValue = normalizeMutableFieldValue(field, raw.value)
+
+    directives.push({
+      field,
+      action,
+      mode,
+      value: normalizedValue,
+      reason: typeof raw.reason === 'string' ? raw.reason.trim() : undefined,
+    })
+  }
+
+  return directives
+}
+
+const resolveMutableValueForPrompt = ({ field, formSnapshot, formDirtyFields, locks, incomingSpecCore }) => {
+  if (formDirtyFields.has(field)) {
+    return formSnapshot[field]
+  }
+
+  const lockedValue = getLockedMutableValue(locks, field)
+  if (lockedValue !== undefined) {
+    return lockedValue
+  }
+
+  if (incomingSpecCore && incomingSpecCore.mutableDefaults && Object.prototype.hasOwnProperty.call(incomingSpecCore.mutableDefaults, field)) {
+    const normalized = normalizeMutableFieldValue(field, incomingSpecCore.mutableDefaults[field])
+    if (normalized !== undefined) {
+      return normalized
+    }
+  }
+
+  return formSnapshot[field]
+}
+
+const buildSpecCoreFromInput = ({ formData, existingSpecCore }) => {
+  const baseline = {
+    version: 1,
+    brand: {
+      businessName: formData.businessName || '',
+      industry: formData.industry || '',
+      description: formData.description || '',
+    },
+    immutable: {
+      logoType: formData.logoType,
+      taglinePolicy: formData.tagline ? 'with_tagline' : 'no_tagline',
+      textRule: formData.logoType,
+    },
+    mutableDefaults: {
+      colors: formData.colors || '',
+      colorUsageRules: formData.colorUsageRules || formData.colorNotes || '',
+      backgroundValue: formData.backgroundValue || 'white',
+      hasBackground: Boolean(formData.hasBackground),
+      style: formData.style || '',
+      tagline: formData.tagline || '',
+    },
+  }
+
+  if (!existingSpecCore || typeof existingSpecCore !== 'object') {
+    return baseline
+  }
+
+  return {
+    ...(existingSpecCore || {}),
+    ...baseline,
+    version: Number(existingSpecCore.version) || baseline.version,
+    brand: {
+      ...(existingSpecCore.brand || {}),
+      ...baseline.brand,
+    },
+    immutable: {
+      ...(existingSpecCore.immutable || {}),
+      ...baseline.immutable,
+    },
+    mutableDefaults: {
+      ...baseline.mutableDefaults,
+      ...(existingSpecCore.mutableDefaults || {}),
+    },
+  }
+}
+
+const applyMutableOverridesToSpecCore = (specCore, rawOverrides) => {
+  if (!specCore || typeof specCore !== 'object') return specCore
+
+  const overrides = normalizeMutableOverrides(rawOverrides)
+  if (!Object.keys(overrides).length) return specCore
+
+  return {
+    ...specCore,
+    mutableDefaults: {
+      ...(specCore.mutableDefaults || {}),
+      ...overrides,
+    },
+  }
+}
+
+const buildDeltaFromBrief = ({ brief, mutableOverrides, roundHints = [] }) => {
+  const overrideKeys = Object.keys(mutableOverrides || {})
+
+  return {
+    preserve: Array.isArray(brief?.preserve) ? brief.preserve : [],
+    change: [
+      ...(brief?.new_direction ? [brief.new_direction] : []),
+      ...overrideKeys.map((key) => `override:${key}`),
+    ],
+    remove: [],
+    overrides: mutableOverrides,
+    roundHints,
+  }
+}
+
+const applyMutableOverridesToFormData = (formData, rawOverrides) => {
+  const overrides = normalizeMutableOverrides(rawOverrides)
+  if (!Object.keys(overrides).length) {
+    return formData
+  }
+
+  const next = { ...formData }
+
+  if (overrides.colors) {
+    next.colors = overrides.colors
+  }
+
+  if (overrides.style) {
+    next.style = overrides.style
+  }
+
+  if (Object.prototype.hasOwnProperty.call(overrides, 'colorUsageRules')) {
+    next.colorUsageRules = overrides.colorUsageRules || undefined
+  }
+
+  if (Object.prototype.hasOwnProperty.call(overrides, 'tagline')) {
+    next.tagline = overrides.tagline || undefined
+  }
+
+  if (overrides.backgroundValue) {
+    next.backgroundValue = overrides.backgroundValue
+    next.hasBackground = !['none', 'transparent'].includes(overrides.backgroundValue)
+  }
+
+  if (typeof overrides.hasBackground === 'boolean') {
+    next.hasBackground = overrides.hasBackground
+  }
+
+  return next
+}
+
+const finalizeGenerationRequest = async ({ requestId, status, responseCode, responsePayload }) => {
+  if (!requestId) return
+
+  await sql`
+    UPDATE generation_request_cache
+    SET status = ${status},
+        response_code = ${responseCode},
+        response_json = ${JSON.stringify(responsePayload)}::jsonb,
+        updated_at = NOW()
+    WHERE request_id = ${requestId}
+  `
+}
 
 // Verify DB connectivity on boot (non-blocking)
 connectToDatabase().then(ok => {
@@ -278,8 +913,9 @@ function createPolygonFromPoints(points, gridSize) {
 }
 
 
-const callGeminiAPI = async (prompt, referenceImages = []) => {
+const callGeminiAPI = async (prompt, referenceImages = [], generationProfile = 'free') => {
   const apiKey = process.env.GEMINI_API_KEY
+  const imageSize = generationProfile === 'paid' ? PAID_IMAGE_SIZE : FREE_IMAGE_SIZE
   
   console.log('🔑 API Key status:', apiKey ? `Present (${apiKey.length} chars)` : 'MISSING')
   
@@ -328,9 +964,17 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
     }
 
     console.log('🚀 CALLING GEMINI API NOW...')
+    console.log(`🎛️ Generation profile: ${generationProfile} | imageSize=${imageSize} | model=${GEMINI_IMAGE_MODEL}`)
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image-preview",
-      contents: contents
+      model: GEMINI_IMAGE_MODEL,
+      contents: contents,
+      config: {
+        responseModalities: ['IMAGE', 'TEXT'],
+        imageConfig: {
+          aspectRatio: '1:1',
+          imageSize,
+        },
+      }
     })
     console.log('✅ Gemini API call completed')
     
@@ -349,29 +993,46 @@ const callGeminiAPI = async (prompt, referenceImages = []) => {
         const imageData = part.inlineData.data
         const buffer = Buffer.from(imageData, "base64")
 
-        // Try to upload to Vercel Blob Storage if token is available
-        if (process.env.BLOB_READ_WRITE_TOKEN) {
+        const outputBuffer = buffer
+        try {
+          const meta = await sharp(buffer).metadata()
+          if (meta.width && meta.height && meta.width !== meta.height) {
+            console.log(`📐 Gemini returned non-square output ${meta.width}x${meta.height}; preserving original ratio`)
+          }
+        } catch (normalizationError) {
+          console.warn('⚠️ Could not inspect generated image dimensions:', normalizationError.message)
+        }
+
+        // Optional: persist generated outputs to Blob.
+        // Default is OFF so only liked/final logos get persisted (via /api/logos/save).
+        const persistGeneratedToBlob = process.env.PERSIST_GENERATED_LOGOS_TO_BLOB === 'true'
+        if (persistGeneratedToBlob && process.env.BLOB_READ_WRITE_TOKEN) {
           try {
             const timestamp = Date.now()
-            const filename = `logo-${timestamp}.png`
+            const filename = `generated/logo-${timestamp}.png`
 
-            console.log(`📤 Uploading to Vercel Blob: ${filename}`)
-            const blob = await put(filename, buffer, {
+            console.log(`📤 Uploading generated logo to Vercel Blob: ${filename}`)
+            const blob = await put(filename, outputBuffer, {
               access: 'public',
               contentType: 'image/png',
+              addRandomSuffix: false,
             })
 
-            console.log(`✅ Logo uploaded to Vercel Blob: ${blob.url}`)
+            console.log(`✅ Generated logo uploaded to Vercel Blob: ${blob.url}`)
             return blob.url
           } catch (blobError) {
-            console.warn('⚠️ Vercel Blob upload failed:', blobError.message)
+            console.warn('⚠️ Generated Blob upload failed:', blobError.message)
             console.log('💾 Falling back to data URL')
           }
         }
 
-        // Fallback to data URL if Blob upload fails or token not available
-        console.log('💾 Using base64 data URL (no Vercel Blob token or upload failed)')
-        return `data:image/png;base64,${imageData}`
+        // Default path: return data URL (ephemeral) and persist only when user likes/saves.
+        if (!persistGeneratedToBlob) {
+          console.log('💾 Using base64 data URL (generated persistence disabled; liked logos are persisted on save)')
+        } else {
+          console.log('💾 Using base64 data URL (Blob token missing or upload failed)')
+        }
+        return `data:image/png;base64,${outputBuffer.toString('base64')}`
       }
     }
     
@@ -429,14 +1090,540 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'ai-logo-maker-api' })
 })
 
+// ── DIRECTOR AGENT ────────────────────────────────────────────────────────────
+// Phase 1: Interprets user intent + feedback → structured design brief
+// Used by client before calling /api/generate-multiple on refinements
+app.post('/api/interpret-brief', async (req, res) => {
+  const {
+    formData,
+    feedback,
+    refineHistory = [],
+    specCore: incomingSpecCore = null,
+    delta: incomingDelta = null,
+    variationCount: rawVariationCount = null,
+    referenceImages = [],
+  } = req.body
+
+  if (!formData) {
+    return res.status(400).json({ error: 'formData is required' })
+  }
+
+  // feedback can be empty string (first generation)
+  if (typeof feedback !== 'string') {
+    return res.status(400).json({ error: 'feedback must be a string' })
+  }
+
+  const variationCount = rawVariationCount == null ? 1 : Number(rawVariationCount)
+  if (![1, 3, 5].includes(variationCount)) {
+    return res.status(400).json({ error: 'variationCount must be one of: 1, 3, 5' })
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    return res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
+  }
+
+  const systemInstruction = `You are a Logo Director. Convert user intent into a strict design brief JSON.
+
+INPUT FIELDS:
+- businessName
+- industry
+- description
+- logoType (wordmark|lettermark|combination|pictorial|abstract)
+- style
+- colors
+- hasBackground
+- feedback (latest)
+- refineHistory (oldest→newest)
+- referenceImages (optional uploaded logo references)
+
+RULES:
+1) Output VALID JSON only.
+2) Keep brand_essence grounded in businessName + industry + description only (no invention).
+3) Mood must be 2-3 plain adjectives (no jargon).
+4) Preserve hard constraints explicitly in preserve/avoid.
+5) Prefer latest feedback over older history unless directly conflicting.
+6) Keep new_direction to one sentence.
+7) Add must_change as an array of concrete edits that must be visibly applied this round.
+8) visual_metaphors must be [] unless user explicitly asks for concrete metaphors.
+9) reference_role mapping:
+   - reject: user hates prior result or asks to restart
+   - preserve: minor tweaks
+   - context: normal iteration
+10) Distinguish edit scope when user intent is explicit:
+   - text_only: user wants typography/text changes while icon/symbol stays fixed
+   - icon_only: user wants icon/symbol changes while text/typography stays fixed
+   - both: both icon and text may evolve
+
+LOGO TYPE RULES:
+- wordmark: full business name text only; no icon/symbol
+- lettermark: initials/monogram only; no full business name; no standalone icon
+- combination: icon/symbol + readable business name together
+- pictorial: symbol/icon only; zero text
+- abstract: non-literal abstract symbol only; zero text
+
+BACKGROUND:
+- If hasBackground=false, preserve "transparent/no background".
+
+OUTPUT JSON SCHEMA:
+{
+  "brand_essence": "string",
+  "mood": ["string", "string"],
+  "preserve": ["string"],
+  "avoid": ["string"],
+  "new_direction": "string",
+  "must_change": ["string"],
+  "typography_intent": "string or null",
+  "visual_metaphors": [],
+  "composition": "string or null",
+  "reference_role": "preserve | context | reject",
+  "edit_scope": "text_only | icon_only | both",
+  "detected_logo_type": "wordmark | lettermark | combination | pictorial | abstract | null",
+  "mutable_overrides": {
+    "colors": "string (optional)",
+    "colorUsageRules": "string (optional)",
+    "backgroundValue": "string (optional)",
+    "style": "string (optional)",
+    "tagline": "string (optional)",
+    "hasBackground": "boolean (optional)"
+  },
+  "mutable_directives": [
+    {
+      "field": "colors|colorUsageRules|style|backgroundValue|hasBackground|tagline",
+      "action": "set|lock|unlock",
+      "mode": "persistent|temporary",
+      "value": "string|boolean (optional)",
+      "reason": "short optional reason"
+    }
+  ]
+}
+
+IMPORTANT:
+- Keep immutable brand identity stable.
+- Latest explicit mutable user instruction wins over older history.
+- must_change must include concrete visible edits requested in latest feedback (e.g., tighter kerning, taller letters).
+- If latest feedback asks for change, do not leave must_change empty.
+- Set edit_scope=text_only when user explicitly says keep icon/symbol unchanged and change text/typography only.
+- Set edit_scope=icon_only when user explicitly says keep text/wording unchanged and change icon/symbol only.
+- When referenceImages are provided, infer detected_logo_type from the uploaded logo visual structure. Keep null only if uncertain.
+- Use mutable_directives for intent classification:
+  - keep/exact/preserve/don't change => action: lock, mode: persistent
+  - try/test/maybe/slightly/for this one => action: set, mode: temporary
+  - explicit change requests meant to persist => action: set, mode: persistent
+  - explicit unlock/open to change => action: unlock, mode: persistent
+- Keep mutable_overrides filled with this-round values (for generation); do not rely on it alone for persistence semantics.`
+
+  const historyBlock = refineHistory.length > 0
+    ? refineHistory.map((f, i) => `Round ${i + 1}: "${f}"`).join('\n')
+    : 'None yet.'
+
+  const logoTypeMeta = {
+    wordmark: 'text-only logo (full business name as typography)',
+    lettermark: 'initials/monogram logo (letters only)',
+    combination: 'icon + business name combined lockup',
+    pictorial: 'icon/symbol-only logo (no text)',
+    abstract: 'abstract non-literal symbol (no text)'
+  }
+
+  const logoTypeNote = logoTypeMeta[formData.logoType] || 'custom logo type'
+
+  const currentFormMutableSnapshot = getMutableSnapshotFromFormData(formData)
+  const previousFormMutableSnapshot = getPreviousMutableSnapshotFromSpecCore(incomingSpecCore)
+  const formDirtyFields = getDirtyMutableFields({
+    previousSnapshot: previousFormMutableSnapshot,
+    currentSnapshot: currentFormMutableSnapshot,
+    existingSpecCore: incomingSpecCore,
+  })
+
+  const existingLocks = normalizeMutableLocks(incomingSpecCore)
+
+  const effectiveMutableForPrompt = {
+    colors: resolveMutableValueForPrompt({
+      field: 'colors',
+      formSnapshot: currentFormMutableSnapshot,
+      formDirtyFields,
+      locks: existingLocks,
+      incomingSpecCore,
+    }) || '',
+    colorUsageRules: resolveMutableValueForPrompt({
+      field: 'colorUsageRules',
+      formSnapshot: currentFormMutableSnapshot,
+      formDirtyFields,
+      locks: existingLocks,
+      incomingSpecCore,
+    }) || '',
+    style: resolveMutableValueForPrompt({
+      field: 'style',
+      formSnapshot: currentFormMutableSnapshot,
+      formDirtyFields,
+      locks: existingLocks,
+      incomingSpecCore,
+    }) || 'Not specified',
+    hasBackground: (() => {
+      const resolved = resolveMutableValueForPrompt({
+        field: 'hasBackground',
+        formSnapshot: currentFormMutableSnapshot,
+        formDirtyFields,
+        locks: existingLocks,
+        incomingSpecCore,
+      })
+      return typeof resolved === 'boolean' ? resolved : false
+    })(),
+    backgroundValue: resolveMutableValueForPrompt({
+      field: 'backgroundValue',
+      formSnapshot: currentFormMutableSnapshot,
+      formDirtyFields,
+      locks: existingLocks,
+      incomingSpecCore,
+    }) || 'white',
+    tagline: resolveMutableValueForPrompt({
+      field: 'tagline',
+      formSnapshot: currentFormMutableSnapshot,
+      formDirtyFields,
+      locks: existingLocks,
+      incomingSpecCore,
+    }) || '',
+  }
+
+  const userPrompt = `Client brief:
+- Business name: ${formData.businessName}
+- Industry: ${formData.industry || 'Not specified'}
+- Description: ${formData.description || 'Not specified'}
+- Logo type: ${formData.logoType} (${logoTypeNote})
+- Style: ${effectiveMutableForPrompt.style}
+- Colors: ${effectiveMutableForPrompt.colors || 'No fixed color selected'}
+- Color usage rules: ${effectiveMutableForPrompt.colorUsageRules || 'None'}
+- Background: ${effectiveMutableForPrompt.hasBackground ? `background allowed (${effectiveMutableForPrompt.backgroundValue})` : 'transparent/no background'}
+- Tagline: ${effectiveMutableForPrompt.tagline || 'None'}
+
+Mutable fields edited in form this round: ${Array.from(formDirtyFields).join(', ') || 'none'}
+Active locks from memory: ${Object.keys(existingLocks).join(', ') || 'none'}
+
+Feedback history (oldest to newest):
+${historyBlock}
+
+Current round feedback: "${feedback.trim()}"
+Requested variants this round: ${variationCount}
+
+Existing specCore (if any): ${incomingSpecCore ? JSON.stringify(incomingSpecCore) : 'none'}
+Previous delta (if any): ${incomingDelta ? JSON.stringify(incomingDelta) : 'none'}
+Uploaded reference images in this request: ${Array.isArray(referenceImages) ? referenceImages.length : 0}
+
+Produce the structured design brief JSON now.`
+
+  console.log('📋 User prompt to Gemini:')
+  console.log(userPrompt.split('\n').map(l => '   ' + l).join('\n'))
+
+  try {
+    const ai = new GoogleGenAI({ apiKey })
+
+    console.log('\n' + '═'.repeat(60))
+    console.log('🎨  DIRECTOR AGENT  ·  gemini-3-flash-preview')
+    console.log('═'.repeat(60))
+    console.log(`   Business   : ${formData.businessName}`)
+    console.log(`   Logo Type  : ${formData.logoType} ← THIS IS WHAT USER SELECTED`)
+    console.log(`   Industry   : ${formData.industry || '—'}`)
+    console.log(`   Feedback   : "${feedback.trim()}"`)
+    console.log(`   History    : ${refineHistory.length} prior round(s)`)
+    console.log(`   Refs       : ${Array.isArray(referenceImages) ? referenceImages.length : 0} uploaded image(s)`)
+    console.log('─'.repeat(60))
+
+    const directorImageParts = Array.isArray(referenceImages)
+      ? referenceImages
+        .filter((image) => image?.data)
+        .map((image) => ({
+          inlineData: {
+            mimeType: image.mimeType || 'image/png',
+            data: image.data,
+          },
+        }))
+      : []
+
+    const directorContents = directorImageParts.length > 0
+      ? [{ text: userPrompt }, ...directorImageParts]
+      : userPrompt
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: directorContents,
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        temperature: 0.4,
+      }
+    })
+
+    const raw = response.candidates?.[0]?.content?.parts?.[0]?.text || response.text?.() || ''
+    let brief
+    try {
+      brief = JSON.parse(raw)
+    } catch {
+      const match = raw.match(/\{[\s\S]*\}/)
+      if (match) {
+        brief = JSON.parse(match[0])
+      } else {
+        throw new Error('Could not parse JSON from Director Agent response')
+      }
+    }
+
+    const normalizedReferenceRole = ['preserve', 'context', 'reject'].includes(brief?.reference_role)
+      ? brief.reference_role
+      : 'context'
+
+    const normalizedMustChange = Array.isArray(brief?.must_change)
+      ? brief.must_change.map((item) => String(item || '').trim()).filter(Boolean)
+      : []
+
+    const normalizedEditScope = inferEditScope({
+      feedback,
+      description: formData?.description,
+      modelEditScope: brief?.edit_scope || brief?.editScope,
+    })
+
+    const normalizedDetectedLogoType = normalizeLogoTypeValue(
+      brief?.detected_logo_type || brief?.detectedLogoType
+    )
+
+    const legacyMutableOverrides = normalizeMutableOverrides(
+      brief?.mutable_overrides || brief?.delta?.overrides || brief?.overrides
+    )
+
+    const mutableDirectives = normalizeMutableDirectives(
+      brief?.mutable_directives || brief?.directives || brief?.instructions
+    )
+
+    const feedbackIsPersistent = hasPersistentCue(feedback)
+    const feedbackIsTemporary = hasTemporaryCue(feedback)
+    const fallbackPersistentMode = feedbackIsPersistent && !feedbackIsTemporary
+
+    const persistentOverrides = {}
+    const temporaryOverrides = {}
+    const roundHints = []
+    const nextMutableLocks = { ...existingLocks }
+
+    // Rule: if user changed a form field this round, form wins and stale lock is cleared.
+    formDirtyFields.forEach((field) => {
+      if (nextMutableLocks[field]) {
+        delete nextMutableLocks[field]
+        console.log(`🎛️ Clearing lock for ${field} because form changed explicitly this round`)
+      }
+    })
+
+    const applyDirective = (directive) => {
+      const { field, action, mode, value, reason } = directive
+      if (!field) return
+
+      if (action === 'unlock') {
+        if (nextMutableLocks[field]) {
+          delete nextMutableLocks[field]
+        }
+        return
+      }
+
+      if (action === 'set') {
+        if (value === undefined) return
+
+        if (mode === 'persistent') {
+          persistentOverrides[field] = value
+        } else {
+          temporaryOverrides[field] = value
+          roundHints.push({ field, action: 'set', value, reason: reason || 'temporary exploration' })
+        }
+        return
+      }
+
+      if (action === 'lock') {
+        const lockValue = value !== undefined
+          ? value
+          : (
+            Object.prototype.hasOwnProperty.call(persistentOverrides, field)
+              ? persistentOverrides[field]
+              : (
+                Object.prototype.hasOwnProperty.call(temporaryOverrides, field)
+                  ? temporaryOverrides[field]
+                  : resolveMutableValueForPrompt({
+                    field,
+                    formSnapshot: currentFormMutableSnapshot,
+                    formDirtyFields,
+                    locks: nextMutableLocks,
+                    incomingSpecCore,
+                  })
+              )
+          )
+
+        if (lockValue !== undefined) {
+          nextMutableLocks[field] = { value: lockValue }
+        }
+
+        if (mode === 'persistent' && value !== undefined) {
+          persistentOverrides[field] = value
+        }
+
+        if (mode === 'temporary' && value !== undefined) {
+          temporaryOverrides[field] = value
+          roundHints.push({ field, action: 'lock', value, reason: reason || 'temporary lock for this round' })
+        }
+      }
+    }
+
+    if (mutableDirectives.length) {
+      mutableDirectives.forEach(applyDirective)
+    } else if (Object.keys(legacyMutableOverrides).length) {
+      // Fallback when model doesn't return directives.
+      for (const [field, value] of Object.entries(legacyMutableOverrides)) {
+        if (fallbackPersistentMode) {
+          persistentOverrides[field] = value
+          if (feedbackIsPersistent) {
+            nextMutableLocks[field] = { value }
+          }
+        } else {
+          temporaryOverrides[field] = value
+          roundHints.push({ field, action: 'set', value, reason: 'legacy override treated as temporary' })
+        }
+      }
+    }
+
+    let specCore = buildSpecCoreFromInput({
+      formData,
+      existingSpecCore: incomingSpecCore || brief?.spec_core || null,
+    })
+
+    const nextMutableDefaults = {
+      ...(specCore.mutableDefaults || {}),
+    }
+
+    // Rule: formData beats specCore only for fields explicitly edited this round.
+    formDirtyFields.forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(currentFormMutableSnapshot, field)) {
+        nextMutableDefaults[field] = currentFormMutableSnapshot[field]
+      }
+    })
+
+    Object.entries(persistentOverrides).forEach(([field, value]) => {
+      nextMutableDefaults[field] = value
+      if (nextMutableLocks[field]) {
+        nextMutableLocks[field] = { value }
+      }
+    })
+
+    const mergedMutableOverrides = {
+      ...persistentOverrides,
+      ...temporaryOverrides,
+    }
+
+    const priorMeta = (incomingSpecCore && typeof incomingSpecCore === 'object' && incomingSpecCore.meta && typeof incomingSpecCore.meta === 'object')
+      ? incomingSpecCore.meta
+      : {}
+
+    specCore = {
+      ...specCore,
+      mutableDefaults: nextMutableDefaults,
+      mutableLocks: nextMutableLocks,
+      meta: {
+        ...priorMeta,
+        lastFormInput: {
+          ...(priorMeta.lastFormInput || {}),
+          mutable: currentFormMutableSnapshot,
+          color: {
+            colors: currentFormMutableSnapshot.colors,
+            colorUsageRules: currentFormMutableSnapshot.colorUsageRules,
+          },
+        },
+      },
+    }
+
+    const delta = buildDeltaFromBrief({
+      brief,
+      mutableOverrides: mergedMutableOverrides,
+      roundHints,
+    })
+
+    const variantPlans = generateVariantPlans({
+      logoType: normalizedDetectedLogoType || formData.logoType,
+      count: variationCount,
+      seedText: [
+        formData.businessName,
+        formData.industry,
+        brief?.brand_essence,
+        brief?.new_direction,
+        feedback,
+      ].filter(Boolean).join('|'),
+    })
+
+    const normalizedBrief = {
+      ...brief,
+      reference_role: normalizedReferenceRole,
+      edit_scope: normalizedEditScope || undefined,
+      detected_logo_type: normalizedDetectedLogoType || undefined,
+      must_change: normalizedMustChange,
+      mutable_overrides: mergedMutableOverrides,
+      mutable_directives: mutableDirectives,
+      round_hints: roundHints,
+      spec_core: specCore,
+      delta,
+      variant_plans: variantPlans,
+    }
+
+    console.log('✅  BRIEF PRODUCED:')
+    console.log(`   Essence  : ${normalizedBrief.brand_essence}`)
+    console.log(`   Mood     : ${(normalizedBrief.mood || []).join(', ')}`)
+    console.log(`   Preserve : ${(normalizedBrief.preserve || []).join(', ') || '—'}`)
+    console.log(`   Avoid    : ${(normalizedBrief.avoid || []).join(', ') || '—'}`)
+    console.log(`   Direction: ${normalizedBrief.new_direction}`)
+    console.log(`   MustChange: ${(normalizedBrief.must_change || []).join(' | ') || '—'}`)
+    console.log(`   EditScope: ${normalizedBrief.edit_scope || 'both/unspecified'}`)
+    console.log(`   Detected : ${normalizedBrief.detected_logo_type || 'unknown'}`)
+    console.log(`   Metaphors: ${(normalizedBrief.visual_metaphors || []).join(', ') || '—'}`)
+    console.log(`   Reference: ${normalizedReferenceRole} (${{ preserve: 'keep base', context: 'use as context', reject: 'ignore' }[normalizedReferenceRole]})`)
+    console.log(`   Overrides: ${Object.keys(mergedMutableOverrides).length ? JSON.stringify(mergedMutableOverrides) : 'none'}`)
+    console.log(`   Locks    : ${Object.keys(specCore.mutableLocks || {}).length ? JSON.stringify(specCore.mutableLocks) : 'none'}`)
+    console.log(`   Hints    : ${roundHints.length ? JSON.stringify(roundHints) : 'none'}`)
+    console.log(`   Variants : ${variantPlans.length} structural plan(s)`)
+    console.log('═'.repeat(60) + '\n')
+
+    res.json({
+      brief: normalizedBrief,
+      specCore,
+      delta,
+      roundHints,
+      referenceRole: normalizedReferenceRole,
+      editScope: normalizedEditScope || null,
+      detectedLogoType: normalizedDetectedLogoType || null,
+      variantPlans,
+    })
+
+  } catch (err) {
+    console.error('❌ Director Agent error:', err.message)
+    res.status(500).json({ error: 'Failed to interpret brief: ' + err.message })
+  }
+})
+
 // Simple logo generation endpoint - NO IP TRACKING
 app.post('/api/generate-multiple', generationLimiter, async (req, res) => {
   console.log('📨 Received multiple logo generation request')
-  console.log('📦 Request body keys:', Object.keys(req.body))
-  console.log('📏 Request body size:', JSON.stringify(req.body).length, 'characters')
+  console.log('📦 Request body keys:', Object.keys(req.body || {}))
+  console.log('📏 Request body size:', JSON.stringify(req.body || {}).length, 'characters')
+
+  let requestId = null
+  let reservedIdempotencySlot = false
 
   try {
-    const { prompts, referenceImages } = req.body
+    const {
+      prompts: clientProposedPrompts,
+      formData,
+      brief,
+      specCore,
+      delta,
+      variationCount: rawVariationCount,
+      variantPlans: rawVariantPlans,
+      variant_plans: rawVariantPlansSnake,
+      referenceImages,
+      generationStage = 'initial',
+      requestId: rawRequestId,
+      request_id: rawRequestIdSnake,
+    } = req.body || {}
+
+    requestId = normalizeRequestId(rawRequestId || rawRequestIdSnake)
 
     // DEBUG: Check if referenceImages are present
     console.log('🔍 DEBUG: referenceImages present?', !!referenceImages)
@@ -446,9 +1633,111 @@ app.post('/api/generate-multiple', generationLimiter, async (req, res) => {
       console.log('🔍 DEBUG: First image keys:', Object.keys(referenceImages[0] || {}))
     }
 
+    let prompts = Array.isArray(clientProposedPrompts) ? clientProposedPrompts : null
+    let promptSource = 'client'
+    let normalizedVariantPlans = Array.isArray(rawVariantPlans)
+      ? rawVariantPlans
+      : (Array.isArray(rawVariantPlansSnake) ? rawVariantPlansSnake : null)
+
+    if (formData && brief) {
+      const variationCountRaw = rawVariationCount ?? (Array.isArray(clientProposedPrompts) ? clientProposedPrompts.length : null)
+      const variationCount = Number(variationCountRaw)
+
+      if (![1, 3, 5].includes(variationCount)) {
+        return res.status(400).json({
+          error: 'variationCount must be one of: 1, 3, 5 when formData+brief are provided',
+          code: 'INVALID_VARIATION_COUNT',
+        })
+      }
+
+      const mutableOverrides = normalizeMutableOverrides(
+        (delta && delta.overrides)
+        || (brief && brief.delta && brief.delta.overrides)
+        || (brief && brief.mutable_overrides)
+      )
+
+      let effectiveFormData = applyMutableOverridesToFormData(formData, mutableOverrides)
+      if (Object.keys(mutableOverrides).length) {
+        console.log(`🎛️ Applying mutable overrides before prompt compilation: ${JSON.stringify(mutableOverrides)}`)
+      }
+
+      const referenceSourcesForGeneration = Array.isArray(referenceImages)
+        ? Array.from(new Set(referenceImages
+          .map((img) => String(img?.source || '').toLowerCase())
+          .filter(Boolean)))
+        : []
+
+      const hasUploadedAnchorRefsInRequest = referenceSourcesForGeneration.includes('uploaded')
+        || (generationStage === 'initial' && Array.isArray(referenceImages) && referenceImages.length > 0)
+
+      const generationIntentText = [
+        String(brief?.new_direction || ''),
+        Array.isArray(brief?.must_change) ? brief.must_change.join(' ') : '',
+        String(formData?.description || ''),
+      ].join(' ').trim()
+
+      const inferredEditScopeForGeneration = inferEditScope({
+        feedback: generationIntentText,
+        description: formData?.description,
+        modelEditScope: brief?.edit_scope || brief?.editScope,
+      })
+
+      const detectedLogoTypeForGeneration = normalizeLogoTypeValue(
+        brief?.detected_logo_type || brief?.detectedLogoType
+      )
+
+      const effectiveBrief = (inferredEditScopeForGeneration && !brief?.edit_scope && !brief?.editScope)
+        ? { ...brief, edit_scope: inferredEditScopeForGeneration }
+        : brief
+
+      if (
+        hasUploadedAnchorRefsInRequest
+        && detectedLogoTypeForGeneration
+        && effectiveFormData.logoType !== detectedLogoTypeForGeneration
+      ) {
+        console.log(`🧠 Applying Director detected_logo_type override for uploaded reference flow: ${effectiveFormData.logoType} -> ${detectedLogoTypeForGeneration}`)
+        effectiveFormData = {
+          ...effectiveFormData,
+          logoType: detectedLogoTypeForGeneration,
+        }
+        normalizedVariantPlans = undefined
+      }
+
+      const explicitIconPreserveCue = /(keep|same|preserve).{0,24}(icon|symbol|mark)|do\s*not\s+change\s+(the\s+)?(icon|symbol|mark)|not\s+the\s+icon|icon\s+unchanged/i
+        .test(generationIntentText)
+
+      if (
+        hasUploadedAnchorRefsInRequest
+        && effectiveFormData.logoType === 'wordmark'
+        && inferredEditScopeForGeneration === 'text_only'
+        && explicitIconPreserveCue
+      ) {
+        console.log('🛠️ Conflict detected: wordmark + uploaded icon-preservation cue + text_only scope. Overriding generation logoType to combination to preserve uploaded icon.')
+        effectiveFormData = {
+          ...effectiveFormData,
+          logoType: 'combination',
+        }
+        // Existing variant plans from Director may be wordmark-specific; let prompt builder regenerate combination-safe plans.
+        normalizedVariantPlans = undefined
+      }
+
+      normalizedVariantPlans = Array.isArray(normalizedVariantPlans)
+        ? normalizedVariantPlans
+        : (Array.isArray(effectiveBrief?.variant_plans) ? effectiveBrief.variant_plans : undefined)
+
+      prompts = buildServerBriefedPrompts({
+        formData: effectiveFormData,
+        brief: effectiveBrief,
+        count: variationCount,
+        variantPlans: normalizedVariantPlans,
+        generationStage,
+      })
+      promptSource = 'server_compiled'
+    }
+
     if (!prompts || !Array.isArray(prompts) || prompts.length === 0) {
       console.log('❌ No prompts provided or invalid format')
-      return res.status(400).json({ error: 'Prompts array is required' })
+      return res.status(400).json({ error: 'Prompts array is required (or formData+brief+variationCount)' })
     }
 
     if (prompts.length > 5) {
@@ -456,21 +1745,199 @@ app.post('/api/generate-multiple', generationLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Maximum 5 prompts allowed' })
     }
 
-    console.log(`🎨 Generating ${prompts.length} logos with prompts:`)
-    prompts.forEach((prompt, index) => {
-      console.log(`   ${index + 1}. ${prompt.substring(0, 100)}...`)
+    if (promptSource === 'server_compiled') {
+      console.log(`🧠 Server compiled ${prompts.length} prompt(s) from formData+brief`)
+      if (Array.isArray(clientProposedPrompts) && clientProposedPrompts.length) {
+        console.log(`ℹ️ Ignoring ${clientProposedPrompts.length} client-proposed prompt(s); using server-authoritative prompts`)
+      }
+    }
+
+    // ENFORCE: Anonymous users get generous first round, restricted refinements
+    const userContext = await resolveRequestUserContext(req)
+    const { isAuthenticated, isPremium, clerkUserId, subscriptionStatus } = userContext
+
+    const actorKey = resolveActorKey(req, clerkUserId)
+    const payloadHash = buildGenerationPayloadHash({
+      prompts,
+      formData,
+      brief,
+      specCore,
+      delta,
+      variationCount: rawVariationCount,
+      variantPlans: normalizedVariantPlans,
+      referenceImages,
+      generationStage,
     })
+
+    if (requestId) {
+      await ensureGenerationRequestTable()
+
+      const { rows: insertedRows } = await sql`
+        INSERT INTO generation_request_cache (
+          request_id,
+          actor_key,
+          clerk_user_id,
+          generation_stage,
+          payload_hash,
+          status,
+          updated_at
+        )
+        VALUES (
+          ${requestId},
+          ${actorKey},
+          ${clerkUserId || null},
+          ${generationStage},
+          ${payloadHash},
+          'processing',
+          NOW()
+        )
+        ON CONFLICT DO NOTHING
+        RETURNING request_id
+      `
+
+      if (!insertedRows[0]) {
+        const { rows: existingRows } = await sql`
+          SELECT actor_key, payload_hash, status, response_code, response_json
+          FROM generation_request_cache
+          WHERE request_id = ${requestId}
+          LIMIT 1
+        `
+
+        const existing = existingRows[0]
+
+        if (!existing) {
+          return res.status(409).json({
+            error: 'Request id conflict. Please retry with a new requestId.',
+            code: 'REQUEST_ID_CONFLICT',
+          })
+        }
+
+        if (existing.actor_key !== actorKey) {
+          return res.status(409).json({
+            error: 'requestId is already used by another requester',
+            code: 'REQUEST_ID_OWNER_MISMATCH',
+          })
+        }
+
+        if (existing.payload_hash !== payloadHash) {
+          return res.status(409).json({
+            error: 'requestId cannot be reused with different payload',
+            code: 'REQUEST_ID_PAYLOAD_MISMATCH',
+          })
+        }
+
+        if (existing.status === 'completed' || existing.status === 'failed') {
+          const cachedPayload = {
+            ...(existing.response_json || {}),
+            requestId,
+            idempotent: true,
+            cached: true,
+          }
+          const statusCode = existing.response_code || (existing.status === 'completed' ? 200 : 409)
+          console.log(`♻️ Returning cached generation response for requestId=${requestId}`)
+          return res.status(statusCode).json(cachedPayload)
+        }
+
+        return res.status(409).json({
+          error: 'This request is already being processed. Please wait.',
+          code: 'REQUEST_IN_PROGRESS',
+          requestId,
+        })
+      }
+
+      reservedIdempotencySlot = true
+    }
+
+    const isInitialStage = generationStage === 'initial'
+    const anonMaxVariations = isInitialStage
+      ? MAX_ANON_INITIAL_VARIATIONS
+      : MAX_ANON_REFINE_VARIATIONS
+
+    if (!isAuthenticated && prompts.length > anonMaxVariations) {
+      console.log(
+        '🚫 BLOCKED: Anonymous user attempted to generate',
+        prompts.length,
+        `logos during ${generationStage} (max: ${anonMaxVariations})`
+      )
+
+      const blockedPayload = {
+        error: `Anonymous users are limited to ${anonMaxVariations} logo variation${anonMaxVariations === 1 ? '' : 's'} for ${generationStage} rounds. Please sign in for more options.`,
+        code: 'ANON_LIMIT_EXCEEDED',
+        details: { generationStage, maxVariations: anonMaxVariations },
+        requestId,
+      }
+
+      if (reservedIdempotencySlot) {
+        await finalizeGenerationRequest({
+          requestId,
+          status: 'failed',
+          responseCode: 403,
+          responsePayload: blockedPayload,
+        })
+      }
+
+      return res.status(403).json(blockedPayload)
+    }
+
+    let effectiveIsPremium = isPremium
+
+    if (isAuthenticated && !isPremium) {
+      const creditResult = await consumeSignedUserCredits({
+        clerkUserId,
+        requestedCount: prompts.length,
+      })
+
+      if (!creditResult.ok) {
+        console.log(
+          `🚫 BLOCKED: Authenticated free user (${clerkUserId}) attempted ${prompts.length} generations with ${creditResult.remaining ?? 0} credits remaining`
+        )
+
+        const blockedPayload = {
+          error: creditResult.message || 'Not enough credits. Please upgrade to continue.',
+          code: 'CREDITS_EXCEEDED',
+          details: {
+            requested: prompts.length,
+            remaining: creditResult.remaining ?? 0,
+            creditsUsed: creditResult.creditsUsed ?? null,
+            creditsLimit: creditResult.creditsLimit ?? null,
+          },
+          requestId,
+        }
+
+        if (reservedIdempotencySlot) {
+          await finalizeGenerationRequest({
+            requestId,
+            status: 'failed',
+            responseCode: 403,
+            responsePayload: blockedPayload,
+          })
+        }
+
+        return res.status(403).json(blockedPayload)
+      }
+
+      effectiveIsPremium = creditResult.isPremium === true
+      if (!effectiveIsPremium) {
+        console.log(`💳 Consumed ${prompts.length} credit(s) for ${clerkUserId}. Remaining: ${creditResult.remaining}`)
+      }
+    }
+
+    const generationProfile = effectiveIsPremium ? 'paid' : 'free'
+
+    if (isAuthenticated) {
+      console.log(`✅ Authenticated user (${clerkUserId}) - plan: ${subscriptionStatus} - profile: ${generationProfile} - stage: ${generationStage} - allowing ${prompts.length} variation(s)`)
+    } else {
+      console.log(`✅ Anonymous user - profile: ${generationProfile} - stage: ${generationStage} - allowing up to ${anonMaxVariations} variation(s)`)
+    }
+
+    console.log(`🎨 Generating ${prompts.length} logo(s) — prompt length: ${prompts[0]?.length || 0} chars`)
 
     // DETAILED REFERENCE IMAGE DEBUGGING
     if (referenceImages && referenceImages.length > 0) {
       console.log('🖼️ === REFERENCE IMAGES RECEIVED ===')
       console.log(`   Count: ${referenceImages.length}`)
       referenceImages.forEach((img, index) => {
-        console.log(`   Image ${index + 1}:`)
-        console.log(`     - MIME Type: ${img.mimeType}`)
-        console.log(`     - Data Length: ${img.data ? img.data.length : 'NO DATA'}`)
-        console.log(`     - Size (KB): ${img.data ? Math.round(img.data.length * 0.75 / 1024) : 0}`)
-        console.log(`     - First 50 chars: ${img.data ? img.data.substring(0, 50) + '...' : 'EMPTY'}`)
+        console.log(`   Image ${index + 1}: ${img.mimeType} — ${img.data ? Math.round(img.data.length * 0.75 / 1024) + 'KB' : 'NO DATA'}`)
       })
       console.log('🖼️ === END REFERENCE IMAGES ===')
     } else {
@@ -485,7 +1952,44 @@ app.post('/api/generate-multiple', generationLimiter, async (req, res) => {
     const logoPromises = prompts.map(async (prompt, index) => {
       try {
         console.log(`🔄 Starting logo ${index + 1}/${prompts.length}`)
-        const logoUrl = await callGeminiAPI(prompt, referenceImages)
+
+        const referenceSources = Array.isArray(referenceImages)
+          ? Array.from(new Set(referenceImages
+            .map((img) => String(img?.source || '').toLowerCase())
+            .filter(Boolean)))
+          : []
+
+        const hasUploadedAnchorRefs = referenceSources.includes('uploaded')
+          || (generationStage === 'initial' && Array.isArray(referenceImages) && referenceImages.length > 0)
+
+        const hasSelectedRoundRefs = referenceSources.includes('selected')
+          || referenceSources.includes('latest_fallback')
+
+        const shouldForceUploadedLogoRedesign = hasUploadedAnchorRefs
+
+        const uploadedContractLines = shouldForceUploadedLogoRedesign
+          ? [
+            'UPLOADED LOGO REDESIGN CONTRACT: The provided uploaded reference image(s) are the user\'s source logo assets. Preserve recognizable identity DNA (core icon/wordmark skeleton, arrangement logic, and overall brand character). The result is invalid if it becomes a different brand concept.',
+            generationStage === 'initial'
+              ? 'INITIAL ROUND RULE: Keep the uploaded logo identity as the primary anchor while exploring only allowed variation in typography/layout/style from this brief.'
+              : (hasSelectedRoundRefs
+                ? 'REFINE ROUND RULE: When selected round outputs are also provided, treat uploaded references as immutable identity anchors and treat selected outputs as round-specific style/layout guidance.'
+                : 'REFINE ROUND RULE: No selected round output was provided; evolve directly from uploaded anchors while applying this round\'s feedback.'),
+          ]
+          : []
+
+        const promptWithReferenceContract = uploadedContractLines.length > 0
+          ? [prompt, ...uploadedContractLines].join('\n\n')
+          : prompt
+
+        if (shouldForceUploadedLogoRedesign) {
+          console.log(`🧬 Enforcing uploaded-logo redesign contract for ${generationStage}-generation prompt`)
+          if (referenceSources.length) {
+            console.log(`🧷 Reference source mix: ${referenceSources.join(', ')}`)
+          }
+        }
+
+        const logoUrl = await callGeminiAPI(promptWithReferenceContract, referenceImages, generationProfile)
         console.log(`✅ Logo ${index + 1} completed`)
         return logoUrl
       } catch (error) {
@@ -494,17 +1998,35 @@ app.post('/api/generate-multiple', generationLimiter, async (req, res) => {
         return generateEnhancedPlaceholder(prompt, 'generation-error')
       }
     })
-    
+
     const logos = await Promise.all(logoPromises)
+
     const endTime = Date.now()
-    
+
     console.log(`✅ All ${logos.length} logos generated in ${endTime - startTime}ms`)
-    console.log('📎 Logo URLs:')
     logos.forEach((url, index) => {
-      console.log(`   ${index + 1}. ${url}`)
+      const display = url?.startsWith('data:') ? `[base64 data URL, ${Math.round(url.length * 0.75 / 1024)}KB]` : url
+      console.log(`   ${index + 1}. ${display}`)
     })
-    
-    res.json({ logos })
+
+    const successPayload = {
+      logos,
+      requestId,
+      idempotent: false,
+      promptSource,
+      variantPlans: Array.isArray(normalizedVariantPlans) ? normalizedVariantPlans : undefined,
+    }
+
+    if (reservedIdempotencySlot) {
+      await finalizeGenerationRequest({
+        requestId,
+        status: 'completed',
+        responseCode: 200,
+        responsePayload: successPayload,
+      })
+    }
+
+    return res.json(successPayload)
   } catch (error) {
     console.error('❌ SERVER ERROR in /api/generate-multiple:')
     console.error('   Error message:', error.message)
@@ -516,10 +2038,27 @@ app.post('/api/generate-multiple', generationLimiter, async (req, res) => {
       'NODE_ENV': process.env.NODE_ENV,
       'PORT': process.env.PORT
     })
-    res.status(500).json({
+
+    const errorPayload = {
       error: 'Failed to generate logos: ' + error.message,
-      details: error.stack
-    })
+      details: error.stack,
+      requestId,
+    }
+
+    if (reservedIdempotencySlot) {
+      try {
+        await finalizeGenerationRequest({
+          requestId,
+          status: 'failed',
+          responseCode: 500,
+          responsePayload: errorPayload,
+        })
+      } catch (persistError) {
+        console.error('❌ Failed to persist idempotent failure payload:', persistError.message)
+      }
+    }
+
+    return res.status(500).json(errorPayload)
   }
 })
 
@@ -694,6 +2233,7 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
             await sql`
               UPDATE users
               SET subscription_status = 'premium',
+                  credits_limit = 999999,
                   payment_date = NOW(),
                   stripe_payment_id = ${paymentIntent.id}
               WHERE clerk_user_id = ${userId}
@@ -1176,23 +2716,69 @@ app.get('/api/users/profile', requireAuth, async (req, res) => {
 
 app.put('/api/users/subscription', requireAuth, async (req, res) => {
   try {
-    const { status } = req.body
+    const { status, paymentIntentId: rawPaymentIntentId, payment_intent_id: rawPaymentIntentSnake } = req.body || {}
     const clerkUserId = req.auth.userId
+    const normalizedStatus = (status || '').toLowerCase()
+    const paymentIntentId = rawPaymentIntentId || rawPaymentIntentSnake || null
+
+    if (!['free', 'premium'].includes(normalizedStatus)) {
+      return res.status(400).json({ error: 'Invalid subscription status' })
+    }
 
     await connectToDatabase()
 
-    // Update subscription status and credits_limit based on status
-    const creditsLimit = status === 'premium' ? 999999 : 15
+    if (normalizedStatus === 'premium') {
+      if (!stripe) {
+        return res.status(503).json({ error: 'Payment service unavailable - Stripe not configured' })
+      }
+
+      if (!paymentIntentId) {
+        return res.status(400).json({ error: 'paymentIntentId is required to activate premium' })
+      }
+
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId)
+
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({
+          error: 'Payment not completed. Premium can only be activated after successful payment.',
+          paymentStatus: paymentIntent.status,
+        })
+      }
+
+      if (paymentIntent.metadata?.userId !== clerkUserId) {
+        return res.status(403).json({ error: 'Payment intent does not belong to this user' })
+      }
+
+      const result = await sql`
+        UPDATE users
+        SET subscription_status = 'premium',
+            credits_limit = 999999,
+            payment_date = NOW(),
+            stripe_payment_id = ${paymentIntent.id}
+        WHERE clerk_user_id = ${clerkUserId}
+      `
+
+      if (result.count === 0) {
+        return res.status(404).json({ error: 'User profile not found. Please refresh and try again.' })
+      }
+
+      console.log(`✅ Premium activated for ${clerkUserId} via verified payment intent ${paymentIntent.id}. Rows affected: ${result.count}`)
+      return res.json({ success: true, rowsAffected: result.count, verifiedBy: 'payment_intent' })
+    }
+
     const result = await sql`
       UPDATE users
-      SET subscription_status = ${status || 'free'},
-          credits_limit = ${creditsLimit}
+      SET subscription_status = 'free',
+          credits_limit = 15
       WHERE clerk_user_id = ${clerkUserId}
     `
 
-    console.log(`✅ Updated subscription for user ${clerkUserId} to ${status} with credits_limit ${creditsLimit}. Rows affected: ${result.count}`)
+    if (result.count === 0) {
+      return res.status(404).json({ error: 'User profile not found.' })
+    }
 
-    res.json({ success: true, rowsAffected: result.count })
+    console.log(`✅ Downgraded user ${clerkUserId} to free. Rows affected: ${result.count}`)
+    return res.json({ success: true, rowsAffected: result.count })
   } catch (error) {
     console.error('❌ Failed to update subscription:', error)
     res.status(500).json({ error: error.message })
@@ -1221,9 +2807,9 @@ app.get('/api/logos/saved', requireAuth, async (req, res) => {
   try {
     const clerkUserId = req.auth.userId
 
-    await connectToDatabase()
+    await ensureSavedLogosEditorStateColumn()
     const { rows } = await sql`
-      SELECT id, logo_url as url, logo_prompt as prompt, created_at, is_premium, file_format
+      SELECT id, logo_url as url, logo_prompt as prompt, created_at, is_premium, file_format, editor_state
       FROM saved_logos
       WHERE clerk_user_id = ${clerkUserId}
       ORDER BY created_at DESC
@@ -1240,14 +2826,68 @@ app.post('/api/logos/save', requireAuth, async (req, res) => {
     const clerkUserId = req.auth.userId
     if (!logo?.url) return res.status(400).json({ error: 'logo.url required' })
 
-    await connectToDatabase()
+    const editorState = normalizeEditorStatePayload(logo?.editor_state || logo?.editorState || null)
+
+    let persistedUrl = logo.url
+
+    // If logo is still ephemeral (data URL), try to persist it to Blob at save-time.
+    // If Blob is unavailable/rate-limited/full, gracefully fall back to storing the data URL
+    // so users can still like/save without hard failure.
+    if (typeof persistedUrl === 'string' && persistedUrl.startsWith('data:image/')) {
+      const match = persistedUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+      if (!match) {
+        return res.status(400).json({ error: 'Invalid data URL format for logo.url' })
+      }
+
+      const mimeType = match[1]
+      const base64 = match[2]
+      const buffer = Buffer.from(base64, 'base64')
+
+      if (process.env.BLOB_READ_WRITE_TOKEN) {
+        try {
+          const extMap = {
+            'image/png': 'png',
+            'image/jpeg': 'jpg',
+            'image/webp': 'webp'
+          }
+          const ext = extMap[mimeType] || 'png'
+          const filename = `saved/${clerkUserId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+
+          console.log(`📤 Persisting liked logo to Blob: ${filename}`)
+          const blob = await put(filename, buffer, {
+            access: 'public',
+            contentType: mimeType,
+            addRandomSuffix: false,
+          })
+          persistedUrl = blob.url
+          console.log(`✅ Liked logo persisted: ${persistedUrl}`)
+        } catch (blobErr) {
+          console.warn('⚠️ Failed to persist liked logo to Blob. Falling back to inline data URL save:', blobErr.message)
+        }
+      } else {
+        console.warn('⚠️ BLOB_READ_WRITE_TOKEN missing. Saving liked logo as inline data URL.')
+      }
+    }
+
+    await ensureSavedLogosEditorStateColumn()
     const { rows } = await sql`SELECT id FROM users WHERE clerk_user_id = ${clerkUserId} LIMIT 1`
     if (!rows[0]) return res.status(404).json({ error: 'User not found' })
-    await sql`
-      INSERT INTO saved_logos (user_id, clerk_user_id, logo_url, logo_prompt, is_premium, file_format)
-      VALUES (${rows[0].id}, ${clerkUserId}, ${logo.url}, ${logo.prompt || null}, ${!!logo.is_premium}, ${logo.file_format || 'png'})
+
+    const inserted = await sql`
+      INSERT INTO saved_logos (user_id, clerk_user_id, logo_url, logo_prompt, is_premium, file_format, editor_state)
+      VALUES (
+        ${rows[0].id},
+        ${clerkUserId},
+        ${persistedUrl},
+        ${logo.prompt || null},
+        ${!!logo.is_premium},
+        ${logo.file_format || 'png'},
+        ${editorState ? JSON.stringify(editorState) : null}::jsonb
+      )
+      RETURNING id
     `
-    res.json({ success: true })
+
+    res.json({ success: true, logoId: inserted.rows?.[0]?.id, url: persistedUrl, editor_state: editorState })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }

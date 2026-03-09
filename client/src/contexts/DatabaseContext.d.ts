@@ -40,8 +40,8 @@ export interface DatabaseContextType {
   clearAllLogosFromDB: () => Promise<ApiResult>
   refreshSavedLogos: () => Promise<void>
   refreshUserProfile: () => Promise<void>
-  updateUserSubscription: (status?: string) => Promise<ApiResult>
-  updateSubscription: (data: { status: string }) => Promise<ApiResult>
+  updateUserSubscription: (status?: string, options?: { paymentIntentId?: string }) => Promise<ApiResult>
+  updateSubscription: (status: string, options?: { paymentIntentId?: string }) => Promise<ApiResult>
   isPremiumUser: () => boolean
   trackLogoGeneration: (prompt: string, count?: number, isPremium?: boolean) => Promise<void>
   getUsageStats: () => Promise<{ credits_used: number; credits_limit: number; subscription_status: string }>

@@ -3,7 +3,7 @@ import React from 'react'
 const PricingPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <div className="flex items-center justify-center min-h-screen pt-32 md:pt-40 lg:pt-48 pb-16">
+      <div className="flex items-center justify-center min-h-screen pt-32 pb-16">
         <div className="relative max-w-6xl mx-auto px-4 text-center">
           {/* Animated Border Container */}
           <div className="relative p-8 border-4 border-transparent bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-2xl animate-pulse-border">

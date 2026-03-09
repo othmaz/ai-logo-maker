@@ -120,9 +120,9 @@ export const DatabaseProvider = ({ children }) => {
   };
 
   // Payment and subscription management
-  const updateUserSubscription = async (status = 'premium') => {
+  const updateUserSubscription = async (status = 'premium', options = {}) => {
     try {
-      await db.updateSubscription(status);
+      await db.updateSubscription(status, options);
       await refreshUserProfile(); // Refresh to get updated subscription status
       return { success: true };
     } catch (error) {

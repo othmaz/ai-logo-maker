@@ -35,9 +35,17 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
   }, [])
 
   return (
-    <div className={`fixed left-0 right-0 bg-gray-800/95 backdrop-blur-sm border-b border-gray-600/50 z-[60] h-12 md:h-14 transition-all duration-300 ${
-      isHeaderVisible ? 'top-16 md:top-24 lg:top-32' : 'top-0'
-    }`}>
+    <div 
+      className={`fixed left-0 right-0 z-[60] h-12 md:h-14 transition-all duration-300 ${
+        isHeaderVisible ? 'top-20' : 'top-0'
+      }`}
+      style={{
+        background: 'rgba(10, 10, 15, 0.7)',
+        backdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+      }}
+    >
       <div className="w-full h-full relative">
         <div className="hidden xl:absolute xl:inset-0 xl:flex xl:items-center xl:justify-center">
           <div className="flex items-center h-full">
@@ -93,7 +101,16 @@ const NavBar: React.FC<NavBarProps> = ({ isPaid = false, onUpgradeClick }) => {
       </div>
 
       {isMobileMenuOpen && (
-        <div className="absolute top-full left-4 mt-4 w-[60%] bg-gray-800/95 backdrop-blur-sm border border-gray-600/50 rounded-lg z-[70] xl:hidden" style={{top: 'calc(4rem + 3.5rem + 1rem)'}}>
+        <div 
+          className="absolute top-full left-4 mt-4 w-[60%] rounded-lg z-[70] xl:hidden"
+          style={{
+            top: 'calc(4rem + 3.5rem + 1rem)',
+            background: 'rgba(10, 10, 15, 0.7)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}
+        >
           <div className="flex flex-col">
             {items.map(item => (
               <Link key={item} to={item === 'Home' ? '/' : `/${item.toLowerCase()}`} onClick={() => setIsMobileMenuOpen(false)} className={`nav-shimmer flex items-center justify-center py-4 px-6 text-lg retro-mono font-bold transition-colors duration-200 uppercase border-b border-gray-600/30 last:border-b-0 first:rounded-t-lg last:rounded-b-lg ${

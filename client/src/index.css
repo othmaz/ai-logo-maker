@@ -4,17 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Self-hosted Phosphate Font - Optimized for mobile performance */
-@font-face {
-  font-family: 'Phosphate';
-  src: url('/fonts/phosphate-solid.woff2') format('woff2'),
-       url('/fonts/phosphate-solid.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-  font-display: optional;
-  font-feature-settings: 'kern' 1;
-  font-variant: normal;
-}
 
 /* Smooth scrolling improvements */
 html {
@@ -55,9 +44,9 @@ html {
   }
 }
 
-/* Base Phosphate font styling - applies to all screens, positioning overridden by media queries */
-.font-phosphate {
-  font-family: 'Phosphate', 'Arial Black', 'Helvetica', sans-serif;
+/* Base display font styling - applies to all screens, positioning overridden by media queries */
+.font-brand-display {
+  font-family: 'Impact', 'Arial Black', 'Helvetica Neue', sans-serif;
   font-weight: 900;
   font-stretch: ultra-condensed !important;
   transform-origin: center !important;
@@ -74,7 +63,7 @@ html {
 
 /* Safari-specific adjustments */
 @supports (-webkit-appearance: none) and (not (-ms-ime-align: auto)) {
-  .font-phosphate {
+  .font-brand-display {
     letter-spacing: -0.08em; /* Tighter spacing for Safari */
     font-weight: 999; /* Much thicker for Safari */
   }
@@ -82,7 +71,7 @@ html {
 
 /* Chrome-specific adjustments */
 @supports (-webkit-appearance: none) and (-webkit-background-clip: text) {
-  .font-phosphate {
+  .font-brand-display {
     font-weight: 850; /* Lighter weight for Chrome to match Safari */
     -webkit-font-smoothing: subpixel-antialiased; /* Softer rendering */
   }
@@ -90,28 +79,28 @@ html {
 
 /* Mobile font stretching - adjusted for smaller screens */
 @media (max-width: 768px) {
-  .font-phosphate {
+  .font-brand-display {
     transform: translateY(-12px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
     font-stretch: ultra-condensed !important;
     transform-origin: center !important;
   }
 
   /* Reduce title overlap on mobile */
-  .font-phosphate {
+  .font-brand-display {
     margin-right: -12.5px !important;
   }
 }
 
 /* Extra small mobile devices (≤425px) */
 @media (max-width: 425px) {
-  .font-phosphate {
+  .font-brand-display {
     margin-right: -10px !important;
   }
 }
 
 /* Medium screens (tablet) */
 @media (min-width: 769px) and (max-width: 1023px) {
-  .font-phosphate {
+  .font-brand-display {
     transform: translateY(0px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
     margin-right: -22.5px !important;
   }
@@ -119,7 +108,7 @@ html {
 
 /* Large screens (desktop) */
 @media (min-width: 1024px) {
-  .font-phosphate {
+  .font-brand-display {
     transform: translateY(20px) scaleY(1.35) scaleX(0.9) translateZ(0) !important;
     margin-right: -27.5px !important;
   }

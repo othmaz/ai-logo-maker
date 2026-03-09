@@ -1,5 +1,12 @@
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
+/**
+ * ROUTER (ACTIVE)
+ *
+ * Production homepage route (`/`) resolves to HomePage -> HeroProgressive.
+ * This router intentionally keeps only production routes for release builds.
+ * See docs/CODEBASE-STATUS.md.
+ */
+import React, { Suspense, lazy } from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
 
 import { ModalProvider, useModal } from './contexts/ModalContext'
 import { DatabaseProvider, useDbContext } from './contexts/DatabaseContext'
@@ -7,20 +14,26 @@ import TitleBar from './components/TitleBar'
 import NavBar from './components/NavBar'
 import SupportChatButton from './components/SupportChatButton'
 import Footer from './components/Footer'
-import Modals from './components/Modals'
-import CookieConsent from './components/CookieConsent'
 
 import HomePage from './pages/HomePage'
-import DashboardPage from './pages/DashboardPage'
-import PaymentSuccessPage from './pages/PaymentSuccessPage'
-import PricingPage from './pages/PricingPage'
-import ApiPage from './pages/ApiPage'
-import AboutPage from './pages/AboutPage'
+
+const Modals = lazy(() => import('./components/Modals'))
+const CookieConsent = lazy(() => import('./components/CookieConsent'))
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const PaymentSuccessPage = lazy(() => import('./pages/PaymentSuccessPage'))
+const PricingPage = lazy(() => import('./pages/PricingPage'))
+const ApiPage = lazy(() => import('./pages/ApiPage'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
+
 
 // Inner component that uses the modal context
 const AppRouterContent: React.FC = () => {
   const { setActiveModal } = useModal()
   const { isPremiumUser } = useDbContext()
+  const location = useLocation()
+  const isHomePage = location.pathname === '/'
+
 
   const handleUpgradeClick = () => {
     setActiveModal('upgrade')
@@ -40,29 +53,39 @@ const AppRouterContent: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900">
-      <TitleBar />
-      <NavBar isPaid={isPaid} onUpgradeClick={handleUpgradeClick} />
+      {!isHomePage && <TitleBar />}
+      {!isHomePage && <NavBar isPaid={isPaid} onUpgradeClick={handleUpgradeClick} />}
       {/* Content sections already offset by fixed bars via components' own top positions */}
       <main>
-        <Routes>
-          {/* Route-based pages */}
-          <Route path="/" element={<HomePage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/payment/success" element={<PaymentSuccessPage />} />
-          <Route path="/payment-success" element={<PaymentSuccessPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/api" element={<ApiPage />} />
-          <Route path="/about" element={<AboutPage />} />
+        <Suspense fallback={null}>
+          <Routes>
+            {/* Route-based pages */}
+            <Route path="/" element={<HomePage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/payment/success" element={<PaymentSuccessPage />} />
+            <Route path="/payment-success" element={<PaymentSuccessPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/api" element={<ApiPage />} />
+            <Route path="/about" element={<AboutPage />} />
 
-          {/* Fallback */}
-          <Route path="*" element={<HomePage />} />
-        </Routes>
+            {/* Fallback */}
+            <Route path="*" element={<HomePage />} />
+          </Routes>
+        </Suspense>
       </main>
 
-      <Footer onOpenModal={setActiveModal} />
-      <SupportChatButton onOpenModal={setActiveModal} />
-      <Modals />
-      <CookieConsent />
+      {!isHomePage && <Footer onOpenModal={setActiveModal} />}
+      {!isHomePage && <SupportChatButton onOpenModal={setActiveModal} />}
+      {!isHomePage && (
+        <Suspense fallback={null}>
+          <Modals />
+        </Suspense>
+      )}
+      {!isHomePage && (
+        <Suspense fallback={null}>
+          <CookieConsent />
+        </Suspense>
+      )}
     </div>
   )
 }
@@ -79,5 +102,3 @@ const AppRouter: React.FC = () => {
 }
 
 export default AppRouter
-
-

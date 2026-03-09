@@ -17,9 +17,9 @@ export const StudioCard: React.FC<StudioCardProps> = ({
   variant = 'default'
 }) => {
   const variants = {
-    default: 'bg-white/[0.03] backdrop-blur-3xl border-white/[0.06]',
-    elevated: 'bg-white/[0.05] backdrop-blur-3xl border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.5)]',
-    subtle: 'bg-white/[0.02] backdrop-blur-2xl border-white/[0.04]'
+    default: 'bg-white/[0.05] backdrop-blur-2xl border-white/[0.08]',
+    elevated: 'bg-white/[0.07] backdrop-blur-3xl border-white/[0.1] shadow-[0_8px_40px_rgba(0,0,0,0.5)]',
+    subtle: 'bg-white/[0.04] backdrop-blur-xl border-white/[0.06]'
   };
 
   return (

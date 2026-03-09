@@ -31,3 +31,5 @@ generated-logos/
 *.njsproj
 *.sln
 *.sw?
+*.bak
+*.backup

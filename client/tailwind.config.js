@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        phosphate: ['Phosphate', 'sans-serif'],
+        brandDisplay: ['Impact', 'Arial Black', 'Helvetica Neue', 'sans-serif'],
       },
     },
   },

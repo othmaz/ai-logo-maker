@@ -93,7 +93,7 @@ The demo shows three tabs:
 ## What Changes
 
 ### Before (Retro)
-- Phosphate font, neon gradients
+- Bold display font (Impact-style), neon gradients
 - "CYBER" / "RETRO" vibes
 - Terminal aesthetics
 - Bright pink/purple accents

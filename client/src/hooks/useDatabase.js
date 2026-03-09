@@ -64,13 +64,14 @@ export function useDatabase() {
     return await apiCall('users/profile');
   }, [user, apiCall]);
 
-  const updateSubscription = useCallback(async (subscriptionStatus) => {
+  const updateSubscription = useCallback(async (subscriptionStatus, options = {}) => {
     if (!user) return null;
 
     return await apiCall('users/subscription', {
       method: 'PUT',
       body: JSON.stringify({
-        status: subscriptionStatus
+        status: subscriptionStatus,
+        paymentIntentId: options.paymentIntentId || undefined,
       })
     });
   }, [user, apiCall]);
@@ -106,7 +107,8 @@ export function useDatabase() {
           url: logoData.url,
           prompt: logoData.prompt || '',
           is_premium: logoData.is_premium || false,
-          file_format: logoData.file_format || 'png'
+          file_format: logoData.file_format || 'png',
+          editor_state: logoData.editor_state || null,
         }
       })
     });

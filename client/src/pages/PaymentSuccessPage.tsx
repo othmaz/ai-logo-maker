@@ -79,7 +79,7 @@ const PaymentSuccessPage: React.FC = () => {
 
           // Update database subscription status
           console.log('🔄 Calling updateUserSubscription function...')
-          const dbResult = await updateUserSubscription('premium')
+          const dbResult = await updateUserSubscription('premium', { paymentIntentId: paymentIntent })
           console.log('📊 Database update result:', dbResult)
 
           if (dbResult && dbResult.success) {
@@ -121,7 +121,7 @@ const PaymentSuccessPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <div className="container mx-auto px-4 pt-32 md:pt-40 lg:pt-48 pb-16">
+      <div className="container mx-auto px-4 pt-32 pb-16">
         <div className="max-w-4xl mx-auto text-center">
           <div className="mb-8 pt-12">
             <h1 className="retro-title text-2xl lg:text-4xl xl:text-5xl mb-6 text-white">

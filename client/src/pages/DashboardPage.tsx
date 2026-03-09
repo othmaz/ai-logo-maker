@@ -61,7 +61,7 @@ const DashboardPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
-      <div className="container mx-auto px-4 pt-24 md:pt-32 lg:pt-40 pb-16">
+      <div className="container mx-auto px-4 pt-32 pb-16">
         {!isSignedIn ? (
           <div className="text-center max-w-2xl mx-auto">
             <div className="text-center mb-12 pt-16 md:pt-20 lg:pt-24">
