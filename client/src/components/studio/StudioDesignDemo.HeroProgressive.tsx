@@ -1714,13 +1714,107 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       let effectiveSelectedIndices = Array.from(selectedIdxs)
         .filter(i => i >= 0 && i < latestRound.length && Boolean(latestRound[i]))
 
+      const parseExplicitRoundReference = (feedbackText: string): { roundNumber: number; logoNumber?: number } | null => {
+        const text = String(feedbackText || '').toLowerCase();
+        if (!text) return null;
+
+        const ordinalMap: Record<string, number> = {
+          first: 1,
+          second: 2,
+          third: 3,
+          fourth: 4,
+          fifth: 5,
+          sixth: 6,
+        };
+
+        let roundNumber: number | null = null;
+
+        const numericRoundMatch = text.match(/\bround\s*(\d{1,2})\b/i) || text.match(/\br\s*(\d{1,2})\b/i);
+        if (numericRoundMatch) {
+          roundNumber = Number(numericRoundMatch[1]);
+        }
+
+        if (!roundNumber) {
+          const ordinalRoundMatch = text.match(/\b(first|second|third|fourth|fifth|sixth)\s+round\b/i);
+          if (ordinalRoundMatch) {
+            roundNumber = ordinalMap[ordinalRoundMatch[1].toLowerCase()] || null;
+          }
+        }
+
+        if (!roundNumber || !Number.isFinite(roundNumber) || roundNumber < 1) return null;
+
+        let logoNumber: number | undefined;
+        const numericLogoMatch = text.match(/\blogo\s*(\d{1,2})\b/i) || text.match(/#\s*(\d{1,2})\b/);
+        if (numericLogoMatch) {
+          const parsed = Number(numericLogoMatch[1]);
+          if (Number.isFinite(parsed) && parsed > 0) {
+            logoNumber = parsed;
+          }
+        } else {
+          const ordinalLogoMatch = text.match(/\b(first|second|third|fourth|fifth|sixth)\s+logo\b/i);
+          if (ordinalLogoMatch) {
+            const parsed = ordinalMap[ordinalLogoMatch[1].toLowerCase()];
+            if (parsed) logoNumber = parsed;
+          }
+        }
+
+        return { roundNumber, logoNumber };
+      };
+
+      const explicitRoundReference = parseExplicitRoundReference(refineFeedback);
+      if (explicitRoundReference && wantsReference && uploadedAnchorRefs.length === 0) {
+        const targetRoundIndex = explicitRoundReference.roundNumber - 1;
+        const targetRound = logoRounds[targetRoundIndex] ?? [];
+        const targetRoundUrls = targetRound.filter(Boolean) as string[];
+
+        if (targetRoundUrls.length > 0) {
+          let chosenUrls: string[] = [];
+
+          const requestedLogoIdx = typeof explicitRoundReference.logoNumber === 'number'
+            ? explicitRoundReference.logoNumber - 1
+            : -1;
+
+          if (
+            requestedLogoIdx >= 0
+            && requestedLogoIdx < targetRound.length
+            && Boolean(targetRound[requestedLogoIdx])
+          ) {
+            chosenUrls = [targetRound[requestedLogoIdx] as string];
+          } else {
+            const stickyInTargetRound = stickySelectedRefUrls.filter(url => targetRoundUrls.includes(url));
+            if (stickyInTargetRound.length > 0) {
+              chosenUrls = stickyInTargetRound.slice(0, MAX_REFERENCE_IMAGES);
+            } else {
+              chosenUrls = [targetRoundUrls[0]];
+            }
+          }
+
+          const explicitRefs = (await Promise.all(
+            chosenUrls.map(url => urlToRef(url, 'selected'))
+          )).filter(Boolean) as ReferenceImagePayload[];
+
+          if (explicitRefs.length > 0) {
+            selectedRefs = explicitRefs.slice(0, MAX_REFERENCE_IMAGES);
+            setStickySelectedRefUrls(Array.from(new Set(chosenUrls)).slice(0, MAX_REFERENCE_IMAGES));
+
+            const logoMsg = explicitRoundReference.logoNumber ? ` logo ${explicitRoundReference.logoNumber}` : '';
+            showToast(`Using${logoMsg} from round ${explicitRoundReference.roundNumber} as reference.`, 'info');
+            console.log(`🎯 Explicit round reference detected in feedback → round ${explicitRoundReference.roundNumber}${logoMsg}`);
+          }
+        } else {
+          showToast(`Could not find logos in round ${explicitRoundReference.roundNumber}; using normal reference logic.`, 'warning');
+          console.log(`⚠️ Explicit round reference not found (round ${explicitRoundReference.roundNumber})`);
+        }
+      }
+
       // If user uploaded anchors, allow refinement to proceed without forcing a selected generated logo.
       // If no uploaded anchors exist and Director wants preserve/context, we try this order:
       // 1) explicit selection in current round
-      // 2) sticky refs from previously selected round
-      // 3) auto-select only available logo
-      // 4) ask user to select one
-      if (effectiveSelectedIndices.length === 0 && wantsReference && uploadedAnchorRefs.length === 0) {
+      // 2) explicit round reference in feedback
+      // 3) sticky refs from previously selected round
+      // 4) auto-select only available logo
+      // 5) ask user to select one
+      if (effectiveSelectedIndices.length === 0 && selectedRefs.length === 0 && wantsReference && uploadedAnchorRefs.length === 0) {
         if (stickySelectedRefUrls.length > 0) {
           const stickyRefs = (await Promise.all(
             stickySelectedRefUrls.map(url => urlToRef(url, 'selected'))
