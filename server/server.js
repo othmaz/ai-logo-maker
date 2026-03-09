@@ -916,145 +916,182 @@ function createPolygonFromPoints(points, gridSize) {
 const callGeminiAPI = async (prompt, referenceImages = [], generationProfile = 'free') => {
   const apiKey = process.env.GEMINI_API_KEY
   const imageSize = generationProfile === 'paid' ? PAID_IMAGE_SIZE : FREE_IMAGE_SIZE
-  
+  const maxAttempts = Math.max(1, Number(process.env.GEMINI_MAX_RETRIES || 2) + 1)
+  const baseRetryMs = Math.max(200, Number(process.env.GEMINI_RETRY_BASE_MS || 800))
+
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+  const retryableStatusCodes = new Set([408, 409, 425, 429, 500, 502, 503, 504])
+
+  const isRetryableError = (error) => {
+    const status = Number(error?.status || 0)
+    if (retryableStatusCodes.has(status)) return true
+
+    const message = String(error?.message || '')
+    const causeCode = String(error?.cause?.code || '')
+    const merged = `${message} ${causeCode}`
+
+    return /fetch failed|timeout|timed out|econnreset|und_err|socket|network/i.test(merged)
+  }
+
   console.log('🔑 API Key status:', apiKey ? `Present (${apiKey.length} chars)` : 'MISSING')
-  
+
   if (!apiKey) {
     console.warn('❌ GEMINI_API_KEY not set, using placeholder image')
     return generateEnhancedPlaceholder(prompt)
   }
 
-  try {
-    console.log('🔄 Initializing Gemini client...')
-    const ai = new GoogleGenAI({ apiKey: apiKey })
-    
-    // Use the prompt exactly as-is from the client - NO server modifications
-    // Client handles ALL instructions including refinement
-    const enhancedPrompt = prompt
+  console.log('🔄 Initializing Gemini client...')
+  const ai = new GoogleGenAI({ apiKey: apiKey })
 
-    if (referenceImages && referenceImages.length > 0) {
-      console.log('🎯 Refinement mode detected (reference images present)')
-    }
+  // Use the prompt exactly as-is from the client - NO server modifications
+  // Client handles ALL instructions including refinement
+  const enhancedPrompt = prompt
 
-    console.log('🚀 Attempting to generate logo with Gemini API...')
-    console.log('📝 Prompt:', enhancedPrompt.substring(0, 100) + '...')
-
-    console.log('📡 Calling ai.models.generateContent()...')
-
-    let contents
-
-    // Construct contents array with text + all selected reference images
-    if (referenceImages && referenceImages.length > 0) {
-      console.log(`🖼️ Using multimodal refinement with ${referenceImages.length} reference image(s)`)
-
-      const imageParts = referenceImages
-        .filter((image) => image?.data)
-        .map((image) => ({
-          inlineData: {
-            mimeType: image.mimeType || 'image/png',
-            data: image.data,
-          },
-        }))
-
-      contents = [{ text: enhancedPrompt }, ...imageParts]
-      console.log('📝 Sending to Gemini: text + all reference images')
-    } else {
-      contents = enhancedPrompt
-      console.log('📝 Sending to Gemini: text-only prompt')
-    }
-
-    console.log('🚀 CALLING GEMINI API NOW...')
-    console.log(`🎛️ Generation profile: ${generationProfile} | imageSize=${imageSize} | model=${GEMINI_IMAGE_MODEL}`)
-    const response = await ai.models.generateContent({
-      model: GEMINI_IMAGE_MODEL,
-      contents: contents,
-      config: {
-        responseModalities: ['IMAGE', 'TEXT'],
-        imageConfig: {
-          aspectRatio: '1:1',
-          imageSize,
-        },
-      }
-    })
-    console.log('✅ Gemini API call completed')
-    
-    console.log('📨 Received response from Gemini API')
-    console.log('🔍 Response structure:', {
-      candidates: response.candidates?.length || 0,
-      hasContent: !!response.candidates?.[0]?.content,
-      hasParts: !!response.candidates?.[0]?.content?.parts?.length,
-      hasInlineData: !!response.candidates?.[0]?.content?.parts?.[0]?.inlineData
-    })
-
-    // Check if we got image data - JavaScript uses inlineData not inline_data
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        console.log('✅ Found image data in response!')
-        const imageData = part.inlineData.data
-        const buffer = Buffer.from(imageData, "base64")
-
-        const outputBuffer = buffer
-        try {
-          const meta = await sharp(buffer).metadata()
-          if (meta.width && meta.height && meta.width !== meta.height) {
-            console.log(`📐 Gemini returned non-square output ${meta.width}x${meta.height}; preserving original ratio`)
-          }
-        } catch (normalizationError) {
-          console.warn('⚠️ Could not inspect generated image dimensions:', normalizationError.message)
-        }
-
-        // Optional: persist generated outputs to Blob.
-        // Default is OFF so only liked/final logos get persisted (via /api/logos/save).
-        const persistGeneratedToBlob = process.env.PERSIST_GENERATED_LOGOS_TO_BLOB === 'true'
-        if (persistGeneratedToBlob && process.env.BLOB_READ_WRITE_TOKEN) {
-          try {
-            const timestamp = Date.now()
-            const filename = `generated/logo-${timestamp}.png`
-
-            console.log(`📤 Uploading generated logo to Vercel Blob: ${filename}`)
-            const blob = await put(filename, outputBuffer, {
-              access: 'public',
-              contentType: 'image/png',
-              addRandomSuffix: false,
-            })
-
-            console.log(`✅ Generated logo uploaded to Vercel Blob: ${blob.url}`)
-            return blob.url
-          } catch (blobError) {
-            console.warn('⚠️ Generated Blob upload failed:', blobError.message)
-            console.log('💾 Falling back to data URL')
-          }
-        }
-
-        // Default path: return data URL (ephemeral) and persist only when user likes/saves.
-        if (!persistGeneratedToBlob) {
-          console.log('💾 Using base64 data URL (generated persistence disabled; liked logos are persisted on save)')
-        } else {
-          console.log('💾 Using base64 data URL (Blob token missing or upload failed)')
-        }
-        return `data:image/png;base64,${outputBuffer.toString('base64')}`
-      }
-    }
-    
-    // If no image generated, use enhanced placeholder
-    console.log('❌ No image data received, using placeholder')
-    console.log('📄 Response content:', JSON.stringify(response.candidates?.[0]?.content, null, 2))
-    return generateEnhancedPlaceholder(prompt, 'no-image-data')
-    
-  } catch (error) {
-    console.error('Gemini API Error:', error.status || error.message)
-    console.error('Full error details:', error)
-    
-    // Handle specific API errors
-    if (error.status === 429) {
-      console.log('⚠️  Gemini API quota exceeded - using enhanced placeholder')
-      return generateEnhancedPlaceholder(prompt, 'quota-exceeded')
-    }
-    
-    // Return enhanced placeholder on other errors
-    console.log('⚠️  Gemini API error - using enhanced placeholder')
-    return generateEnhancedPlaceholder(prompt, 'api-error')
+  if (referenceImages && referenceImages.length > 0) {
+    console.log('🎯 Refinement mode detected (reference images present)')
   }
+
+  console.log('🚀 Attempting to generate logo with Gemini API...')
+  console.log('📝 Prompt:', enhancedPrompt.substring(0, 100) + '...')
+
+  let contents
+
+  // Construct contents array with text + all selected reference images
+  if (referenceImages && referenceImages.length > 0) {
+    console.log(`🖼️ Using multimodal refinement with ${referenceImages.length} reference image(s)`)
+
+    const imageParts = referenceImages
+      .filter((image) => image?.data)
+      .map((image) => ({
+        inlineData: {
+          mimeType: image.mimeType || 'image/png',
+          data: image.data,
+        },
+      }))
+
+    contents = [{ text: enhancedPrompt }, ...imageParts]
+    console.log('📝 Sending to Gemini: text + all reference images')
+  } else {
+    contents = enhancedPrompt
+    console.log('📝 Sending to Gemini: text-only prompt')
+  }
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`📡 Calling ai.models.generateContent() (attempt ${attempt}/${maxAttempts})...`)
+      console.log(`🎛️ Generation profile: ${generationProfile} | imageSize=${imageSize} | model=${GEMINI_IMAGE_MODEL}`)
+
+      const response = await ai.models.generateContent({
+        model: GEMINI_IMAGE_MODEL,
+        contents: contents,
+        config: {
+          responseModalities: ['IMAGE', 'TEXT'],
+          imageConfig: {
+            aspectRatio: '1:1',
+            imageSize,
+          },
+        }
+      })
+      console.log('✅ Gemini API call completed')
+
+      console.log('📨 Received response from Gemini API')
+      console.log('🔍 Response structure:', {
+        candidates: response.candidates?.length || 0,
+        hasContent: !!response.candidates?.[0]?.content,
+        hasParts: !!response.candidates?.[0]?.content?.parts?.length,
+        hasInlineData: !!response.candidates?.[0]?.content?.parts?.[0]?.inlineData
+      })
+
+      // Check if we got image data - JavaScript uses inlineData not inline_data
+      const parts = response?.candidates?.[0]?.content?.parts || []
+      for (const part of parts) {
+        if (part.inlineData) {
+          console.log('✅ Found image data in response!')
+          const imageData = part.inlineData.data
+          const buffer = Buffer.from(imageData, 'base64')
+
+          const outputBuffer = buffer
+          try {
+            const meta = await sharp(buffer).metadata()
+            if (meta.width && meta.height && meta.width !== meta.height) {
+              console.log(`📐 Gemini returned non-square output ${meta.width}x${meta.height}; preserving original ratio`)
+            }
+          } catch (normalizationError) {
+            console.warn('⚠️ Could not inspect generated image dimensions:', normalizationError.message)
+          }
+
+          // Optional: persist generated outputs to Blob.
+          // Default is OFF so only liked/final logos get persisted (via /api/logos/save).
+          const persistGeneratedToBlob = process.env.PERSIST_GENERATED_LOGOS_TO_BLOB === 'true'
+          if (persistGeneratedToBlob && process.env.BLOB_READ_WRITE_TOKEN) {
+            try {
+              const timestamp = Date.now()
+              const filename = `generated/logo-${timestamp}.png`
+
+              console.log(`📤 Uploading generated logo to Vercel Blob: ${filename}`)
+              const blob = await put(filename, outputBuffer, {
+                access: 'public',
+                contentType: 'image/png',
+                addRandomSuffix: false,
+              })
+
+              console.log(`✅ Generated logo uploaded to Vercel Blob: ${blob.url}`)
+              return blob.url
+            } catch (blobError) {
+              console.warn('⚠️ Generated Blob upload failed:', blobError.message)
+              console.log('💾 Falling back to data URL')
+            }
+          }
+
+          // Default path: return data URL (ephemeral) and persist only when user likes/saves.
+          if (!persistGeneratedToBlob) {
+            console.log('💾 Using base64 data URL (generated persistence disabled; liked logos are persisted on save)')
+          } else {
+            console.log('💾 Using base64 data URL (Blob token missing or upload failed)')
+          }
+          return `data:image/png;base64,${outputBuffer.toString('base64')}`
+        }
+      }
+
+      const canRetryNoImage = attempt < maxAttempts
+      console.warn(`⚠️ No image data in Gemini response (attempt ${attempt}/${maxAttempts})`)
+      console.log('📄 Response content:', JSON.stringify(response.candidates?.[0]?.content, null, 2))
+
+      if (canRetryNoImage) {
+        const backoffMs = baseRetryMs * Math.pow(2, attempt - 1)
+        console.log(`🔁 Retrying Gemini call after ${backoffMs}ms (no-image-data)`)
+        await wait(backoffMs)
+        continue
+      }
+
+      console.log('❌ No image data received after retries, using placeholder')
+      return generateEnhancedPlaceholder(prompt, 'no-image-data')
+    } catch (error) {
+      console.error(`Gemini API Error (attempt ${attempt}/${maxAttempts}):`, error.status || error.message)
+      console.error('Full error details:', error)
+
+      const shouldRetry = attempt < maxAttempts && isRetryableError(error)
+      if (shouldRetry) {
+        const backoffMs = baseRetryMs * Math.pow(2, attempt - 1)
+        console.log(`🔁 Retrying Gemini call after ${backoffMs}ms due to retryable error`)
+        await wait(backoffMs)
+        continue
+      }
+
+      // Handle specific API errors
+      if (error.status === 429) {
+        console.log('⚠️  Gemini API quota exceeded - using enhanced placeholder')
+        return generateEnhancedPlaceholder(prompt, 'quota-exceeded')
+      }
+
+      // Return enhanced placeholder on other errors
+      console.log('⚠️  Gemini API error - using enhanced placeholder')
+      return generateEnhancedPlaceholder(prompt, 'api-error')
+    }
+  }
+
+  // Defensive fallback (should not normally be reached)
+  return generateEnhancedPlaceholder(prompt, 'api-error')
 }
 
 const generateEnhancedPlaceholder = (prompt, errorType = 'demo') => {
