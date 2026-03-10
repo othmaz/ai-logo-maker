@@ -2098,7 +2098,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
     : 16;
 
   return (
-    <div className="relative min-h-screen bg-[#050508] text-gray-200 overflow-x-hidden font-sans">
+    <div className="relative min-h-[100dvh] bg-[#050508] text-gray-200 overflow-x-hidden font-sans">
 
       {/* LAVA BACKGROUND */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-[#050508]"
@@ -2962,7 +2962,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       </div>
 
       {(visibleSteps.includes('done') || logoRounds.length > 0) && (
-        <footer className="relative z-10 w-full px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] flex justify-center">
+        <footer className="relative z-10 w-full px-4 pt-4 pb-[env(safe-area-inset-bottom)] flex justify-center">
           <div
             className="text-[11px] sm:text-xs text-gray-600 flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-4 py-2 rounded-xl max-w-full"
             style={{
