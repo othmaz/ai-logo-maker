@@ -16,8 +16,8 @@ type RefineSelectionModalState = {
   message: string;
 } | null;
 
-const STEP_SEQUENCE: Step[] = ['name', 'industry', 'style', 'logoType', 'dimension', 'color', 'background', 'tagline', 'inspiration', 'description', 'done'];
-const DEFAULT_RESUME_LOCKED_STEPS: Step[] = ['name', 'industry', 'style', 'logoType', 'dimension', 'color', 'background', 'tagline', 'description'];
+const STEP_SEQUENCE: Step[] = ['name', 'industry', 'style', 'logoType', 'dimension', 'color', 'background', 'inspiration', 'description', 'done'];
+const DEFAULT_RESUME_LOCKED_STEPS: Step[] = ['name', 'industry', 'style', 'logoType', 'dimension', 'color', 'background', 'description'];
 
 const ANON_CREDITS_LIMIT = 5;
 const SIGNIN_BONUS_CREDITS = 10;
@@ -92,8 +92,6 @@ const COLOR_SWATCHES = [
 ];
 
 const BACKGROUNDS = [
-  { label: 'Plain White', value: 'white',     desc: 'Clean white bg', hot: true },
-  { label: 'Neon',        value: 'neon',      desc: 'Glowing effect' },
   { label: 'Solid',       value: 'solid',     desc: 'Flat fill' },
   { label: 'Gradient',    value: 'gradient',  desc: 'Color blend' },
   { label: 'Glass',       value: 'glass',     desc: '3D frosted',  hot: true },
@@ -352,7 +350,8 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
   const [guidedAvoid,    setGuidedAvoid]    = useState<string[]>([]);
   const [colorUsageRules,     setColorUsageRules]     = useState('');
   const [background,     setBackground]     = useState('');
-  const [taglineChoice,  setTaglineChoice]  = useState<'none'|'with'|''>('');
+  const [showOtherBackgrounds, setShowOtherBackgrounds] = useState(false);
+  const [taglineChoice,  setTaglineChoice]  = useState<'none'|'with'|''>('none');
   const [taglineText,    setTaglineText]    = useState('');
   const [description,    setDescription]    = useState('');
   const [logoRounds,     setLogoRounds]     = useState<string[][]>([]);
@@ -533,14 +532,14 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
         if (hasRounds) setLogoRounds(data.logoRounds);
 
         if (Array.isArray(data.visibleSteps) && data.visibleSteps.length > 0) {
-          setVisibleSteps(data.visibleSteps);
+          setVisibleSteps(data.visibleSteps.filter((step: Step) => step !== 'tagline'));
         } else if (hasRounds) {
-          const fallbackSteps: Step[] = ['name','industry','style','logoType','dimension','color','background','tagline','inspiration','description','done'];
+          const fallbackSteps: Step[] = ['name','industry','style','logoType','dimension','color','background','inspiration','description','done'];
           setVisibleSteps(fallbackSteps);
         }
 
         if (Array.isArray(data.lockedSteps)) {
-          setLockedSteps(new Set(data.lockedSteps || []));
+          setLockedSteps(new Set((data.lockedSteps || []).filter((step: Step) => step !== 'tagline')));
         }
 
         if (hasRounds) {
@@ -895,6 +894,13 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
     }
   }, [generating, logoRounds.length]);
 
+  // If a non-white background is restored from saved state, keep advanced choices visible.
+  useEffect(() => {
+    if (background && background !== 'white') {
+      setShowOtherBackgrounds(true);
+    }
+  }, [background]);
+
   // Credit tracking: DB for signed-in users, localStorage for anon
   useEffect(() => {
     if (!isLoaded) return;
@@ -1016,7 +1022,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       setGuidedAvoid(Array.isArray(state.guidedAvoid) ? state.guidedAvoid.filter(Boolean) : []);
       setColorUsageRules(state.colorUsageRules || state.colorNotes || ''); // legacy fallback
       setBackground(state.background || '');
-      setTaglineChoice(state.taglineChoice === 'with' || state.taglineChoice === 'none' ? state.taglineChoice : '');
+      setTaglineChoice(state.taglineChoice === 'with' || state.taglineChoice === 'none' ? state.taglineChoice : 'none');
       setTaglineText(state.taglineText || '');
       setDescription(state.description || '');
       setVisibleSteps(normalizeStepArray(state.visibleSteps, STEP_SEQUENCE));
@@ -1063,7 +1069,18 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
   const handleStyleSelect     = (v: string) => { setStyle(v);     if (!isLocked('style'))      setTimeout(() => advanceTo('style',     'logoType'),    150); };
   const handleLogoTypeSelect  = (v: string) => { setLogoType(v);  if (!isLocked('logoType'))   setTimeout(() => advanceTo('logoType',  'dimension'),   150); };
   const handleDimensionSelect = (v: string) => { setDimension(v); if (!isLocked('dimension'))  setTimeout(() => advanceTo('dimension', 'color'),       150); };
-  const handleBackgroundSelect= (v: string) => { setBackground(v);if (!isLocked('background')) setTimeout(() => advanceTo('background','tagline'), 150); };
+  const handleBackgroundSelect = (v: string) => {
+    setBackground(v);
+    setShowOtherBackgrounds(v !== 'white');
+    if (!isLocked('background')) setTimeout(() => advanceTo('background', 'description'), 150);
+  };
+  const handleBackgroundModeSelect = (mode: 'white' | 'other') => {
+    if (mode === 'white') {
+      handleBackgroundSelect('white');
+      return;
+    }
+    setShowOtherBackgrounds(true);
+  };
 
   const handlePrimarySelect  = (label: string, hex: string) => {
     setColorMode('exact');
@@ -2069,7 +2086,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
     setBusinessName(''); setIndustry(''); setStyle(''); setLogoType(''); setDimension('');
     setPrimaryColor(''); setPrimaryHex(''); setShowSecondary(false); setSecondaryColor(''); setSecondaryHex(''); setShowTertiary(false); setTertiaryColor(''); setTertiaryHex('');
     setColorMode(''); setGuidedPalette(''); setGuidedVibe(''); setGuidedTemp(''); setGuidedContrast(''); setGuidedAvoid([]); setColorUsageRules('');
-    setBackground(''); setTaglineChoice(''); setTaglineText(''); setDescription(''); setGenerating(false); setLogoRounds([]); setGenError(''); setRefineFeedback(''); setRefineHistory([]); setSpecCore(null); setLatestDelta(null); setRefineError(''); setRefineSelectionModal(null); setIsRefining(false); setSelectedIdxs(new Set()); setStickySelectedRefUrls([]); setLikedUrls(new Set()); setUploadedImages([]); setImgPreviews([]); setTutorialStepIndex(-1); setTutorialHighlight(null); setIsTutorialStarting(false); setTutorialDismissedThisFlow(false); setHasSeenTutorial(false);
+    setBackground(''); setShowOtherBackgrounds(false); setTaglineChoice('none'); setTaglineText(''); setDescription(''); setGenerating(false); setLogoRounds([]); setGenError(''); setRefineFeedback(''); setRefineHistory([]); setSpecCore(null); setLatestDelta(null); setRefineError(''); setRefineSelectionModal(null); setIsRefining(false); setSelectedIdxs(new Set()); setStickySelectedRefUrls([]); setLikedUrls(new Set()); setUploadedImages([]); setImgPreviews([]); setTutorialStepIndex(-1); setTutorialHighlight(null); setIsTutorialStarting(false); setTutorialDismissedThisFlow(false); setHasSeenTutorial(false);
     setTimeout(() => nameRef.current?.focus(), 100);
   };
 
@@ -2600,73 +2617,51 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           {visibleSteps.includes('background') && !isUploadedEditMode && (
             <div ref={lastStep === 'background' ? latestStepRef : undefined} className="flex flex-col gap-3" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
               <label className="text-xs tracking-[0.25em] uppercase text-fuchsia-400/80 font-bold pl-1">Background Style</label>
-              <div className="grid grid-cols-3 gap-2">
-                {BACKGROUNDS.map(bg => (
-                  <button key={bg.value} onClick={() => handleBackgroundSelect(bg.value)}
-                    className="flex flex-col items-center rounded-xl overflow-hidden transition-all duration-200"
-                    style={{ ...pillBase(background===bg.value,'rgba(232,121,249,0.6)','linear-gradient(135deg,rgba(232,121,249,0.2),rgba(99,102,241,0.2))'), padding:'10px 10px 8px' }}>
-                    <div className="w-full h-12 mb-2 rounded-md overflow-hidden">
-                      <BgPreview value={bg.value} primaryHex={primaryHex||'#818cf8'} />
-                    </div>
-                    <span className="text-xs font-bold" style={{ color:background===bg.value?'#f0abfc':'#9ca3af' }}>
-                      {bg.label}{bg.hot && <HotBadge />}{recBg===bg.label && <RecBadge />}
-                    </span>
-                    <span className="text-[10px] mt-0.5" style={{ color:'#4b5563' }}>{bg.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleBackgroundModeSelect('white')}
+                  className="flex flex-col items-center rounded-xl overflow-hidden transition-all duration-200"
+                  style={{ ...pillBase(background === 'white' && !showOtherBackgrounds,'rgba(232,121,249,0.6)','linear-gradient(135deg,rgba(232,121,249,0.2),rgba(99,102,241,0.2))'), padding:'10px 10px 8px' }}
+                >
+                  <div className="w-full h-12 mb-2 rounded-md overflow-hidden">
+                    <BgPreview value="white" primaryHex={primaryHex||'#818cf8'} />
+                  </div>
+                  <span className="text-xs font-bold" style={{ color: background === 'white' && !showOtherBackgrounds ? '#f0abfc' : '#9ca3af' }}>
+                    Plain White{recBg==='Plain White' && <RecBadge />}
+                  </span>
+                  <span className="text-[10px] mt-0.5" style={{ color:'#4b5563' }}>Clean white bg</span>
+                </button>
 
-          {/* DESCRIPTION */}
-          {/* TAGLINE */}
-          {visibleSteps.includes('tagline') && !isUploadedEditMode && (
-            <div ref={lastStep === 'tagline' ? latestStepRef : undefined} className="flex flex-col gap-4" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
-              <label className="text-xs tracking-[0.25em] uppercase text-fuchsia-400/80 font-bold pl-1">Tagline on the logo?</label>
-              <div className="flex gap-3">
-                {(['none', 'with'] as const).map(choice => (
-                  <button
-                    key={choice}
-                    onClick={() => handleTaglineChoice(choice)}
-                    className="flex-1 py-4 rounded-2xl text-sm font-bold tracking-wide transition-all duration-200"
-                    style={{
-                      ...pillBase(taglineChoice === choice,
-                        choice === 'with' ? 'rgba(232,121,249,0.6)' : 'rgba(99,102,241,0.5)',
-                        choice === 'with'
-                          ? 'linear-gradient(135deg,rgba(232,121,249,0.25),rgba(99,102,241,0.2))'
-                          : 'linear-gradient(135deg,rgba(99,102,241,0.25),rgba(139,92,246,0.2))'),
-                      color: taglineChoice === choice ? (choice === 'with' ? '#f0abfc' : '#a5b4fc') : '#9ca3af',
-                    }}
-                  >
-                    {choice === 'none' ? 'No tagline' : 'Yes, add one'}
-                  </button>
-                ))}
+                <button
+                  onClick={() => handleBackgroundModeSelect('other')}
+                  className="flex flex-col items-center rounded-xl overflow-hidden transition-all duration-200"
+                  style={{ ...pillBase(showOtherBackgrounds || (background !== '' && background !== 'white'),'rgba(232,121,249,0.6)','linear-gradient(135deg,rgba(232,121,249,0.2),rgba(99,102,241,0.2))'), padding:'10px 10px 8px' }}
+                >
+                  <div className="w-full h-12 mb-2 rounded-md overflow-hidden" style={{ background:'linear-gradient(135deg,#0f172a 0%,#7c3aed 55%,#22d3ee 100%)' }} />
+                  <span className="text-xs font-bold" style={{ color: showOtherBackgrounds || (background !== '' && background !== 'white') ? '#f0abfc' : '#9ca3af' }}>
+                    Other
+                  </span>
+                  <span className="text-[10px] mt-0.5" style={{ color:'#4b5563' }}>Explore all styles</span>
+                </button>
               </div>
-              {taglineChoice === 'with' && (
-                <div className="flex flex-col gap-3">
-                  <input
-                    type="text"
-                    value={taglineText}
-                    onChange={e => setTaglineText(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && taglineText.trim()) { e.preventDefault(); handleTaglineConfirm(); } }}
-                    disabled={isLocked('tagline')}
-                    placeholder="e.g. Built for the bold"
-                    className="w-full rounded-2xl px-6 py-4 text-white placeholder-gray-600 focus:outline-none transition-all disabled:cursor-not-allowed"
-                    style={{ ...glassBase, fontSize:'1rem',
-                      border: isLocked('tagline') ? '1px solid rgba(232,121,249,0.4)' : '1px solid rgba(255,255,255,0.08)' }}
-                  />
-                  {!isLocked('tagline') && (
-                    <button
-                      onClick={handleTaglineConfirm}
-                      className="w-full py-3 rounded-xl text-sm font-bold tracking-widest uppercase transition-opacity duration-200"
-                      style={{ ...glassBase, border:'1px solid rgba(232,121,249,0.4)', color:'#f0abfc',
-                        textShadow:'0 0 20px rgba(232,121,249,0.5)',
-                        opacity: taglineText.trim() ? 1 : 0.3,
-                        pointerEvents: taglineText.trim() ? 'auto' : 'none' as any }}
-                    >
-                      Confirm Tagline →
-                    </button>
-                  )}
+
+              {showOtherBackgrounds && (
+                <div className="rounded-xl p-2" style={{ ...glassBase, border:'1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="grid grid-cols-2 gap-3">
+                    {BACKGROUNDS.map(bg => (
+                      <button key={bg.value} onClick={() => handleBackgroundSelect(bg.value)}
+                        className="flex flex-col items-center rounded-xl overflow-hidden transition-all duration-200"
+                        style={{ ...pillBase(background===bg.value,'rgba(232,121,249,0.6)','linear-gradient(135deg,rgba(232,121,249,0.2),rgba(99,102,241,0.2))'), padding:'10px 10px 8px' }}>
+                        <div className="w-full h-12 mb-2 rounded-md overflow-hidden">
+                          <BgPreview value={bg.value} primaryHex={primaryHex||'#818cf8'} />
+                        </div>
+                        <span className="text-xs font-bold" style={{ color:background===bg.value?'#f0abfc':'#9ca3af' }}>
+                          {bg.label}{bg.hot && <HotBadge />}{recBg===bg.label && <RecBadge />}
+                        </span>
+                        <span className="text-[10px] mt-0.5" style={{ color:'#4b5563' }}>{bg.desc}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -2753,7 +2748,6 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
                         : '',
                   colorUsageRules ? 'Color rules set' : '',
                   background,
-                  taglineChoice === 'with' && taglineText ? `Tagline: ${taglineText}` : taglineChoice === 'none' ? 'No tagline' : ''
                 ].filter(Boolean).map(tag => (
                   <span key={tag} className="text-xs px-3 py-1 rounded-full"
                     style={{ ...glassBase, border:'1px solid rgba(255,255,255,0.08)', color:'#9ca3af' }}>{tag}</span>
