@@ -390,6 +390,8 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
   const [restoringState, setRestoringState] = useState(true);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
   const [activeTooltipMobilePos, setActiveTooltipMobilePos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [isMobileHeaderHidden, setIsMobileHeaderHidden] = useState(false);
+  const lastHeaderScrollYRef = useRef(0);
   const INITIAL_GENERATION_COUNT = 3;
 
   const isUploadedEditMode = uploadedImages.length > 0 && logoRounds.length === 0;
@@ -580,6 +582,10 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
     return null;
   };
 
+  const getTutorialScrollOffset = () => (
+    typeof window !== 'undefined' && window.innerWidth < 640 ? 132 : 104
+  );
+
   const closeTutorial = () => {
     setTutorialStepIndex(-1);
     setIsTutorialStarting(false);
@@ -672,6 +678,52 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
   }, [activeTooltip]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const updateHeaderVisibility = () => {
+      const y = window.scrollY;
+      const isMobile = window.innerWidth < 640;
+
+      if (!isMobile) {
+        setIsMobileHeaderHidden(false);
+        lastHeaderScrollYRef.current = y;
+        return;
+      }
+
+      const delta = y - lastHeaderScrollYRef.current;
+
+      if (y <= 20) {
+        setIsMobileHeaderHidden(false);
+      } else if (delta > 8) {
+        setIsMobileHeaderHidden(true);
+      } else if (delta < -8) {
+        setIsMobileHeaderHidden(false);
+      }
+
+      lastHeaderScrollYRef.current = y;
+    };
+
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        updateHeaderVisibility();
+        ticking = false;
+      });
+    };
+
+    updateHeaderVisibility();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', updateHeaderVisibility);
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', updateHeaderVisibility);
+    };
+  }, []);
+
+  useEffect(() => {
     if (hasSeenTutorial) return;
     if (tutorialDismissedThisFlow) return;
     if (tutorialStepIndex >= 0) return;
@@ -681,7 +733,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
 
     setIsTutorialStarting(true);
     const firstTarget = getTutorialTarget(0) || doneRef.current;
-    scrollToEl(firstTarget, 96);
+    scrollToEl(firstTarget, getTutorialScrollOffset());
 
     const id = window.setTimeout(() => {
       setTutorialStepIndex(0);
@@ -719,8 +771,9 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       });
     };
 
-    if (tutorialStepIndex === 1) {
-      scrollToElCentered(refineRef.current, 96);
+    const tutorialTarget = getTutorialTarget(tutorialStepIndex);
+    if (tutorialTarget) {
+      scrollToEl(tutorialTarget, getTutorialScrollOffset());
     }
 
     updateHighlight();
@@ -826,12 +879,14 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
     }
   }, [visibleSteps.length]);
 
-  // Scroll to color confirm button once a color mode is selected
+  // Scroll to color confirm button only for manual exact-color mode on desktop
+  // (on mobile this felt too jumpy, especially when choosing palette mode)
   useEffect(() => {
-    if (colorMode && !lockedSteps.has('color')) {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) return;
+    if (colorMode === 'exact' && !lockedSteps.has('color')) {
       setTimeout(() => scrollToEl(colorConfirmRef.current, 120), 150);
     }
-  }, [colorMode]);
+  }, [colorMode, lockedSteps]);
 
   // Scroll to done card when generation completes (fallback only; placeholders already handle primary scroll)
   useEffect(() => {
@@ -2060,49 +2115,57 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       <div className="pointer-events-none fixed inset-0 z-[1]" style={{ backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }} />
 
       {/* HEADER */}
-      <div ref={headerRef} className="fixed top-0 left-0 w-full z-50 flex items-center justify-between px-10 py-6 pointer-events-none"
-        style={{ ...glassBase, borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-        <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="h-11 flex items-center font-black text-3xl leading-none tracking-tight pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity"
-          style={{ fontFamily:"'Impact','Arial Black','Helvetica Neue',sans-serif", textShadow:'0 0 30px rgba(139,92,246,0.6)' }}>
-          <span className="bg-gradient-to-r from-cyan-400 via-indigo-500 to-fuchsia-600 bg-clip-text text-transparent">CRAFTYOURLOGO</span>
-        </button>
-        <div className="flex items-center gap-4 pointer-events-auto">
-          {/* Collection icon */}
-          <button onClick={() => setShowCollection(true)}
-            className="icon-btn"
-            title="Collection">
-            <svg width="21" height="21" viewBox="0 0 24 24" fill={savedLogos.length > 0 ? '#f472b6' : 'none'} stroke={savedLogos.length > 0 ? '#f472b6' : '#9ca3af'} strokeWidth="2">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
-            {savedLogos.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center"
-                style={{ background:'rgba(244,114,182,0.9)', color:'#0a0a12' }}>{savedLogos.length}</span>
-            )}
+      <div
+        ref={headerRef}
+        className={`fixed top-0 left-0 w-full z-50 pointer-events-none transition-transform duration-300 ${isMobileHeaderHidden ? '-translate-y-full sm:translate-y-0' : 'translate-y-0'}`}
+        style={{ ...glassBase, borderBottom:'1px solid rgba(255,255,255,0.05)' }}
+      >
+        <div className="mx-auto w-full max-w-2xl px-5 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="header-logo-btn -ml-0.5 h-10 sm:h-11 flex items-center font-black text-[2rem] sm:text-3xl leading-none tracking-tight pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity"
+            style={{ fontFamily:"'Impact','Arial Black','Helvetica Neue',sans-serif", textShadow:'0 0 30px rgba(139,92,246,0.6)' }}
+          >
+            <span className="bg-gradient-to-r from-cyan-400 via-indigo-500 to-fuchsia-600 bg-clip-text text-transparent">CRAFTYOURLOGO</span>
           </button>
-          {/* Account icon */}
-          {isSignedIn ? (
-            <div className="relative w-11 h-11 flex items-center justify-center">
-              <UserButton afterSignOutUrl="/"
-                appearance={{ elements: {
-                  avatarBox: { width: '44px', height: '44px', borderRadius: '12px' },
-                  userButtonTrigger: { padding: 0 },
-                } }} />
-              {isPremiumUser() && (
-                <span className="absolute -top-1.5 -right-1.5 text-xs leading-none pointer-events-none" title="Premium"
-                  style={{ color:'#fbbf24', textShadow:'0 0 8px rgba(251,191,36,0.8)' }}>✦</span>
+
+          <div className="flex items-center gap-2.5 sm:gap-4 pointer-events-auto">
+            {/* Collection icon */}
+            <button onClick={() => setShowCollection(true)}
+              className="icon-btn header-icon-btn"
+              title="Collection">
+              <svg className="w-[18px] h-[18px] sm:w-[21px] sm:h-[21px]" viewBox="0 0 24 24" fill={savedLogos.length > 0 ? '#f472b6' : 'none'} stroke={savedLogos.length > 0 ? '#f472b6' : '#9ca3af'} strokeWidth="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+              {savedLogos.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[10px] font-bold flex items-center justify-center"
+                  style={{ background:'rgba(244,114,182,0.9)', color:'#0a0a12' }}>{savedLogos.length}</span>
               )}
-            </div>
-          ) : (
-            <SignInButton mode="modal">
-              <button className="icon-btn" title="Sign in">
-                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                  <circle cx="12" cy="7" r="4"/>
-                </svg>
-              </button>
-            </SignInButton>
-          )}
+            </button>
+            {/* Account icon */}
+            {isSignedIn ? (
+              <div className="relative header-user-btn flex items-center justify-center">
+                <UserButton afterSignOutUrl="/"
+                  appearance={{ elements: {
+                    avatarBox: { width: '44px', height: '44px', borderRadius: '12px' },
+                    userButtonTrigger: { padding: 0 },
+                  } }} />
+                {isPremiumUser() && (
+                  <span className="absolute -top-1.5 -right-1.5 text-xs leading-none pointer-events-none" title="Premium"
+                    style={{ color:'#fbbf24', textShadow:'0 0 8px rgba(251,191,36,0.8)' }}>✦</span>
+                )}
+              </div>
+            ) : (
+              <SignInButton mode="modal">
+                <button className="icon-btn header-icon-btn" title="Sign in">
+                  <svg className="w-[18px] h-[18px] sm:w-[21px] sm:h-[21px]" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </button>
+              </SignInButton>
+            )}
+          </div>
         </div>
       </div>
 
@@ -2164,8 +2227,8 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           {/* OPTIONAL LOGO UPLOAD (EARLY) */}
           {(visibleSteps.includes('industry') || isUploadedEditMode) && (
             <div className="rounded-2xl px-4 py-3 flex flex-col gap-3" style={{ ...glassBase, border:'1px solid rgba(255,255,255,0.08)', animation:'pSlideIn 0.5s ease-out both' }}>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-200">Already have a logo?</p>
                   <p className="text-xs text-gray-500">Upload it to redesign (optional).</p>
                   {isUploadedEditMode && (
@@ -2173,9 +2236,17 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
                   )}
                 </div>
                 {uploadedImages.length < 3 && (
-                  <label className="inline-flex items-center justify-center px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all"
-                    style={{ ...glassBase, border:'1px solid rgba(99,102,241,0.35)', color:'#a5b4fc' }}>
-                    Upload logo
+                  <label
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl cursor-pointer transition-all"
+                    style={{ ...glassBase, border:'1px solid rgba(99,102,241,0.35)', color:'#a5b4fc' }}
+                    title="Upload logo"
+                    aria-label="Upload logo"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 3v12" />
+                      <path d="m7 8 5-5 5 5" />
+                      <path d="M5 21h14" />
+                    </svg>
                     <input type="file" accept="image/*" multiple className="hidden" onChange={handleImageUpload} />
                   </label>
                 )}
@@ -2804,7 +2875,8 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-xs tracking-[0.2em] uppercase font-bold text-indigo-400/80">Refine selected logos</span>
                     {creditBalance !== null && (
-                      <span className="text-xs font-bold px-3 py-1 rounded-full"
+                      <span
+                        className="text-xs font-bold px-3 py-1 rounded-full inline-flex items-center justify-center text-center"
                         style={{ background: creditBalance > 3 ? 'rgba(99,102,241,0.15)' : 'rgba(239,68,68,0.15)',
                           border: `1px solid ${creditBalance > 3 ? 'rgba(99,102,241,0.35)' : 'rgba(239,68,68,0.4)'}`,
                           color:  creditBalance > 3 ? '#a5b4fc' : '#f87171' }}>
@@ -3429,6 +3501,31 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
         .icon-btn:hover {
           background: rgba(5,5,8,0.55);
           border-color: rgba(255,255,255,0.22);
+        }
+        .header-icon-btn {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+        }
+        .header-user-btn {
+          width: 44px;
+          height: 44px;
+        }
+        @media (max-width: 640px) {
+          .header-icon-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+          }
+          .header-user-btn {
+            width: 38px;
+            height: 38px;
+          }
+          .header-user-btn .cl-userButtonAvatarBox {
+            width: 38px !important;
+            height: 38px !important;
+            border-radius: 10px !important;
+          }
         }
         /* Suppress Clerk UserButton hover shiver */
         .cl-userButtonTrigger { transition: none !important; transform: none !important; }
