@@ -389,6 +389,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
   const [generating,     setGenerating]     = useState(false);
   const [restoringState, setRestoringState] = useState(true);
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const [activeTooltipMobilePos, setActiveTooltipMobilePos] = useState<{ top: number; left: number; width: number } | null>(null);
   const INITIAL_GENERATION_COUNT = 3;
 
   const isUploadedEditMode = uploadedImages.length > 0 && logoRounds.length === 0;
@@ -606,8 +607,31 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
     Abstract: 'An abstract geometric shape that represents your brand concept. Unique and highly distinctive.',
   };
 
-  const toggleTooltip = (key: string) => {
-    setActiveTooltip(prev => (prev === key ? null : key));
+  const toggleTooltip = (key: string, triggerEl?: HTMLElement | null) => {
+    setActiveTooltip(prev => {
+      const next = prev === key ? null : key;
+
+      if (!next) {
+        setActiveTooltipMobilePos(null);
+        return null;
+      }
+
+      if (typeof window !== 'undefined' && window.innerWidth < 640 && triggerEl) {
+        const rect = triggerEl.getBoundingClientRect();
+        const margin = 12;
+        const width = Math.min(320, Math.max(220, window.innerWidth - margin * 2));
+        const half = width / 2;
+        const centerX = rect.left + rect.width / 2;
+        const clampedLeft = Math.max(margin + half, Math.min(centerX, window.innerWidth - margin - half));
+        const top = Math.min(window.innerHeight - 16, rect.bottom + 10);
+
+        setActiveTooltipMobilePos({ top, left: clampedLeft, width });
+      } else {
+        setActiveTooltipMobilePos(null);
+      }
+
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -621,11 +645,30 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       const clickedTooltipTrigger = Boolean(target.closest('[data-logo-type-tooltip-trigger="true"]'));
       if (!clickedInsideTooltip && !clickedTooltipTrigger) {
         setActiveTooltip(null);
+        setActiveTooltipMobilePos(null);
       }
     };
 
     document.addEventListener('mousedown', handleOutsideTooltipClick);
     return () => document.removeEventListener('mousedown', handleOutsideTooltipClick);
+  }, [activeTooltip]);
+
+  useEffect(() => {
+    if (!activeTooltip) return;
+
+    const handleViewportChange = () => {
+      if (typeof window !== 'undefined' && window.innerWidth < 640) {
+        setActiveTooltip(null);
+        setActiveTooltipMobilePos(null);
+      }
+    };
+
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, { passive: true });
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange);
+    };
   }, [activeTooltip]);
 
   useEffect(() => {
@@ -1987,7 +2030,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
   const shouldRenderTutorial = tutorialStepIndex >= 0 && Boolean(activeTutorialStep);
   const viewportW = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const viewportH = typeof window !== 'undefined' ? window.innerHeight : 720;
-  const tutorialCardWidth = Math.min(420, viewportW - 32);
+  const tutorialCardWidth = Math.min(360, viewportW - 40);
   const tutorialCardLeft = tutorialHighlight
     ? Math.max(16, Math.min(tutorialHighlight.left, viewportW - tutorialCardWidth - 16))
     : 16;
@@ -2197,9 +2240,9 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
                   <div key={lt.label} className="relative">
                     <button
                       data-logo-type-tooltip-trigger="true"
-                      onClick={() => {
+                      onClick={(e) => {
                         handleLogoTypeSelect(lt.label);
-                        toggleTooltip(lt.label);
+                        toggleTooltip(lt.label, e.currentTarget);
                       }}
                       className="flex flex-col items-center px-5 py-3 rounded-xl transition-all duration-200 min-w-[90px]"
                       style={pillBase(logoType===lt.label,'rgba(34,211,238,0.6)','linear-gradient(135deg,rgba(34,211,238,0.2),rgba(99,102,241,0.2))')}>
@@ -2214,8 +2257,14 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
                     {activeTooltip === lt.label && (
                       <div
                         data-logo-type-tooltip="true"
-                        className="fixed sm:absolute z-[100] rounded-xl p-3 text-left left-1/2 -translate-x-1/2 bottom-4 sm:bottom-[calc(100%+12px)] w-[calc(100vw-1.5rem)] max-w-[22rem] sm:w-64"
+                        className={activeTooltipMobilePos
+                          ? 'fixed z-[100] rounded-xl p-3 text-left'
+                          : 'absolute z-[100] rounded-xl p-3 text-left left-1/2 -translate-x-1/2 bottom-[calc(100%+12px)] w-64'}
                         style={{
+                          top: activeTooltipMobilePos?.top,
+                          left: activeTooltipMobilePos?.left,
+                          width: activeTooltipMobilePos?.width,
+                          transform: activeTooltipMobilePos ? 'translateX(-50%)' : undefined,
                           background: 'rgba(5, 5, 8, 0.98)',
                           border: '1px solid rgba(34,211,238,0.35)',
                           boxShadow: '0 12px 40px rgba(0,0,0,0.6), 0 0 30px rgba(34,211,238,0.08)',
@@ -2227,21 +2276,23 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
                             <p className="text-xs text-gray-300 leading-relaxed">{LOGO_TYPE_DETAILS[lt.label]}</p>
                           </div>
                           <button
-                            onClick={(e) => { e.stopPropagation(); setActiveTooltip(null); }}
+                            onClick={(e) => { e.stopPropagation(); setActiveTooltip(null); setActiveTooltipMobilePos(null); }}
                             className="text-gray-500 hover:text-gray-300 text-xs flex-shrink-0"
                           >✕</button>
                         </div>
-                        <div
-                          className="hidden sm:block absolute w-3 h-3 rotate-45"
-                          style={{
-                            bottom: '-5px',
-                            left: '50%',
-                            marginLeft: '-6px',
-                            background: 'rgba(5, 5, 8, 0.98)',
-                            borderRight: '1px solid rgba(34,211,238,0.35)',
-                            borderBottom: '1px solid rgba(34,211,238,0.35)',
-                          }}
-                        />
+                        {!activeTooltipMobilePos && (
+                          <div
+                            className="absolute w-3 h-3 rotate-45"
+                            style={{
+                              bottom: '-5px',
+                              left: '50%',
+                              marginLeft: '-6px',
+                              background: 'rgba(5, 5, 8, 0.98)',
+                              borderRight: '1px solid rgba(34,211,238,0.35)',
+                              borderBottom: '1px solid rgba(34,211,238,0.35)',
+                            }}
+                          />
+                        )}
                       </div>
                     )}
                   </div>
@@ -2405,27 +2456,27 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
                     <span className="text-sm text-gray-300 font-semibold">Color palette</span>
                   </div>
 
-                  <div className="max-h-72 overflow-y-auto pr-1">
+                  <div className="max-h-80 overflow-y-auto pr-1">
                     {[...GUIDED_PALETTES].reverse().map((palette) => (
                       <button
                         key={palette.name}
                         onClick={() => setGuidedPalette(prev => prev === palette.name ? '' : palette.name)}
-                        className="w-full flex items-center justify-between px-2 py-3 rounded-lg transition-all"
+                        className="w-full flex items-center justify-between px-2 py-2 rounded-lg transition-all"
                         style={{ background: guidedPalette === palette.name ? 'rgba(34,211,238,0.12)' : 'transparent' }}
                       >
-                        <span className="flex flex-col items-start">
-                          <span className="text-lg text-gray-200">{palette.name}</span>
-                          <span className="text-[10px] text-gray-500">{palette.vibe}</span>
+                        <span className="flex flex-col items-start text-left pr-2">
+                          <span className="text-sm font-semibold leading-tight text-gray-200">{palette.name}</span>
+                          <span className="text-[9px] leading-tight text-gray-500">{palette.vibe}</span>
                         </span>
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1 shrink-0">
                           {palette.swatches.map((hex, idx) => (
                             <span
                               key={`${palette.name}-${idx}`}
-                              className="w-6 h-6 rounded-[4px]"
+                              className="w-5 h-5 rounded-[4px]"
                               style={{ background: hex }}
                             />
                           ))}
-                          <span className="text-xl ml-1" style={{ color: guidedPalette === palette.name ? '#67e8f9' : '#374151' }}>✓</span>
+                          <span className="text-base ml-1" style={{ color: guidedPalette === palette.name ? '#67e8f9' : '#374151' }}>✓</span>
                         </div>
                       </button>
                     ))}
@@ -2841,7 +2892,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       {(visibleSteps.includes('done') || logoRounds.length > 0) && (
         <footer className="relative z-10 w-full px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] flex justify-center">
           <div
-            className="text-xs text-gray-600 flex items-center gap-3 whitespace-nowrap overflow-x-auto px-4 py-2 rounded-xl"
+            className="text-[11px] sm:text-xs text-gray-600 flex flex-wrap items-center justify-center gap-2 sm:gap-3 px-4 py-2 rounded-xl max-w-full"
             style={{
               ...glassBase,
               border: '1px solid rgba(255,255,255,0.06)',
@@ -2854,7 +2905,8 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
             <span className="text-gray-700">·</span>
             <button onClick={() => setInfoModal('privacy')} className="hover:text-gray-400 transition-colors">Privacy</button>
             <span className="text-gray-700">·</span>
-            <span>© 2026 CraftYourLogo</span>
+            <span className="sm:hidden" aria-label="CraftYourLogo copyright">©</span>
+            <span className="hidden sm:inline">© 2026 CraftYourLogo</span>
           </div>
         </footer>
       )}
@@ -3136,7 +3188,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           />
 
           <div
-            className="absolute rounded-2xl p-5 pointer-events-auto"
+            className="absolute rounded-2xl p-3.5 sm:p-5 pointer-events-auto"
             style={{
               width: tutorialCardWidth,
               top: tutorialCardTop,
@@ -3148,11 +3200,11 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
               boxShadow: '0 16px 40px rgba(0,0,0,0.45)',
             }}
           >
-            <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-400/80 mb-2">
+            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.18em] text-cyan-400/80 mb-1.5 sm:mb-2">
               Quick tutorial · step {tutorialStepIndex + 1}/{tutorialSteps.length}
             </p>
-            <h4 className="text-xl font-bold text-white mb-2">{activeTutorialStep.title}</h4>
-            <p className="text-sm text-gray-300 leading-relaxed mb-4">{activeTutorialStep.description}</p>
+            <h4 className="text-lg sm:text-xl font-bold text-white mb-1.5 sm:mb-2">{activeTutorialStep.title}</h4>
+            <p className="text-xs sm:text-sm text-gray-300 leading-relaxed mb-3 sm:mb-4">{activeTutorialStep.description}</p>
 
             <div className="flex items-center justify-between gap-3">
               <button
