@@ -14,6 +14,16 @@ import './index.css'
 import AppRouter from './AppRouter'
 
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+// Silence verbose client debug logs in production unless explicitly re-enabled.
+if (import.meta.env.PROD) {
+  const forceLogs = import.meta.env.VITE_ENABLE_CONSOLE_LOGS === 'true'
+  if (!forceLogs) {
+    console.log = () => undefined
+    console.info = () => undefined
+    console.debug = () => undefined
+  }
+}
 if (!CLERK_PUBLISHABLE_KEY) {
   throw new Error("Missing Clerk Publishable Key")
 }

@@ -2839,11 +2839,14 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
       </div>
 
       {(visibleSteps.includes('done') || logoRounds.length > 0) && (
-        <footer className="relative z-10 w-full px-4 py-4 flex justify-center">
-          {/* Container with border matching content width */}
-          <div 
-            className="text-xs text-gray-600 flex items-center gap-3 whitespace-nowrap overflow-x-auto px-4 py-2"
-            style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
+        <footer className="relative z-10 w-full px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] flex justify-center">
+          <div
+            className="text-xs text-gray-600 flex items-center gap-3 whitespace-nowrap overflow-x-auto px-4 py-2 rounded-xl"
+            style={{
+              ...glassBase,
+              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgba(5,5,8,0.45)',
+            }}
           >
             <button onClick={() => setInfoModal('about')} className="hover:text-gray-400 transition-colors">About</button>
             <span className="text-gray-700">·</span>

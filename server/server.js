@@ -1403,6 +1403,18 @@ Produce the structured design brief JSON now.`
       }
     })
 
+    const usageMetadata = response?.usageMetadata || response?.usage || null
+    if (usageMetadata) {
+      const promptTokens = usageMetadata.promptTokenCount ?? usageMetadata.inputTokenCount ?? null
+      const candidatesTokens = usageMetadata.candidatesTokenCount ?? usageMetadata.outputTokenCount ?? null
+      const totalTokens = usageMetadata.totalTokenCount ?? (
+        Number.isFinite(promptTokens) && Number.isFinite(candidatesTokens)
+          ? promptTokens + candidatesTokens
+          : null
+      )
+      console.log(`   Tokens   : prompt=${promptTokens ?? 'n/a'} output=${candidatesTokens ?? 'n/a'} total=${totalTokens ?? 'n/a'}`)
+    }
+
     const raw = response.candidates?.[0]?.content?.parts?.[0]?.text || response.text?.() || ''
     let brief
     try {
@@ -1673,6 +1685,13 @@ Produce the structured design brief JSON now.`
       editScope: normalizedEditScope || null,
       detectedLogoType: normalizedDetectedLogoType || null,
       variantPlans,
+      usage: usageMetadata
+        ? {
+            promptTokenCount: usageMetadata.promptTokenCount ?? usageMetadata.inputTokenCount ?? null,
+            candidatesTokenCount: usageMetadata.candidatesTokenCount ?? usageMetadata.outputTokenCount ?? null,
+            totalTokenCount: usageMetadata.totalTokenCount ?? null,
+          }
+        : null,
     })
 
   } catch (err) {
