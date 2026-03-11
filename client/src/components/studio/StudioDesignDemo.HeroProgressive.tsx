@@ -2137,10 +2137,10 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
         className={`fixed top-0 left-0 w-full z-50 pointer-events-none transition-transform duration-300 ${isMobileHeaderHidden ? '-translate-y-full sm:translate-y-0' : 'translate-y-0'}`}
         style={{ ...glassBase, borderBottom:'1px solid rgba(255,255,255,0.05)' }}
       >
-        <div className="mx-auto w-full max-w-2xl px-5 sm:px-6 py-4 sm:py-6 flex items-center justify-between">
+        <div className="w-full px-3 sm:px-10 py-4 sm:py-6 flex items-center justify-between">
           <button
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="header-logo-btn -ml-0.5 h-10 sm:h-11 flex items-center font-black text-[2rem] sm:text-3xl leading-none tracking-tight pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity"
+            className="header-logo-btn ml-1 sm:ml-0 h-10 sm:h-11 flex items-center font-black text-[2rem] sm:text-3xl leading-none tracking-tight pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity"
             style={{ fontFamily:"'Impact','Arial Black','Helvetica Neue',sans-serif", textShadow:'0 0 30px rgba(139,92,246,0.6)' }}
           >
             <span className="bg-gradient-to-r from-cyan-400 via-indigo-500 to-fuchsia-600 bg-clip-text text-transparent">CRAFTYOURLOGO</span>
