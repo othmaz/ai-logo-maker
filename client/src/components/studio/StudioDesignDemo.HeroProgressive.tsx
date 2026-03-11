@@ -2205,7 +2205,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
               }}
             >
               <div className="flex flex-col gap-3">
-                <label className="text-xs tracking-[0.25em] uppercase text-cyan-400/80 font-bold pl-1">Business Name</label>
+                <label className="text-sm tracking-[0.2em] uppercase text-cyan-400/80 font-extrabold pl-1">Business Name</label>
                 <div className="relative">
                   <input ref={nameRef} type="text" value={businessName}
                     onChange={e => setBusinessName(e.target.value)}
@@ -2287,7 +2287,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           {/* INDUSTRY */}
           {visibleSteps.includes('industry') && !isUploadedEditMode && (
             <div ref={lastStep === 'industry' ? latestStepRef : industryRef} className="flex flex-col gap-3" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
-              <label className="text-xs tracking-[0.25em] uppercase text-indigo-400/80 font-bold pl-1">Industry</label>
+              <label className="text-sm tracking-[0.2em] uppercase text-indigo-400/80 font-extrabold pl-1">Industry</label>
               <div className="flex flex-wrap gap-2">
                 {INDUSTRIES.map(ind => (
                   <button key={ind.label} onClick={() => handleIndustrySelect(ind.label)}
@@ -2304,7 +2304,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           {/* STYLE */}
           {visibleSteps.includes('style') && !isUploadedEditMode && (
             <div ref={lastStep === 'style' ? latestStepRef : undefined} className="flex flex-col gap-3" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
-              <label className="text-xs tracking-[0.25em] uppercase text-fuchsia-400/80 font-bold pl-1">Visual Style</label>
+              <label className="text-sm tracking-[0.2em] uppercase text-fuchsia-400/80 font-extrabold pl-1">Visual Style</label>
               <div className="flex flex-wrap gap-2">
                 {STYLES.map(s => (
                   <button key={s.label} onClick={() => handleStyleSelect(s.label)}
@@ -2322,7 +2322,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           {/* LOGO TYPE */}
           {visibleSteps.includes('logoType') && !isUploadedEditMode && (
             <div ref={lastStep === 'logoType' ? latestStepRef : undefined} className="flex flex-col gap-3" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
-              <label className="text-xs tracking-[0.25em] uppercase text-cyan-400/80 font-bold pl-1">Logo Type</label>
+              <label className="text-sm tracking-[0.2em] uppercase text-cyan-400/80 font-extrabold pl-1">Logo Type</label>
               <div className="flex flex-wrap gap-2">
                 {LOGO_TYPES.map(lt => (
                   <div key={lt.label} className="relative">
@@ -2392,7 +2392,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           {/* DIMENSION */}
           {visibleSteps.includes('dimension') && !isUploadedEditMode && (
             <div ref={lastStep === 'dimension' ? latestStepRef : undefined} className="flex flex-col gap-3" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
-              <label className="text-xs tracking-[0.25em] uppercase text-indigo-400/80 font-bold pl-1">Dimension</label>
+              <label className="text-sm tracking-[0.2em] uppercase text-indigo-400/80 font-extrabold pl-1">Dimension</label>
               <div className="flex gap-3">
                 {DIMENSIONS.map(d => (
                   <button key={d.label} onClick={() => handleDimensionSelect(d.label)}
@@ -2412,7 +2412,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           {/* COLOR */}
           {visibleSteps.includes('color') && (
             <div ref={lastStep === 'color' ? latestStepRef : undefined} className="flex flex-col gap-4" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
-              <label className="text-xs tracking-[0.25em] uppercase text-cyan-400/80 font-bold pl-1">Brand Color</label>
+              <label className="text-sm tracking-[0.2em] uppercase text-cyan-400/80 font-extrabold pl-1">Brand Color</label>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 {([
@@ -2616,7 +2616,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           {/* BACKGROUND */}
           {visibleSteps.includes('background') && !isUploadedEditMode && (
             <div ref={lastStep === 'background' ? latestStepRef : undefined} className="flex flex-col gap-3" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
-              <label className="text-xs tracking-[0.25em] uppercase text-fuchsia-400/80 font-bold pl-1">Background Style</label>
+              <label className="text-sm tracking-[0.2em] uppercase text-fuchsia-400/80 font-extrabold pl-1">Background Style</label>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => handleBackgroundModeSelect('white')}
@@ -2670,7 +2670,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
           {/* INSPIRATION IMAGES */}
           {visibleSteps.includes('inspiration') && !isUploadedEditMode && (
             <div ref={lastStep === 'inspiration' ? latestStepRef : undefined} className="flex flex-col gap-3" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
-              <label className="text-xs tracking-[0.25em] uppercase text-indigo-400/80 font-bold pl-1">
+              <label className="text-sm tracking-[0.2em] uppercase text-indigo-400/80 font-extrabold pl-1">
                 Style inspiration <span className="text-gray-600 normal-case tracking-normal font-normal">(optional — up to 3 images)</span>
               </label>
               <div className="flex gap-3 flex-wrap">
@@ -2701,7 +2701,7 @@ const StudioDesignDemoHeroProgressive: React.FC = () => {
 
           {visibleSteps.includes('description') && (
             <div ref={lastStep === 'description' ? latestStepRef : undefined} className="flex flex-col gap-3" style={{ animation:'pSlideIn 0.5s ease-out both' }}>
-              <label className="text-xs tracking-[0.25em] uppercase text-indigo-400/80 font-bold pl-1">
+              <label className="text-sm tracking-[0.2em] uppercase text-indigo-400/80 font-extrabold pl-1">
                 {isUploadedEditMode ? 'Edit instructions' : 'Tell us more'} <span className="text-gray-600 normal-case tracking-normal font-normal">(optional)</span>
               </label>
               <textarea value={description} onChange={e => setDescription(e.target.value)}
